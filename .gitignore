@@ -25,5 +25,5 @@ sessions/
 # RAG test indexes
 rag/test_indexes/
 
-# Data conversion temp files
-data/**/*.xml.json
+# Data folder
+data/
