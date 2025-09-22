@@ -1,0 +1,177 @@
+@echo off
+setlocal EnableDelayedExpansion
+rem Don't remove the two jump line after than the next line [set NL=^]
+set NL=^
+
+rem "name" and "dirout" are named according to the testcase
+set name=%~1
+if "%name%"=="" set name=CaseTest
+set dirout=%name%_out
+set diroutdata=%dirout%\data
+
+rem "executables" are renamed and called from their directory
+set dirbin=%~2
+if "%dirbin%"=="" set dirbin=../bin/windows
+set gencase="%dirbin%\GenCase_win64.exe"
+set dualsphysicscpu="%dirbin%\DualSPHysics5.4CPU_win64.exe"
+set dualsphysicsgpu="%dirbin%\DualSPHysics5.4_win64.exe"
+set boundaryvtk="%dirbin%\BoundaryVTK_win64.exe"
+set partvtk="%dirbin%\PartVTK_win64.exe"
+set partvtkout="%dirbin%\PartVTKOut_win64.exe"
+set measuretool="%dirbin%\MeasureTool_win64.exe"
+set computeforces="%dirbin%\ComputeForces_win64.exe"
+set isosurface="%dirbin%\IsoSurface_win64.exe"
+set flowtool="%dirbin%\FlowTool_win64.exe"
+set floatinginfo="%dirbin%\FloatingInfo_win64.exe"
+set tracerparts="%dirbin%\TracerParts_win64.exe"
+
+set mode=%~3
+if "%mode%"=="" set mode=CPU
+if /I "%mode%"=="GPU" (
+    set solver=%dualsphysicsgpu%
+) else (
+    set solver=%dualsphysicscpu%
+)
+
+set errorcode=0
+
+rem Stage control flags
+if "%RUN_GENCASE%"=="" set RUN_GENCASE=1
+if "%RUN_SOLVER%"=="" set RUN_SOLVER=1
+if "%RUN_POST%"=="" set RUN_POST=1
+
+:menu
+if exist "%dirout%" (
+    if /I "%DSPH_AUTODELETE_OUT%"=="1" goto run
+    set /p option=The folder "%dirout%" already exists. Choose an option.!NL!  [1]- Delete it and continue.!NL!  [2]- Execute post-processing.!NL!  [3]- Abort and exit.!NL!
+    if "!option!"=="1" goto run
+    if "!option!"=="2" goto postprocessing
+    if "!option!"=="3" (
+        set errorcode=1
+        goto fail
+    )
+    goto menu
+)
+
+:run
+rem "dirout" to store results is removed if it already exists
+if "%RUN_GENCASE%"=="1" (
+    if exist "%dirout%" rd /s /q "%dirout%"
+)
+
+rem CODES are executed according the selected parameters of execution in this testcase
+
+rem Executes GenCase to create initial files for simulation.
+if "%RUN_GENCASE%"=="1" (
+    %gencase% "%name%_Def" "%dirout%\%name%" -save:all
+    if not "%ERRORLEVEL%"=="0" (
+        set errorcode=101
+        goto fail
+    )
+)
+
+if "%RUN_GENCASE%"=="1" (
+    if "%RUN_SOLVER%"=="0" if "%RUN_POST%"=="0" goto success
+)
+
+rem Executes DualSPHysics to simulate SPH method.
+if "%RUN_SOLVER%"=="1" (
+    %solver% "%dirout%\%name%" "%dirout%"
+    if not "%ERRORLEVEL%"=="0" (
+        set errorcode=102
+        goto fail
+    )
+) else (
+    if "%RUN_POST%"=="1" goto postprocessing
+    goto success
+)
+
+:postprocessing
+if not "%RUN_POST%"=="1" goto success
+rem Executes PartVTK to create VTK files with particles.
+set dirout2=%dirout%\particles
+if not exist "%dirout2%" mkdir "%dirout2%"
+%partvtk% -dirdata "%diroutdata%" -savevtk "%dirout2%\PartMoving" -onlytype:-all,+moving -vars:+idp,+vel,+rhop,+press
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=201
+    goto fail
+)
+%partvtk% -dirdata "%diroutdata%" -savevtk "%dirout2%\PartFloating" -onlytype:-all,+floating
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=202
+    goto fail
+)
+%partvtk% -dirdata "%diroutdata%" -savevtk "%dirout2%\PartFluid" -onlytype:-all,+fluid
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=203
+    goto fail
+)
+
+rem Executes PartVTKOut to create VTK files with excluded particles.
+%partvtkout% -dirdata "%diroutdata%" -savevtk "%dirout2%\PartFluidOut" -SaveResume "%dirout2%\_ResumeFluidOut"
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=204
+    goto fail
+)
+
+rem Executes MeasureTool to create VTK files with velocity and a CSV file with velocity at each simulation time.
+set dirout2=%dirout%\measuretool
+if not exist "%dirout2%" mkdir "%dirout2%"
+%measuretool% -dirdata "%diroutdata%" -points CaseDambreak_PointsVelocity.txt -onlytype:-all,+fluid -vars:-all,+vel.x,+vel.m -savevtk "%dirout2%\PointsVelocity" -savecsv "%dirout2%\_PointsVelocity"
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=211
+    goto fail
+)
+
+rem Executes MeasureTool to create VTK files with incorrect pressure and a CSV file with value at each simulation time.
+%measuretool% -dirdata "%diroutdata%" -points CaseDambreak_PointsPressure_Incorrect.txt -onlytype:-all,+fluid -vars:-all,+press,+kcorr -kcusedummy:0 -kclimit:0.5 -savevtk "%dirout2%\PointsPressure_Incorrect" -savecsv "%dirout2%\_PointsPressure_Incorrect"
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=212
+    goto fail
+)
+
+rem Executes MeasureTool to create VTK files with correct pressure and a CSV file with value at each simulation time.
+%measuretool% -dirdata "%diroutdata%" -points CaseDambreak_PointsPressure_Correct.txt -onlytype:-all,+fluid -vars:-all,+press,+kcorr -kcusedummy:0 -kclimit:0.5 -savevtk "%dirout2%\PointsPressure_Correct" -savecsv "%dirout2%\_PointsPressure_Correct"
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=213
+    goto fail
+)
+
+rem Executes ComputeForces to create a CSV file with force at each simulation time.
+set dirout2=%dirout%\forces
+if not exist "%dirout2%" mkdir "%dirout2%"
+%computeforces% -dirdata "%diroutdata%" -onlymk:20 -viscoart:0.1 -savecsv "%dirout2%\_ForceBuilding"
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=221
+    goto fail
+)
+
+rem Executes IsoSurface to create VTK files with surface fluid and slices of surface.
+set dirout2=%dirout%\surface
+if not exist "%dirout2%" mkdir "%dirout2%"
+set planesy="-slicevec:0:0.1:0:0:1:0 -slicevec:0:0.2:0:0:1:0 -slicevec:0:0.3:0:0:1:0 -slicevec:0:0.4:0:0:1:0 -slicevec:0:0.5:0:0:1:0 -slicevec:0:0.6:0:0:1:0"
+set planesx="-slicevec:0.1:0:0:1:0:0 -slicevec:0.2:0:0:1:0:0 -slicevec:0.3:0:0:1:0:0 -slicevec:0.4:0:0:1:0:0 -slicevec:0.5:0:0:1:0:0 -slicevec:0.6:0:0:1:0:0 -slicevec:0.7:0:0:1:0:0 -slicevec:0.8:0:0:1:0:0 -slicevec:0.9:0:0:1:0:0 -slicevec:1.0:0:0:1:0:0"
+set planesd="-slice3pt:0:0:0:1:0.7:0:1:0.7:1"
+%isosurface% -dirdata "%diroutdata%" -saveiso "%dirout2%\Surface" -vars:-all,vel,rhop,idp,type -saveslice "%dirout2%\Slices" %planesy% %planesx% %planesd%
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=231
+    goto fail
+)
+
+rem Executes FlowTool to create VTK files with particles assigned to different zones and a CSV file with information of each zone.
+set dirout2=%dirout%\flow
+if not exist "%dirout2%" mkdir "%dirout2%"
+%flowtool% -dirdata "%diroutdata%" -fileboxes CaseDambreak_FileBoxes.txt -savecsv "%dirout2%\_ResultFlow.csv" -savevtk "%dirout2%\Boxes.vtk"
+if not "%ERRORLEVEL%"=="0" (
+    set errorcode=241
+    goto fail
+)
+
+:success
+echo All done
+exit /b 0
+
+:fail
+if "%errorcode%"=="0" set errorcode=1
+echo Execution aborted.
+exit /b %errorcode%

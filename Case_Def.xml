@@ -1,0 +1,135 @@
+<case>
+  <casedef>
+    <constantsdef>
+      <gravity x="0" y="0" z="-9.81" />
+      <rhop0 value="1000"/>
+      <rhopgradient value="2"/>
+      <hswl value="0" auto="true"/>
+      <gamma value="7"/>
+      <speedsystem value="0" auto="true"/>
+      <coefsound value="20"/>
+      <speedsound value="0" auto="true"/>
+      <coefh value="1.0"/>
+      <_hdp value="2"/>
+      <cflnumber value="0.2"/>
+    </constantsdef>
+    <mkconfig boundcount="240" fluidcount="10"/>
+    <geometry>
+      <predefinition>
+        <newvarcte mdbc="false"/>
+        <newvarcte dom_padding="0.1"/>
+        <newvarcte tank_min_x="0.0" tank_max_x="0.8" tank_min_z="0.0" tank_max_z="0.6"/>
+        <newvarcte fluid_min_x="#tank_min_x" fluid_max_x="0.2" fluid_min_z="#tank_min_z" fluid_max_z="0.4"/>
+      </predefinition>
+      <definition dp="0.01">
+        <pointref x="0" y="0" z="0"/>
+        <pointmin x="-0.4" y="0.0" z="-0.3"/>
+        <pointmax x="1.2" y="0.0" z="0.9"/>
+      </definition>
+      <commands>
+        <list name="GeometryForNormals">
+          <setactive drawpoints="0" drawshapes="1"/>
+          <setshapemode>actual | bound</setshapemode>
+          <setmkbound mk="0"/>
+          <drawextrude closed="false">
+            <point x="#tank_min_x+Dp/2" y="#-dom_padding" z="#tank_max_z"/>
+            <point x="#tank_min_x+Dp/2" y="#-dom_padding" z="#tank_min_z+Dp/2"/>
+            <point x="#tank_max_x-Dp/2" y="#-dom_padding" z="#tank_min_z+Dp/2"/>
+            <point x="#tank_max_x-Dp/2" y="#-dom_padding" z="#tank_max_z"/>
+            <extrude x="0" y="#2*dom_padding" z="0"/>
+          </drawextrude>
+          <shapeout file="hdp"/>
+          <resetdraw/>
+        </list>
+        <mainlist>
+          <runlist name="GeometryForNormals"/>
+          <setdrawmode mode="full"/>
+          <!-- Fluid block -->
+          <setmkfluid mk="0"/>
+          <drawbox>
+            <boxfill>solid</boxfill>
+            <point x="#fluid_min_x" y="#-dom_padding" z="#fluid_min_z"/>
+            <size x="#fluid_max_x-fluid_min_x" y="#2*dom_padding" z="#fluid_max_z-fluid_min_z"/>
+          </drawbox>
+          <!-- Tank boundaries with thickness -->
+          <setmkbound mk="0"/>
+          <!-- Left and right walls (layered) -->
+          <drawbox>
+            <boxfill>left | right</boxfill>
+            <point x="#tank_min_x" y="#-dom_padding" z="#tank_min_z"/>
+            <size x="#tank_max_x-tank_min_x" y="#2*dom_padding" z="#tank_max_z-tank_min_z"/>
+            <layers vdp="0,1,2,3,4"/>
+          </drawbox>
+          <!-- Bottom wall (layered thicker) -->
+          <drawbox>
+            <boxfill>bottom</boxfill>
+            <point x="#tank_min_x-4*Dp" y="#-dom_padding" z="#tank_min_z"/>
+            <size x="#tank_max_x-tank_min_x+8*Dp" y="#2*dom_padding" z="#tank_max_z-tank_min_z"/>
+            <layers vdp="0,1,2,3,4,5,6,7,8"/>
+          </drawbox>
+        </mainlist>
+      </commands>
+    </geometry>
+    <normals active="true">
+      <norgeometry>
+        <geometryfile file="[CaseName]_hdp_Actual.vtk"/>
+        <distanceh v="2"/>
+        <maxsizeh v="0"/>
+        <svshapes v="true"/>
+      </norgeometry>
+    </normals>
+  </casedef>
+  <execution>
+    <special>
+      <gauges>
+        <default>
+          <savevtkpart value="true"/>
+          <output value="true"/>
+        </default>
+        <swl name="Swl_x02">
+          <pointdp coefdp="0.5"/>
+          <point0 x="0.2" y="0" z="-0.05"/>
+          <point2 x="0.2" y="0" z="2.1"/>
+        </swl>
+        <swl name="Swl_z003">
+          <computedt value="0.005"/>
+          <outputdt value="0.005"/>
+          <pointdp coefdp="0.5"/>
+          <point0 x="-0.05" y="0" z="0.03"/>
+          <point2 x="4.05" y="0" z="0.03"/>
+        </swl>
+      </gauges>
+    </special>
+    <parameters>
+      <parameter key="SavePosDouble" value="0"/>
+      <parameter key="StepAlgorithm" value="1"/>
+      <parameter key="VerletSteps" value="40"/>
+      <parameter key="Kernel" value="2"/>
+      <parameter key="ViscoTreatment" value="1"/>
+      <parameter key="Visco" value="0.02"/>
+      <parameter key="ViscoBoundFactor" value="1"/>
+      <parameter key="DensityDT" value="2"/>
+      <parameter key="DensityDTvalue" value="0.1"/>
+      <parameter key="Shifting" value="0"/>
+      <parameter key="ShiftCoef" value="-2"/>
+      <parameter key="ShiftTFS" value="0"/>
+      <parameter key="RigidAlgorithm" value="1"/>
+      <parameter key="FtPause" value="0.0"/>
+      <parameter key="CoefDtMin" value="0.05"/>
+      <parameter key="DtIni" value="0"/>
+      <parameter key="DtMin" value="0"/>
+      <parameter key="DtFixed" value="0"/>
+      <parameter key="DtFixedFile" value="NONE"/>
+      <parameter key="DtAllParticles" value="0"/>
+      <parameter key="TimeMax" value="2.0"/>
+      <parameter key="TimeOut" value="0.01"/>
+      <parameter key="PartsOutMax" value="1"/>
+      <parameter key="RhopOutMin" value="700"/>
+      <parameter key="RhopOutMax" value="1300"/>
+    </parameters>
+    <simulationdomain>
+      <posmin x="default" y="default" z="default"/>
+      <posmax x="default" y="default" z="default + 50%"/>
+    </simulationdomain>
+  </execution>
+</case>
