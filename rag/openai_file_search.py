@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import httpx
+import time
+import random
+from openai import APIConnectionError, APITimeoutError
 from openai import OpenAI, BadRequestError
 from openai.types.responses import Response
 from openai.types.responses.response_file_search_tool_call import ResponseFileSearchToolCall
@@ -631,7 +634,23 @@ def response_with_file_search(
         request_kwargs["temperature"] = float(temperature)
     if reasoning:
         request_kwargs["reasoning"] = reasoning
-    response = client.responses.create(**request_kwargs)
+
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            response = client.responses.create(**request_kwargs)
+            break
+        except (APIConnectionError, APITimeoutError) as e:
+            if attempt < max_retries:
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                LOGGER.warning(f"Connection/timeout error on attempt {attempt + 1}, retrying in {wait_time:.1f}s: {e}")
+                time.sleep(wait_time)
+                continue
+            else:
+                raise
+        except Exception as e:
+            # Re-raise non-connection errors immediately
+            raise
 
     text = (getattr(response, "output_text", None) or "").strip()
     tool_calls = _collect_tool_calls(response)

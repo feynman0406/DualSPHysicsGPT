@@ -8,3 +8,4 @@
 [Fix Suggestions from Fixer]
 {fix_plan}
 [Constraints] Strictly adhere to the user's feedback and the fix suggestions.
+- Enforce Predefinition/newvarcte Schema Canon: never use name/value; always attribute-style variables.

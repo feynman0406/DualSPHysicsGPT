@@ -108,7 +108,7 @@ def llm_call(
     model: str,
     reasoning: Optional[Dict[str, str]] = None,   # e.g. {"effort":"high"}
     temperature: Optional[float] = None,
-    max_tokens: int = 8192 ,
+    max_tokens: int = 20480 ,
     stop: Optional[List[str]] = None,
     file_search_vs_ids: Optional[List[str]] = None,
     metadata_filter: Optional[Dict[str, Any]] = None,

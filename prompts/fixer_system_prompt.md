@@ -11,6 +11,12 @@
 
 0) 單一輸出格式（嚴格）
 fixer_output:
+  # —— 檢索與錯誤分類（請務必填寫）——
+  error_type: <A|B>                      # A=規則/格式/小語法錯誤（不更換依據）；B=依據不足/矛盾（可申請解鎖再檢索）
+  retrieval:
+    request_unlock: <true|false>         # A 類請設 false；僅在 B 類且明確指出缺口時可設 true
+    reason: <若為 true，簡述需要補充的主題/欄位與關鍵詞>
+    citations_required: [<可選，關鍵詞或主題>]
  {# ====== 直接指揮 Generator 的交付契約 ======
   generator_task:
     target_file: "Case_Def.xml"
@@ -160,6 +166,39 @@ fixer_output:
 
   notes:
     - <可選；1–3 條簡短備註；不得包含完整 XML>}
+
+Fixer Examples — 將 name/value 轉為屬性式
+
+[Previous XML]
+<predefinition>
+  <newvarcte name="mdbc" value="false"/>
+  <newvarcte name="dom_padding" value="0.01"/>
+</predefinition>
+
+[Diagnostics] GenCase parse error: unknown attribute 'name' in <newvarcte>.
+
+[Expected fixer_output]
+fixer_output:
+  error_type: A
+  retrieval:
+    request_unlock: false
+    reason: ""
+    citations_required: []
+  required_edits:
+    - id: RM_BAD_PREDEF_1
+      op: remove
+      path: "/case/casedef/geometry/predefinition/newvarcte[@name and @value]"
+      rationale: "禁止 name/value。"
+    - id: ADD_CANON_PREDEF
+      op: add
+      path: "/case/casedef/geometry/predefinition"
+      fields:
+        newvarcte:
+          - { mdbc: "false" }
+          - { dom_padding: "0.01" }
+      rationale: "使用屬性式宣告變數。"
+  generator_directives:
+    - "嚴禁 name/value；若偵測到，必須改寫為屬性式。"
     
 1) 修復原則（痛點護欄）
 
@@ -192,4 +231,3 @@ Constant 'b' cannot be zero → 確保 <FluidBlock> 體積>0 且在 Domain 內�
 2D/週期混亂 → 遵守 Thin-Axis、periodic 或薄層策略；front/back 規則一致。
 
 mk 不一致 → boundcount/fluidcount 對齊實際上界+1；moving_mk_set ⊆ mk_bound_set；禁止 fluid mk 當 bound。
-

@@ -53,6 +53,47 @@ def extract_xml(text: str) -> Optional[str]:
     return match.group(0) if match else None
 
 
+def sanitize_newvarcte(xml: str) -> str:
+    """
+    Post-sanitizer: convert any <newvarcte name="X" value="Y" .../> into
+    attribute-style <newvarcte ... X="Y" .../>. Idempotent for already-correct tags.
+    Supports both single and double quotes for safety. Preserves other attributes and
+    whether the tag is self-closing.
+    """
+    import re
+
+    pattern = re.compile(r'<newvarcte\b([^>]*)>', flags=re.IGNORECASE)
+
+    def repl(m: re.Match) -> str:
+        attrs = m.group(1) or ""
+        # Keep whether the tag was self-closing ("/>")
+        selfclosing = attrs.rstrip().endswith("/")
+        attrs_core = attrs.rstrip().rstrip("/")
+        # Find name="..." and value="..." (support single/double quotes)
+        name_m = re.search(r'\bname\s*=\s*([\'"])([^\'"]+)\1', attrs_core, flags=re.IGNORECASE)
+        value_m = re.search(r'\bvalue\s*=\s*([\'"])([^\'"]+)\1', attrs_core, flags=re.IGNORECASE)
+        if not (name_m and value_m):
+            end = "/>" if selfclosing else ">"
+            attrs_core_stripped = attrs_core.strip()
+            attrs_str = (" " + attrs_core_stripped) if attrs_core_stripped else ""
+            return f'<newvarcte{attrs_str}{end}'
+        var_name = name_m.group(2)
+        var_value = value_m.group(2)
+        # Remove the name/value attributes from the attribute list
+        attrs_core2 = re.sub(r'\s*\bname\s*=\s*([\'"])[^\'"]+\1', "", attrs_core, flags=re.IGNORECASE)
+        attrs_core2 = re.sub(r'\s*\bvalue\s*=\s*([\'"])[^\'"]+\1', "", attrs_core2, flags=re.IGNORECASE)
+        attrs_core2 = attrs_core2.strip()
+        # Rebuild
+        rebuilt = ""
+        if attrs_core2:
+            rebuilt = " " + attrs_core2
+        rebuilt += f' {var_name}="{var_value}"'
+        end = "/>" if selfclosing else ">"
+        return f"<newvarcte{rebuilt}{end}"
+
+    return pattern.sub(repl, xml or "")
+
+
 def _assemble_context(docs) -> str:
     parts = []
     for doc in docs:
@@ -164,18 +205,24 @@ def _log_prompt_metrics(lc_messages: List, docs: List, ctx: str, model: str) -> 
     print(ctx_line)
     print("=== generator: prompt_metrics end ===\n")
 
-def generator_chain(user_query: str) -> Dict[str, Any]:
+def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_docs: Optional[List[Document]] = None) -> Dict[str, Any]:
     sys_prompt = _read(PROMPT_PATH)
 
     design_vs_id = os.environ.get("OPENAI_RAG_VS_DESIGN_ID")
     use_file_search = bool(design_vs_id) and _should_use_file_search()
+    if freeze_retrieval:
+        use_file_search = False
     if _should_use_file_search() and not design_vs_id and os.environ.get('DSPH_DEBUG') == '1':
         print('generator: OPENAI_RAG_VS_DESIGN_ID missing; using legacy retriever')
 
     docs: List = []
     ctx = ""
     filters: Dict[str, str] = {}
-    if use_file_search:
+    if freeze_retrieval:
+        if frozen_docs:
+            docs = list(frozen_docs)
+            ctx = _assemble_context(docs)
+    elif use_file_search:
         filters = build_metadata_filter(user_query)
     elif is_rag_enabled():
         retr = design_retriever()
@@ -191,12 +238,14 @@ def generator_chain(user_query: str) -> Dict[str, Any]:
     is_detailed_prompt = "(Fix iteration" in user_query or "(User rejection)" in user_query
 
     human_content = ""
+    freeze_prefix = "FreezeRetrieval=true\n" if freeze_retrieval else ""
     if is_detailed_prompt:
         # For detailed prompts, append the references directly
-        human_content = f"{user_query}\n[References]\n{ctx}\n"
+        human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
     else:
         # For simple queries, use the standard template
         human_content = (
+            f"{freeze_prefix}"
             "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
             "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
             f"[User Requirements]\n{user_query}\n"
@@ -255,4 +304,6 @@ def generator_chain(user_query: str) -> Dict[str, Any]:
         print(xml)
         print("=== generator: end ===\n")
 
+    # Post-sanitize to ensure attribute-style variables in <predefinition>/<newvarcte>
+    xml = sanitize_newvarcte(xml)
     return {"xml": xml, "sources": docs}

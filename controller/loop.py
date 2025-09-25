@@ -1,5 +1,5 @@
-﻿import os, uuid
-from typing import Dict, Any
+﻿import os, uuid, re
+from typing import Dict, Any, List, Optional
 
 from chains.generator import generator_chain
 from chains.fixer import fixer_chain
@@ -21,6 +21,8 @@ def _new_session() -> str:
         "pending_review": False,
         "user_feedback": None,
         "query": "",
+        "initial_sources": [],
+        "freeze_locked": False,
     }
     return sid
 
@@ -35,6 +37,24 @@ def _diagnostics_text(result: Dict[str, Any]) -> str:
 def _read(path: str) -> str:
     return open(path, "r", encoding="utf-8", errors="ignore").read() if os.path.exists(path) else ""
 
+def _should_unlock(fix_plan: str) -> bool:
+    """Parse fixer_output YAML-like text to decide whether to unlock retrieval.
+    Requires both:
+      - error_type: B
+      - retrieval.request_unlock: true/yes/1
+    Parsing is regex-based to avoid YAML dependency.
+    """
+    if not fix_plan:
+        return False
+    text = fix_plan or ""
+    try:
+        lower = text.lower()
+    except Exception:
+        lower = str(text).lower()
+    has_b = re.search(r"error_type\s*:\s*b\b", lower) is not None
+    req_unlock = re.search(r"request_unlock\s*:\s*(true|yes|1)\b", lower) is not None
+    return bool(has_b and req_unlock)
+
 
 def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
     sess = SESSIONS[session_id]
@@ -47,9 +67,20 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
         sess["iters"] = iters
 
         update_status(session_id=session_id, phase="generator", status="running", message="Generating XML", iteration=iters)
-        gen_result = generator_chain(prompt)
+        freeze_retrieval = bool(sess.get("freeze_locked", False)) and iters > 1
+        frozen_docs = sess.get("initial_sources") if freeze_retrieval else None
+        gen_result = generator_chain(prompt, freeze_retrieval=freeze_retrieval, frozen_docs=frozen_docs)
         xml = gen_result["xml"]
         sources = gen_result.get("sources", [])
+        # Initialize retrieval freeze on first iteration if we have sources
+        if iters == 1 and sources and not sess.get("initial_sources"):
+            sess["initial_sources"] = sources
+            # Default to freezing the initial references for subsequent iterations
+            sess["freeze_locked"] = True
+        # If retrieval was unlocked for this round and we obtained sources, re-freeze using the newest sources
+        if not sess.get("freeze_locked", False) and sources and iters > 1:
+            sess["initial_sources"] = sources
+            sess["freeze_locked"] = True
         sess["last_xml"] = xml
 
         update_status(
@@ -94,8 +125,12 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
             stage=result.get("stage"),
             workdir=result.get("workdir"),
         )
-        fix_plan = fixer_chain(prev_xml=xml, error_msg=diagnostics)
+        fix_plan = fixer_chain(prev_xml=xml, error_msg=diagnostics, freeze_retrieval=bool(sess.get("freeze_locked", False)))
         history_entry["fix_suggestion"] = fix_plan
+
+        # Evaluate unlock request from fix plan (only unlock on explicit B-type + request_unlock)
+        if _should_unlock(fix_plan):
+            sess["freeze_locked"] = False
 
         persist_iteration(
             session_id=session_id,
@@ -165,7 +200,7 @@ def review(session_id: str, decision: str, feedback: str | None = None):
         # Use the specialized fixer prompt for user rejections
         fixer_prompt_template = _read("prompts/user_rejection_fixer_prompt.md")
         # NOTE: For this special fixer call, the user's feedback is the "error_msg"
-        fix_plan = fixer_chain(prev_xml=last_xml, error_msg=fb, prompt_template=fixer_prompt_template)
+        fix_plan = fixer_chain(prev_xml=last_xml, error_msg=fb, prompt_template=fixer_prompt_template, freeze_retrieval=bool(sess.get("freeze_locked", False)))
 
         # Use the specialized generator prompt for user rejections
         generator_prompt_template = _read("prompts/user_rejection_generator_prompt.md")

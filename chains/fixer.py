@@ -39,7 +39,7 @@ def _assemble_context(docs) -> str:
         parts.append(f"[{d.metadata.get('source','')}] {d.page_content}")
     return "\n\n".join(parts)
 
-def fixer_chain(prev_xml: str, error_msg: str, prompt_template: str | None = None) -> str:
+def fixer_chain(prev_xml: str, error_msg: str, prompt_template: str | None = None, *, freeze_retrieval: bool = False) -> str:
     """Produce a textual fix suggestion instead of a replacement XML."""
     sys_prompt = _read(PROMPT_PATH)
 
@@ -47,6 +47,8 @@ def fixer_chain(prev_xml: str, error_msg: str, prompt_template: str | None = Non
     error_vs_id = os.environ.get("OPENAI_RAG_VS_ERROR_ID")
     vs_ids = [vid for vid in (design_vs_id, error_vs_id) if vid]
     use_file_search = bool(vs_ids) and _should_use_file_search()
+    if freeze_retrieval:
+        use_file_search = False
     if _should_use_file_search() and not vs_ids and os.environ.get('DSPH_DEBUG') == '1':
         print('fixer: vector store ids missing; using legacy retriever')
 
@@ -55,7 +57,7 @@ def fixer_chain(prev_xml: str, error_msg: str, prompt_template: str | None = Non
     if use_file_search:
         combined_text = f"{prev_xml}\n{error_msg}"
         filters = build_metadata_filter(combined_text)
-    elif is_rag_enabled():
+    elif is_rag_enabled() and not freeze_retrieval:
         retr = error_retriever()
         if retr:
             query = (error_msg or "")[:2000]
