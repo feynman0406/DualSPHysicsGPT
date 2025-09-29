@@ -1,0 +1,485 @@
+{
+  "constants": {
+    "lattice": {
+      "bound": 1,
+      "fluid": 1,
+      "comment": "Type of lattice to create the initial particles (default=1)",
+      "tag": "lattice"
+    },
+    "gravity": {
+      "x": 0,
+      "y": 0,
+      "z": -9.81,
+      "comment": "Gravitational acceleration",
+      "units_comment": "m/s^2",
+      "tag": "gravity"
+    },
+    "rhop0": {
+      "value": 1000,
+      "comment": "Reference density of the fluid",
+      "units_comment": "kg/m^3",
+      "tag": "rhop0"
+    },
+    "rhopgradient": {
+      "value": 3,
+      "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+      "tag": "rhopgradient"
+    },
+    "hswl": {
+      "value": 0,
+      "auto": true,
+      "comment": "Maximum height of still water to calculate speedofsound using coefsound",
+      "units_comment": "metres (m)",
+      "tag": "hswl"
+    },
+    "gamma": {
+      "value": 7,
+      "comment": "Polytropic constant for water used in the state equation",
+      "tag": "gamma"
+    },
+    "speedsystem": {
+      "value": 0,
+      "auto": true,
+      "comment": "Maximum system speed (by default the dam-break propagation is used)",
+      "tag": "speedsystem"
+    },
+    "coefsound": {
+      "value": 20,
+      "comment": "Coefficient to multiply speedsystem",
+      "tag": "coefsound"
+    },
+    "speedsound": {
+      "value": 0,
+      "auto": true,
+      "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+      "tag": "speedsound"
+    },
+    "coefh": {
+      "value": 1.5,
+      "comment": "Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)",
+      "tag": "coefh"
+    },
+    "_hdp": {
+      "value": 2,
+      "comment": "Alternative option to calculate the smoothing length (h=hdp*dp)",
+      "tag": "_hdp"
+    },
+    "cflnumber": {
+      "value": 0.2,
+      "comment": "Coefficient to multiply dt",
+      "tag": "cflnumber"
+    }
+  },
+  "mkconfig": {
+    "boundcount": 241,
+    "fluidcount": 9
+  },
+  "geometry": {
+    "definition": {
+      "attributes": {
+        "dp": 0.0125,
+        "comment": "Initial inter-particle distance",
+        "units_comment": "metres (m)"
+      },
+      "children": [
+        {
+          "tag": "pointref",
+          "vector": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "tag": "pointmin",
+          "vector": {
+            "x": 0.8,
+            "y": 0.2,
+            "z": -0.2
+          }
+        },
+        {
+          "tag": "pointmax",
+          "vector": {
+            "x": 6.6,
+            "y": 0.2,
+            "z": 1
+          }
+        }
+      ]
+    },
+    "commands": {
+      "mainlist": [
+        {
+          "type": "setshapemode",
+          "text": "actual | bound"
+        },
+        {
+          "type": "setdrawmode",
+          "attributes": {
+            "mode": "full"
+          }
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 10
+          }
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "solid"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 0.03,
+                "y": 0.37,
+                "z": 0.55
+              }
+            }
+          ]
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 20
+          }
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "all^top"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 6.5,
+                "y": 0.37,
+                "z": 0.55
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,1,2"
+            }
+          ]
+        },
+        {
+          "type": "setmkfluid",
+          "attributes": {
+            "mk": 0
+          }
+        },
+        {
+          "type": "fillbox",
+          "attributes": {
+            "x": 3,
+            "y": 0.2,
+            "z": 0.1
+          },
+          "children": [
+            {
+              "tag": "modefill",
+              "text": "void"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 0.5,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 16,
+                "y": 0.3,
+                "z": 0.4
+              }
+            }
+          ]
+        },
+        {
+          "type": "shapeout",
+          "attributes": {
+            "file": "",
+            "reset": true
+          }
+        }
+      ]
+    }
+  },
+  "motion": [
+    {
+      "ref": 10,
+      "children": [
+        {
+          "tag": "begin",
+          "mov": 1,
+          "start": 0.0,
+          "finish": 100
+        },
+        {
+          "tag": "mvpredef",
+          "id": 1,
+          "duration": 10,
+          "children": [
+            {
+              "tag": "file",
+              "name": "CaseDampingPlane_PistonMovement.dat",
+              "fields": 3,
+              "fieldtime": 0,
+              "fieldx": 1
+            }
+          ]
+        }
+      ],
+      "type": "objreal"
+    }
+  ],
+  "casedef_extra": [
+    {
+      "tag": "normals",
+      "active": true,
+      "children": [
+        {
+          "tag": "norplane",
+          "mkbound": 10,
+          "children": [
+            {
+              "tag": "point",
+              "auto": true,
+              "comment": "Point is calculated automatically accoding to normal configuration"
+            },
+            {
+              "tag": "limitdist",
+              "vdp": 0.5,
+              "comment": "Minimun distance (Dp*vdp) between particles and boundary limit to calculate the point (default=0.5)"
+            },
+            {
+              "tag": "normal",
+              "vector": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "tag": "maxdisth",
+              "v": 2.0,
+              "comment": "Maximum distance to boundary limit. It uses H*maxdisth (default=2)"
+            },
+            {
+              "tag": "clear",
+              "v": true,
+              "comment": "Clears previous normal data (default=true)"
+            }
+          ]
+        },
+        {
+          "tag": "norparts",
+          "mkbound": 20,
+          "children": [
+            {
+              "tag": "maxdisth",
+              "v": 2.0,
+              "comment": "Maximum distance to boundary limit. It uses H*maxdisth (default=2)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "execution": {
+    "parameters": {
+      "SavePosDouble": {
+        "value": 0,
+        "comment": "Saves particle position using double precision (default=0)"
+      },
+      "Boundary": {
+        "value": 2,
+        "comment": "Boundary method 1:DBC, 2:mDBC (default=1)"
+      },
+      "StepAlgorithm": {
+        "value": 2,
+        "comment": "Step Algorithm 1:Verlet, 2:Symplectic (default=1)"
+      },
+      "VerletSteps": {
+        "value": 40,
+        "comment": "Verlet only: Number of steps to apply Euler timestepping (default=40)"
+      },
+      "Kernel": {
+        "value": 2,
+        "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland, 3:Gaussian (default=2)"
+      },
+      "ViscoTreatment": {
+        "value": 1,
+        "comment": "Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"
+      },
+      "Visco": {
+        "value": 0.02,
+        "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
+      },
+      "ViscoBoundFactor": {
+        "value": 0,
+        "comment": "Multiply viscosity value with boundary (default=1)"
+      },
+      "DensityDT": {
+        "value": 3,
+        "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
+      },
+      "DensityDTvalue": {
+        "value": 0.1,
+        "comment": "DDT value (default=0.1)"
+      },
+      "Shifting": {
+        "value": 0,
+        "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
+      },
+      "ShiftCoef": {
+        "value": -2,
+        "comment": "Coefficient for shifting computation (default=-2)"
+      },
+      "ShiftTFS": {
+        "value": 0,
+        "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
+      },
+      "RigidAlgorithm": {
+        "value": 1,
+        "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
+      },
+      "FtPause": {
+        "value": 0.0,
+        "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
+        "units_comment": "seconds"
+      },
+      "FtIgnoreRadius": {
+        "value": 0,
+        "comment": "Ignores floating body radius with periodic conditions (default=0)"
+      },
+      "CoefDtMin": {
+        "value": 0.05,
+        "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
+      },
+      "DtIni": {
+        "value": 0,
+        "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtMin": {
+        "value": 0,
+        "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtFixed": {
+        "value": 0,
+        "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
+        "units_comment": "seconds"
+      },
+      "DtFixedFile": {
+        "value": "NONE",
+        "comment": "Dt values are loaded from file. Use NONE to disable (default=disabled)",
+        "units_comment": "milliseconds (ms)"
+      },
+      "DtAllParticles": {
+        "value": 0,
+        "comment": "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"
+      },
+      "TimeMax": {
+        "value": 20,
+        "comment": "Time of simulation",
+        "units_comment": "seconds"
+      },
+      "TimeOut": {
+        "value": 0.05,
+        "comment": "Time out data",
+        "units_comment": "seconds"
+      },
+      "RhopOutMin": {
+        "value": 700,
+        "comment": "Minimum density valid (default=700)",
+        "units_comment": "kg/m^3"
+      },
+      "RhopOutMax": {
+        "value": 1300,
+        "comment": "Maximum density valid (default=1300)",
+        "units_comment": "kg/m^3"
+      },
+      "WrnPartsOut": {
+        "value": 1,
+        "comment": "Active warning according to number of out particles (default=1)"
+      },
+      "MinFluidStop": {
+        "value": 0,
+        "comment": "Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"
+      }
+    },
+    "special": [
+      {
+        "tag": "damping",
+        "active": true,
+        "children": [
+          {
+            "tag": "dampingzone",
+            "children": [
+              {
+                "tag": "limitmin",
+                "x": 5.0,
+                "y": 0,
+                "z": 0,
+                "comment": "Location where minimum reduction is applied"
+              },
+              {
+                "tag": "limitmax",
+                "x": 6.4,
+                "y": 0,
+                "z": 0,
+                "comment": "Location where maximum reduction is applied"
+              },
+              {
+                "tag": "overlimit",
+                "value": 1,
+                "comment": "The scope of maximum reduction over limitmax (default=0)"
+              },
+              {
+                "tag": "redumax",
+                "value": 10,
+                "comment": "Maximum reduction in location limitmax (default=10)"
+              },
+              {
+                "tag": "factorxyz",
+                "x": 1,
+                "y": 1,
+                "z": 1,
+                "comment": "Application factor in components (default x=1,y=1,z=1)"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

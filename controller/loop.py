@@ -1,4 +1,4 @@
-﻿import os, uuid, re
+﻿import json, os, uuid, re
 from typing import Dict, Any, List, Optional
 
 from chains.generator import generator_chain
@@ -18,6 +18,8 @@ def _new_session() -> str:
         "state": "START",
         "history": [],
         "last_xml": "",
+        "last_config": None,
+        "last_structured_meta": None,
         "pending_review": False,
         "user_feedback": None,
         "query": "",
@@ -71,6 +73,9 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
         frozen_docs = sess.get("initial_sources") if freeze_retrieval else None
         gen_result = generator_chain(prompt, freeze_retrieval=freeze_retrieval, frozen_docs=frozen_docs)
         xml = gen_result["xml"]
+        config_payload = gen_result.get("config")
+        structured_meta = gen_result.get("structured_meta")
+        generator_warnings = gen_result.get("warnings", [])
         sources = gen_result.get("sources", [])
         # Initialize retrieval freeze on first iteration if we have sources
         if iters == 1 and sources and not sess.get("initial_sources"):
@@ -82,12 +87,22 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
             sess["initial_sources"] = sources
             sess["freeze_locked"] = True
         sess["last_xml"] = xml
+        sess["last_config"] = config_payload
+        sess["last_structured_meta"] = structured_meta
 
         update_status(
             session_id=session_id, phase="exec", status="running", message="Running DualSPHysics", iteration=iters
         )
         result = run_dualsphysics(xml)
-        history_entry = {"xml": xml, "result": result, "prompt": prompt, "rag_sources": sources}
+        history_entry = {
+            "xml": xml,
+            "config": config_payload,
+            "structured_meta": structured_meta,
+            "generator_warnings": generator_warnings,
+            "result": result,
+            "prompt": prompt,
+            "rag_sources": sources,
+        }
         sess["history"].append(history_entry)
 
         diagnostics = _diagnostics_text(result)
@@ -99,6 +114,9 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
                 iteration=len(sess["history"]),
                 prompt=prompt,
                 xml=xml,
+                config=config_payload,
+                structured_meta=structured_meta,
+                generator_warnings=generator_warnings,
                 result=result,
                 diagnostics_excerpt=diagnostics,
                 rag_sources=sources,
@@ -125,7 +143,12 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
             stage=result.get("stage"),
             workdir=result.get("workdir"),
         )
-        fix_plan = fixer_chain(prev_xml=xml, error_msg=diagnostics, freeze_retrieval=bool(sess.get("freeze_locked", False)))
+        fix_plan = fixer_chain(
+            prev_xml=xml,
+            error_msg=diagnostics,
+            freeze_retrieval=bool(sess.get("freeze_locked", False)),
+            prev_config=config_payload,
+        )
         history_entry["fix_suggestion"] = fix_plan
 
         # Evaluate unlock request from fix plan (only unlock on explicit B-type + request_unlock)
@@ -137,6 +160,9 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
             iteration=len(sess["history"]),
             prompt=prompt,
             xml=xml,
+            config=config_payload,
+            structured_meta=structured_meta,
+            generator_warnings=generator_warnings,
             result=result,
             fix_plan=fix_plan,
             diagnostics_excerpt=diagnostics,
@@ -144,10 +170,30 @@ def _run_iterations(session_id: str, initial_prompt: str) -> Dict[str, Any]:
         )
 
         base_request = sess["query"]
+        config_section = ""
+        if config_payload is not None:
+            config_section = (
+                "[Previous JSON Config]\n"
+                f"{json.dumps(config_payload, indent=2, ensure_ascii=False)}\n"
+            )
+        meta_section = ""
+        if structured_meta is not None:
+            meta_section = (
+                "[Previous Generator Metadata]\n"
+                f"{json.dumps(structured_meta, indent=2, ensure_ascii=False)}\n"
+            )
+        warnings_section = ""
+        if generator_warnings:
+            warnings_section = (
+                "[Generator Warnings]\n" + "\n".join(generator_warnings) + "\n"
+            )
         prompt = (
             f"(Fix iteration {iters}) Regenerate the DualSPHysics Case_Def.xml with the following guidance.\n"
             f"[Original Request]\n{base_request}\n"
             f"[Previous XML]\n{xml}\n"
+            f"{config_section}"
+            f"{meta_section}"
+            f"{warnings_section}"
             f"[Simulation Diagnostics]\n{diagnostics}\n"
             f"[Fix Suggestions]\n{fix_plan}\n"
         )
@@ -200,13 +246,24 @@ def review(session_id: str, decision: str, feedback: str | None = None):
         # Use the specialized fixer prompt for user rejections
         fixer_prompt_template = _read("prompts/user_rejection_fixer_prompt.md")
         # NOTE: For this special fixer call, the user's feedback is the "error_msg"
-        fix_plan = fixer_chain(prev_xml=last_xml, error_msg=fb, prompt_template=fixer_prompt_template, freeze_retrieval=bool(sess.get("freeze_locked", False)))
+        fix_plan = fixer_chain(
+            prev_xml=last_xml,
+            error_msg=fb,
+            prompt_template=fixer_prompt_template,
+            freeze_retrieval=bool(sess.get("freeze_locked", False)),
+            prev_config=sess.get("last_config"),
+        )
 
         # Use the specialized generator prompt for user rejections
         generator_prompt_template = _read("prompts/user_rejection_generator_prompt.md")
+        last_config = sess.get("last_config")
+        last_config_str = (
+            json.dumps(last_config, indent=2, ensure_ascii=False) if last_config is not None else ""
+        )
         regen_query = generator_prompt_template.format(
             original_query=sess["query"],
             user_feedback=fb,
+            last_config=last_config_str,
             last_xml=last_xml,
             fix_plan=fix_plan,
         )

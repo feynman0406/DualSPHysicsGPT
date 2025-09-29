@@ -57,6 +57,18 @@ def smoke_test_configs(config_dir: Path, output_dir: Path, *, run_solver: bool) 
                 else:
                     record["solver_status"] = solver_result.get("status", "unknown")
                     record["solver_result"] = solver_result
+                    for key in ("warnings", "assets_requested", "assets_copied", "copy_mode", "xml_path", "workdir"):
+                        value = solver_result.get(key)
+                        if value is None:
+                            continue
+                        if key == "warnings":
+                            dest = record.setdefault("warnings", [])
+                            if isinstance(value, list):
+                                dest.extend(value)
+                            else:
+                                dest.append(value)
+                        else:
+                            record[key] = value
         except Exception as exc:  # pylint: disable=broad-except
             record["error"] = str(exc)
         stdout_text = ""

@@ -1,0 +1,134 @@
+
+
+ <GENCASE>  Copyright (c) 2025 by Dr Jose M. Dominguez
+ All rights reserved.
+
+ GenCase is a free tool for DualSPHysics simulations.
+ DualSPHysics project is an international collaboration between
+ University of Vigo (Spain) and University of Manchester (UK).
+
+ Redistribution and use in binary form, without modification, are
+ permitted provided that the following conditions are met:
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+ * Redistributions or modifications of source code are not permitted 
+   unless expressly authorised, and must retain the above copyright 
+   notice, this list of conditions and the following disclaimer.
+ * Neither the name of the GenCase nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+GenCase v5.4.354.01 (07-04-2025)
+=================================
+OmpThreads: 16
+
+[LoadXMLInit]
+List: MAIN
+
+Total operations: 7
+[LoadXMLInit-End  time:0.073s]
+
+[Draw]
+List of available variables: Gravity_x=[0]  Gravity_y=[0]  Gravity_z=[-9.81]  Rhop0=[1000]  VResId=[0]  Dp=[0.01]  PosMin_x=[0]  PosMin_y=[0]  PosMin_z=[0]  PosMax_x=[1.6]  PosMax_y=[0.01]  PosMax_z=[0.4]  CaseName=["CaseDambreak_Def"]  Data2D=[0]  Data2DPosy=[0]  H=[0.0173205]  MassBound=[0.001]  MassFluid=[0.001]
+
+Mk size: 1 bytes
+Case limits: (0,0,0) - (1.6,0.01,0.4)
+Distance between points (Dp): 0.01
+Case domain: (0,0,0)-(159,0,39)
+Domain points: 160 x 1 x 40 = 6,400
+Case parts: 1 x 40z
+Memory: 0.00 GiB  0.01 MiB  (6,400)
+
+> MAIN
+FileShapes> Tank_Dp.vtk  shapes:5  points:8   (time:0.003s)
+<MAIN (Operations= 5+2+1 = 8)
+
+Triangles: 26 (0 ignored)
+[Draw-End  time:0.005s]
+
+[LoadsXMLConfig]
+Execution parameters.
+Initials configuration.
+Floating bodies configuration.
+Properties configuration.
+Predefined motion configuration.
+[LoadsXMLConfig-End  time:0.000s]
+
+[PreparePoints]
+Computing Vtk-Cells data...  (time:0.000s)
+BitSizeTot: 16 (1 + 8+1+6)
+Points loaded: 6,400
+Sorting points by Z...
+Sorting points by Mk...
+Computing Grid-points...  (time:0.002s)
+
+List of Points:
+Points -> Fixed-Boundary particles:
+  block[  0] (mk: 21):   6400  -->    6400
+
+Particle summary:
+  Fixed....: 6,400  id:(0-6399)   MKs:1 (21)
+  Moving...: 0
+  Floating.: 0
+  Fluid....: 0
+
+Total particles: 6,400 (bound=6400 (fx=6400 mv=0 ft=0) fluid=0)
+Total MK blocks: 1 (bound=1 (fx=1 mv=0 ft=0) fluid=0)
+
+*** WARNING: No fluid particles were created in the defined domain.
+
+
+*** WARNING: Automatic maximum depth is zero since there are no fluid particles.
+
+
+Maximum depth: 0 (automatic)
+Speed of system: 0 (automatic)
+Speed of sound: max(coefsound*speedsystem,10*sqrt(g*depth))
+Speed of sound: 0 max(0,0)
+Speed of sound: 0 (automatic)
+
+Coefh:1.000000 (hdp:1.732051)
+
+*** WARNING: Constant B is zero.
+
+
+[PreparePoints-End  time:0.003s]
+
+[SaveCase3D]
+C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT\CaseDambreak_Def_official_out/CaseDambreak_Def_MkCells.vtk  (time:0.005s, shapes:1, points:4)
+C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT\CaseDambreak_Def_official_out/CaseDambreak_Def.bi4<double>  (time:0.001s)
+C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT\CaseDambreak_Def_official_out/CaseDambreak_Def_All.vtk  (time: 0.001s)
+C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT\CaseDambreak_Def_official_out/CaseDambreak_Def_Bound.vtk  (time: 0.001s)
+C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT\CaseDambreak_Def_official_out/CaseDambreak_Def.xml  (time:0.014s)
+
+Save files time: 0.021s
+
+Particle limits:
+  X range: 0 to 1.59 [m]
+  Y range: 0 to 0 [m]
+  Z range: 0 to 0.39 [m]
+
+[SaveCase3D-End  time:0.022s]
+
+[WARNINGS]
+1. No fluid particles were created in the defined domain.
+2. Automatic maximum depth is zero since there are no fluid particles.
+3. Constant B is zero.
+
+Time of execution: 0.103 sec. (16 threads)
+
+Finished execution (code=0).
+

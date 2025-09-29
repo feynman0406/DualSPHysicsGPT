@@ -166,6 +166,24 @@ def llm_call(
             input=input_items,
             max_output_tokens=max_tokens,
         )
+        # Enable OpenAI Structured Outputs when JSON mode is active
+        try:
+            if os.environ.get("GENERATOR_JSON_MODE", "0") == "1":
+                schema_path = os.environ.get("GENERATOR_JSON_SCHEMA_PATH", "docs/auto_xml_jsonschema.json")
+                with open(schema_path, "r", encoding="utf-8") as _sf:
+                    _schema = json.load(_sf)
+                kwargs["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "auto_xml_config",
+                        "schema": _schema,
+                        "strict": True
+                    }
+                }
+        except Exception as _e:
+            # Fall back silently if schema load fails
+            if os.environ.get("DSPH_DEBUG") == "1":
+                _debug_print("openai.responses.schema_load_error", str(_e))
         model_name = kwargs["model"]
         is_reasoning_model = _is_reasoning_model(model_name)
         debug_enabled = os.environ.get("DSPH_DEBUG") == "1"
@@ -335,7 +353,3 @@ def _is_reasoning_model(name: str) -> bool:
     n = (name or "").lower()
     # Is this a reasoning/thinking model?
     return any(tag in n for tag in ("gpt-5", "thinking", "o1", "o3", "o4"))
-
-
-
-

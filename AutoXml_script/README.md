@@ -15,6 +15,33 @@ This package converts structured JSON into the XML layout consumed by DualSPHysi
    pytest tests/test_generate_xml.py
    ```
 
+## Config Library & Smoke Tests
+
+A curated JSON library lives in `AutoXml_script/config_library/`. Each file captures a focused scenario drawn from our regression tests (geometry fallbacks, mkconfig patterns, gauges, motion, and execution specials). Use the `scripts/smoke_test_configs.py` helper to regenerate XML and optionally invoke the DualSPHysics harness:
+
+```bash
+# Dry-run: generate XML only
+python scripts/smoke_test_configs.py --skip-solver \
+       --output-dir AutoXml_script/generated_cases \
+       --results AutoXml_script/generated_cases/results.json
+
+# Full run (requires DualSPHysics binaries configured in tools/exec.py)
+python scripts/smoke_test_configs.py --output-dir AutoXml_script/generated_cases
+```
+
+The script logs one line per config and writes a JSON summary when `--results` is supplied. Solver invocations capture any missing-binary errors so the run can proceed across the whole library.
+
+## XML ⇄ JSON Round-Trips
+
+The inverse converter `AutoXml_script/xml_to_json.py` reconstructs the JSON schema from an existing `Case_Def.xml`:
+
+```bash
+python AutoXml_script/xml_to_json.py AutoXml_script/_FmtXML__Parameters.xml \
+       AutoXml_script/config_library/parameters_from_xml.json
+```
+
+`tests/test_generator_json_pipeline.py` now asserts a bijective round-trip across the JSON library: every `config → XML → config → XML` cycle produces identical XML and stable JSON, guaranteeing the two representations stay in sync.
+
 ## CLI Options
 
 | Flag | Default | Description |

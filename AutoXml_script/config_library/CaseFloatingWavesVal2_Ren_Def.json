@@ -1,0 +1,720 @@
+{
+  "constants": {
+    "gravity": {
+      "x": 0,
+      "y": 0,
+      "z": -9.81,
+      "comment": "Gravitational acceleration",
+      "tag": "gravity"
+    },
+    "rhop0": {
+      "value": 1000,
+      "comment": "Reference density of the fluid",
+      "tag": "rhop0"
+    },
+    "rhopgradient": {
+      "value": 3,
+      "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+      "tag": "rhopgradient"
+    },
+    "hswl": {
+      "value": 0,
+      "auto": true,
+      "comment": "Maximum still water level to calculate speedofsound using coefsound",
+      "tag": "hswl"
+    },
+    "speedsystem": {
+      "value": 0,
+      "auto": true,
+      "comment": "Maximum system speed (by default the dam-break propagation is used)",
+      "tag": "speedsystem"
+    },
+    "coefsound": {
+      "value": 20,
+      "comment": "Coefficient to multiply speedsystem",
+      "tag": "coefsound"
+    },
+    "speedsound": {
+      "value": 0,
+      "auto": true,
+      "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+      "tag": "speedsound"
+    },
+    "coefh": {
+      "value": 1.2,
+      "comment": "Coefficient to calculate the smoothing length (H=coefficient*sqrt(3*dp^2) in 3D)",
+      "tag": "coefh"
+    },
+    "gamma": {
+      "value": 7,
+      "comment": "Politropic constant for water used in the state equation",
+      "tag": "gamma"
+    },
+    "cflnumber": {
+      "value": 0.2,
+      "comment": "Coefficient to multiply Dt",
+      "tag": "cflnumber"
+    }
+  },
+  "mkconfig": {
+    "boundcount": 230,
+    "fluidcount": 9,
+    "orientations": [
+      {
+        "type": "fluid",
+        "mk": 0,
+        "orient": "Xyz"
+      }
+    ]
+  },
+  "geometry": {
+    "definition": {
+      "attributes": {
+        "dp": 0.005
+      },
+      "children": [
+        {
+          "tag": "pointref",
+          "vector": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "tag": "pointmin",
+          "vector": {
+            "x": -1,
+            "y": 0,
+            "z": -0.1
+          }
+        },
+        {
+          "tag": "pointmax",
+          "vector": {
+            "x": 12,
+            "y": 0,
+            "z": 0.75
+          }
+        }
+      ]
+    },
+    "commands": {
+      "lists": [
+        {
+          "name": "GeometryForNormals",
+          "commands": [
+            {
+              "type": "setactive",
+              "attributes": {
+                "drawpoints": 0,
+                "drawshapes": 1
+              }
+            },
+            {
+              "type": "setshapemode",
+              "text": "actual | bound"
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": 0
+              }
+            },
+            {
+              "type": "setfrdrawmode",
+              "attributes": {
+                "auto": true
+              }
+            },
+            {
+              "type": "drawextrude",
+              "attributes": {
+                "closed": false
+              },
+              "children": [
+                {
+                  "tag": "extrude",
+                  "vector": {
+                    "x": 0,
+                    "y": 2,
+                    "z": 0
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": 0.0,
+                    "y": -1,
+                    "z": 1.8
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": 0.0,
+                    "y": -1,
+                    "z": 0.0
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": 5.0,
+                    "y": -1,
+                    "z": 0
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": 12.0,
+                    "y": -1,
+                    "z": 1.8
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": 0.5
+                }
+              ]
+            },
+            {
+              "type": "setfrdrawmode",
+              "attributes": {
+                "auto": false
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": 50
+              }
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "solid"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": 1.85,
+                    "y": -1,
+                    "z": 0.3
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": 0.3,
+                    "y": 2,
+                    "z": 0.2
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": 0.5
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "hdp"
+              }
+            },
+            {
+              "type": "resetdraw"
+            }
+          ]
+        }
+      ],
+      "mainlist": [
+        {
+          "type": "runlist",
+          "attributes": {
+            "name": "GeometryForNormals"
+          }
+        },
+        {
+          "type": "setshapemode",
+          "text": "real | bound"
+        },
+        {
+          "type": "setdrawmode",
+          "attributes": {
+            "mode": "full"
+          }
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 10
+          }
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "right"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 0.15,
+                "y": -1,
+                "z": 0
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 0.055,
+                "y": 2,
+                "z": 1.8
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,-1,-2,-3"
+            }
+          ]
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 0
+          }
+        },
+        {
+          "type": "setfrdrawmode",
+          "attributes": {
+            "auto": true
+          }
+        },
+        {
+          "type": "drawextrude",
+          "attributes": {
+            "closed": false
+          },
+          "children": [
+            {
+              "tag": "extrude",
+              "vector": {
+                "x": 0,
+                "y": 2,
+                "z": 0
+              }
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 0.0,
+                "y": -1,
+                "z": 1.8
+              }
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 0.0,
+                "y": -1,
+                "z": 0.0
+              }
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 5.0,
+                "y": -1,
+                "z": 0
+              }
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 12.0,
+                "y": -1,
+                "z": 1.8
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,-1,-2,-3"
+            }
+          ]
+        },
+        {
+          "type": "setfrdrawmode",
+          "attributes": {
+            "auto": false
+          }
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 50
+          }
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "solid"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 1.85,
+                "y": -1,
+                "z": 0.3
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 0.3,
+                "y": 2,
+                "z": 0.2
+              }
+            }
+          ]
+        },
+        {
+          "type": "setmkfluid",
+          "attributes": {
+            "mk": 0
+          }
+        },
+        {
+          "type": "fillbox",
+          "attributes": {
+            "x": 1,
+            "y": 0,
+            "z": 0.1
+          },
+          "children": [
+            {
+              "tag": "modefill",
+              "text": "void"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": -0.2,
+                "y": -1,
+                "z": -0.05
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 13.2,
+                "y": 2,
+                "z": 0.451
+              }
+            }
+          ]
+        },
+        {
+          "type": "shapeout",
+          "attributes": {
+            "file": "",
+            "reset": true
+          }
+        }
+      ]
+    }
+  },
+  "floatings": [
+    {
+      "mkbound": 50,
+      "relativeweight": 0.5,
+      "type": "floating"
+    }
+  ],
+  "motion": [
+    {
+      "ref": 10,
+      "children": [
+        {
+          "tag": "begin",
+          "mov": 1,
+          "start": 0
+        },
+        {
+          "tag": "mvnull",
+          "id": 1
+        }
+      ],
+      "type": "objreal"
+    }
+  ],
+  "casedef_extra": [
+    {
+      "tag": "normals",
+      "active": true,
+      "children": [
+        {
+          "tag": "norgeometry",
+          "comment": "Define initial configuration of normals before applying other configurations",
+          "children": [
+            {
+              "tag": "geometryfile",
+              "file": "[CaseName]_hdp_Actual.vtk",
+              "comment": "File with boundary geometry (VTK format)"
+            },
+            {
+              "tag": "distanceh",
+              "v": 2.0,
+              "comment": "Maximum orthogonal distance (H*value) to compute normals data (default=2)"
+            }
+          ]
+        },
+        {
+          "tag": "norplane",
+          "mkbound": 10,
+          "children": [
+            {
+              "tag": "point",
+              "auto": true,
+              "comment": "Point is calculated automatically accoding to normal configuration"
+            },
+            {
+              "tag": "normal",
+              "vector": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "tag": "maxdisth",
+              "v": 0,
+              "comment": "Maximum distance to boundary limit. It uses H*maxdisth (default=2)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "execution": {
+    "parameters": {
+      "SavePosDouble": {
+        "value": 0,
+        "comment": "Saves particle position using double precision (default=0)"
+      },
+      "Boundary": {
+        "value": 2,
+        "comment": "Boundary method 1:DBC, 2:mDBC (default=1)"
+      },
+      "SlipMode": {
+        "value": 1,
+        "comment": "Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"
+      },
+      "NoPenetration": {
+        "value": 0,
+        "comment": "Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"
+      },
+      "StepAlgorithm": {
+        "value": 2,
+        "comment": "Step Algorithm 1:Verlet, 2:Symplectic (def=1)"
+      },
+      "VerletSteps": {
+        "value": 40,
+        "comment": "Verlet only: Number of steps to apply Eulerian equations (def=40)"
+      },
+      "Kernel": {
+        "value": 2,
+        "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland (def=1)"
+      },
+      "ViscoTreatment": {
+        "value": 1,
+        "comment": "Viscosity Formulation 1:Artificial, 2:Laminar+SPS (def=1)"
+      },
+      "Visco": {
+        "value": 0.01,
+        "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
+      },
+      "ViscoBoundFactor": {
+        "value": 1,
+        "comment": "Multiply viscosity value with boundary (default=1)"
+      },
+      "DensityDT": {
+        "value": 1,
+        "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
+      },
+      "DensityDTvalue": {
+        "value": 0.1,
+        "comment": "DDT value (default=0.1)"
+      },
+      "Shifting": {
+        "value": 0,
+        "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
+      },
+      "ShiftTFS": {
+        "value": 0,
+        "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
+      },
+      "RigidAlgorithm": {
+        "value": 3,
+        "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
+      },
+      "FtPause": {
+        "value": 0.0,
+        "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
+        "units_comment": "seconds"
+      },
+      "CoefDtMin": {
+        "value": 0.05,
+        "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
+      },
+      "DtIni": {
+        "value": 0,
+        "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtMin": {
+        "value": 0,
+        "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtFixed": {
+        "value": 0,
+        "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
+        "units_comment": "seconds"
+      },
+      "DtFixedFile": {
+        "value": "NONE",
+        "comment": "Dt values are loaded from file. Use NONE to disable (default=disabled)",
+        "units_comment": "milliseconds (ms)"
+      },
+      "TimeMax": {
+        "value": 13.5,
+        "comment": "Time of simulation"
+      },
+      "TimeOut": {
+        "value": 0.05,
+        "comment": "Time between output files"
+      },
+      "PartsOutMax": {
+        "value": 1,
+        "comment": "Allowed percentage of fluid particles out the domain (def=1)"
+      },
+      "RhopOutMin": {
+        "value": 700,
+        "comment": "Minimum rhop valid (def=700)"
+      },
+      "RhopOutMax": {
+        "value": 1300,
+        "comment": "Maximum rhop valid (def=1300)"
+      }
+    },
+    "wavepaddles": {
+      "entries": [
+        {
+          "tag": "piston",
+          "children": [
+            {
+              "tag": "mkbound",
+              "value": 10,
+              "comment": "Mk-Bound of selected particles"
+            },
+            {
+              "tag": "waveorder",
+              "value": 2,
+              "comment": "Order wave generation 1:1st order, 2:2nd order (def=1)"
+            },
+            {
+              "tag": "start",
+              "value": 0,
+              "comment": "Start time (def=0)"
+            },
+            {
+              "tag": "duration",
+              "value": 0.0,
+              "comment": "Movement duration, Zero is the end of simulation (def=0)"
+            },
+            {
+              "tag": "depth",
+              "value": 0.4,
+              "comment": "Fluid depth (def=0)"
+            },
+            {
+              "tag": "_fixeddepth",
+              "value": 0,
+              "comment": "Fluid depth without paddle (def=0)"
+            },
+            {
+              "tag": "pistondir",
+              "x": 1,
+              "y": 0,
+              "z": 0,
+              "comment": "Movement direction (def=(1,0,0))"
+            },
+            {
+              "tag": "waveheight",
+              "value": 0.1,
+              "comment": "Wave height"
+            },
+            {
+              "tag": "waveperiod",
+              "value": 1.2,
+              "comment": "Wave period"
+            },
+            {
+              "tag": "phase",
+              "value": 0,
+              "comment": "Initial wave phase in function of PI (def=0)"
+            },
+            {
+              "tag": "ramp",
+              "value": 0,
+              "comment": "Periods of ramp (def=0)"
+            },
+            {
+              "tag": "savemotion",
+              "periods": 24,
+              "periodsteps": 20,
+              "xpos": 4.6,
+              "zpos": -0.15,
+              "comment": "Saves motion data. xpos and zpos are optional. zpos=-depth of the measuring point"
+            }
+          ]
+        }
+      ]
+    },
+    "special": [
+      {
+        "tag": "chrono",
+        "children": [
+          {
+            "tag": "savedata",
+            "value": 0.05,
+            "comment": "Saves CSV with data exchange for each time interval (0=all steps)"
+          },
+          {
+            "tag": "schemescale",
+            "value": 1,
+            "comment": "Scale used to create the initial scheme of Chrono objects (default=1)"
+          },
+          {
+            "tag": "bodyfixed",
+            "id": "Bottom",
+            "mkbound": 0
+          },
+          {
+            "tag": "bodyfloating",
+            "id": "Floater",
+            "mkbound": 50
+          }
+        ]
+      }
+    ]
+  }
+}

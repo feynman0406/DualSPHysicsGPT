@@ -1,4 +1,5 @@
-﻿import os
+﻿import json
+import os
 
 from rag.retrievers import error_retriever
 from chains.rag_utils import use_openai_file_search, build_metadata_filter, persist_sources
@@ -39,7 +40,14 @@ def _assemble_context(docs) -> str:
         parts.append(f"[{d.metadata.get('source','')}] {d.page_content}")
     return "\n\n".join(parts)
 
-def fixer_chain(prev_xml: str, error_msg: str, prompt_template: str | None = None, *, freeze_retrieval: bool = False) -> str:
+def fixer_chain(
+    prev_xml: str,
+    error_msg: str,
+    prompt_template: str | None = None,
+    *,
+    freeze_retrieval: bool = False,
+    prev_config: dict | None = None,
+) -> str:
     """Produce a textual fix suggestion instead of a replacement XML."""
     sys_prompt = _read(PROMPT_PATH)
 
@@ -68,7 +76,18 @@ def fixer_chain(prev_xml: str, error_msg: str, prompt_template: str | None = Non
 
     if prompt_template:
         # Template is provided for user rejection flow
-        user_content = prompt_template.format(user_feedback=diagnostics, last_xml=prev_xml, ctx=ctx)
+        config_block = ""
+        if prev_config is not None:
+            try:
+                config_block = json.dumps(prev_config, indent=2, ensure_ascii=False)
+            except Exception:
+                config_block = json.dumps({"_serialization_error": True}, indent=2)
+        user_content = prompt_template.format(
+            user_feedback=diagnostics,
+            last_xml=prev_xml,
+            ctx=ctx,
+            last_config=config_block,
+        )
     else:
         # Default flow for automated error fixing
         user_content = (

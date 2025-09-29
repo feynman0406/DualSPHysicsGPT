@@ -1,4 +1,10 @@
-import os, tempfile, pathlib, subprocess, textwrap, shutil
+import os
+import pathlib
+import shutil
+import subprocess
+import tempfile
+import textwrap
+import xml.etree.ElementTree as ET
 
 # ---- Runtime Options ----
 # For .bat execution, headless is default; set USE_EXISTING_BATCH=1 to reuse existing .bat script
@@ -27,7 +33,200 @@ DUALSPHYSICS_BINARIES = (
     "TracerParts_win64.exe",
 )
 
-# ---- Headless .bat Configuration and Execution Flow ----
+ALLOWED_COPY_MODES = {"off", "warn", "strict"}
+DATA_FILE_SUFFIXES = (".dat", ".txt", ".csv")
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
+DEFAULT_ASSET_DIRS = [PROJECT_ROOT / "AutoXml_script", PROJECT_ROOT]
+
+def _get_copy_mode() -> str:
+    mode = os.environ.get("DSPH_COPY_DATA", "warn").strip().lower()
+    if mode not in ALLOWED_COPY_MODES:
+        return "warn"
+    return mode
+
+
+def _compute_asset_dirs():
+    dirs = []
+    env_paths = os.environ.get("DSPH_ASSET_PATHS")
+    if env_paths:
+        for raw in env_paths.split(os.pathsep):
+            if raw:
+                dirs.append(pathlib.Path(raw).expanduser())
+    dirs.extend(DEFAULT_ASSET_DIRS)
+    seen = set()
+    normalized = []
+    for directory in dirs:
+        try:
+            expanded = directory.expanduser()
+        except Exception:
+            continue
+        key = str(expanded.resolve()) if expanded.exists() else str(expanded)
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(expanded)
+    return normalized
+
+
+ASSET_SEARCH_DIRS = _compute_asset_dirs()
+
+
+def _looks_like_data_file(value: str) -> bool:
+    if value is None:
+        return False
+    candidate = value.strip().strip('"\'')
+
+    if not candidate or candidate.upper() == "NONE":
+        return False
+
+    lowered = candidate.lower()
+    if "[" in candidate or "]" in candidate:
+        return False
+
+    return lowered.endswith(DATA_FILE_SUFFIXES)
+
+
+def _collect_asset_paths(xml_str: str):
+    warnings = []
+    try:
+        root = ET.fromstring(xml_str)
+    except ET.ParseError as exc:
+        warnings.append(f"Failed to parse XML for auxiliary assets: {exc}")
+        return [], warnings
+
+    assets = set()
+    for elem in root.iter():
+        tag_lower = elem.tag.lower()
+
+        if tag_lower == "copy":
+            for key in ("from", "src", "source", "path", "file"):
+                val = elem.attrib.get(key)
+                if _looks_like_data_file(val):
+                    assets.add(val.strip().strip('"\''))
+            for child in elem:
+                for key in ("file", "path"):
+                    val = child.attrib.get(key)
+                    if _looks_like_data_file(val):
+                        assets.add(val.strip().strip('"\''))
+                if child.text and _looks_like_data_file(child.text):
+                    assets.add(child.text.strip().strip('"\''))
+            continue
+
+        for attr_value in elem.attrib.values():
+            if _looks_like_data_file(attr_value):
+                assets.add(attr_value.strip().strip('"\''))
+        if elem.text and _looks_like_data_file(elem.text):
+            assets.add(elem.text.strip().strip('"\''))
+        for child in elem:
+            for attr_value in child.attrib.values():
+                if _looks_like_data_file(attr_value):
+                    assets.add(attr_value.strip().strip('"\''))
+            if child.text and _looks_like_data_file(child.text):
+                assets.add(child.text.strip().strip('"\''))
+    return sorted(assets), warnings
+
+
+def _resolve_asset_path(asset_name: str):
+    candidate = pathlib.Path(asset_name)
+    if candidate.is_absolute():
+        return candidate if candidate.exists() else None
+
+    for base_dir in ASSET_SEARCH_DIRS:
+        try:
+            base_dir_resolved = base_dir.resolve()
+        except FileNotFoundError:
+            base_dir_resolved = base_dir
+        candidate_path = base_dir_resolved / candidate
+        if candidate_path.exists():
+            return candidate_path
+
+    if candidate.exists():
+        return candidate
+
+    return None
+
+
+def _safe_asset_destination(workdir_path: pathlib.Path, asset_name: str) -> pathlib.Path:
+    pure = pathlib.PurePath(asset_name)
+    if pure.is_absolute() or ".." in pure.parts:
+        return workdir_path / pathlib.Path(asset_name).name
+    return workdir_path / pathlib.Path(asset_name)
+
+
+def _materialize_assets(workdir_path: pathlib.Path, asset_names, copy_mode: str):
+    warnings = []
+    copied = []
+
+    if not asset_names or copy_mode == "off":
+        return warnings, copied
+
+    workdir_path.mkdir(parents=True, exist_ok=True)
+
+    for asset_name in asset_names:
+        source_path = _resolve_asset_path(asset_name)
+        if source_path is None:
+            msg = f"Auxiliary asset not found: {asset_name}"
+            warnings.append(msg)
+            if copy_mode == "strict":
+                raise FileNotFoundError(msg)
+            continue
+
+        dest_path = _safe_asset_destination(workdir_path, asset_name)
+        try:
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, dest_path)
+        except Exception as exc:
+            msg = f"Failed to copy asset '{asset_name}' from '{source_path}': {exc}"
+            warnings.append(msg)
+            if copy_mode == "strict":
+                raise RuntimeError(msg) from exc
+            continue
+
+        copied.append(str(dest_path))
+
+    return warnings, copied
+
+
+def _augment_result(result: dict, workspace: dict | None):
+    if workspace is None:
+        return result
+
+    workdir_path = workspace.get("workdir")
+    xml_path = workspace.get("xml_path")
+    asset_names = workspace.get("asset_names", [])
+    assets_copied = workspace.get("assets_copied", [])
+    copy_mode = workspace.get("copy_mode")
+    workspace_warnings = workspace.get("warnings") or []
+
+    if workdir_path is not None:
+        result.setdefault("workdir", str(workdir_path))
+    if xml_path is not None:
+        result.setdefault("xml_path", str(xml_path))
+    if asset_names:
+        result.setdefault("assets_requested", asset_names)
+    elif "assets_requested" not in result:
+        result["assets_requested"] = []
+    if assets_copied:
+        result.setdefault("assets_copied", assets_copied)
+    elif "assets_copied" not in result:
+        result["assets_copied"] = []
+    if copy_mode is not None:
+        result.setdefault("copy_mode", copy_mode)
+
+    if workspace_warnings:
+        existing = result.get("warnings")
+        if existing:
+            if isinstance(existing, list):
+                merged = existing + workspace_warnings
+            else:
+                merged = [existing] + workspace_warnings
+            result["warnings"] = merged
+        else:
+            result["warnings"] = list(workspace_warnings)
+    else:
+        result.setdefault("warnings", [])
+
+    return result
 # The following optional output control environment variables are supported:
 #   DSPH_POINTS_VEL / DSPH_POINTS_PRESS_INC / DSPH_POINTS_PRESS_COR / DSPH_FILEBOXES / DSPH_ONLYMK
 HEADLESS_BAT = r'''@echo off
@@ -211,6 +410,10 @@ exit /b %errorcode%
 
 
 def _prepare_case_workspace(xml_str: str):
+    copy_mode = _get_copy_mode()
+    asset_names, asset_warnings = _collect_asset_paths(xml_str)
+    warnings = list(asset_warnings)
+
     base = os.environ.get("DSPH_WORKDIR")
     if base:
         workdir_path = pathlib.Path(base).expanduser()
@@ -218,15 +421,56 @@ def _prepare_case_workspace(xml_str: str):
         workdir_path = workdir_path.resolve()
     else:
         workdir_path = pathlib.Path(tempfile.mkdtemp(prefix="dsph_"))
+
     outdir = workdir_path / f"{CASE_NAME}_out"
     try:
         if outdir.exists():
             shutil.rmtree(outdir)
     except Exception as exc:
-        return None, {"status": "fail", "stage": "precheck", "stdout": "", "stderr": f"Failed to remove previous output directory: {exc}", "workdir": str(workdir_path)}
+        msg = f"Failed to remove previous output directory: {exc}"
+        warnings.append(msg)
+        return None, {
+            "status": "fail",
+            "stage": "precheck",
+            "stdout": "",
+            "stderr": msg,
+            "workdir": str(workdir_path),
+            "warnings": warnings,
+            "assets_requested": asset_names,
+            "assets_copied": [],
+            "copy_mode": copy_mode,
+        }
+
     xml_path = workdir_path / f"{CASE_NAME}_Def.xml"
     xml_path.write_text(xml_str, encoding="utf-8", errors="ignore")
-    return {"workdir": workdir_path, "xml_path": xml_path}, None
+
+    try:
+        asset_copy_warnings, copied_assets = _materialize_assets(workdir_path, asset_names, copy_mode)
+        warnings.extend(asset_copy_warnings)
+    except Exception as exc:
+        msg = f"Failed to materialize auxiliary assets: {exc}"
+        warnings.append(msg)
+        return None, {
+            "status": "fail",
+            "stage": "precheck",
+            "stdout": "",
+            "stderr": msg,
+            "workdir": str(workdir_path),
+            "warnings": warnings,
+            "assets_requested": asset_names,
+            "assets_copied": [],
+            "copy_mode": copy_mode,
+        }
+
+    workspace = {
+        "workdir": workdir_path,
+        "xml_path": xml_path,
+        "asset_names": asset_names,
+        "assets_copied": copied_assets,
+        "warnings": warnings,
+        "copy_mode": copy_mode,
+    }
+    return workspace, None
 
 
 def _stage_from_headless_return(code: int) -> str:
@@ -275,7 +519,14 @@ def _run_direct_exec(xml_str: str):
     missing = [str(p) for p in required if not p.exists()]
     if missing:
         msg = "Missing executables: " + ", ".join(missing)
-        return {"status": "fail", "stage": "precheck", "stdout": "", "stderr": msg, "workdir": str(workspace["workdir"])}
+        result = {
+            "status": "fail",
+            "stage": "precheck",
+            "stdout": "",
+            "stderr": msg,
+            "workdir": str(workspace["workdir"]),
+        }
+        return _augment_result(result, workspace)
 
     dirout = f"{CASE_NAME}_out"
     base_name = os.path.join(dirout, CASE_NAME)
@@ -299,38 +550,41 @@ def _run_direct_exec(xml_str: str):
         stdout_sections.append(f"=== gencase stdout ===\n{gencase_stdout}")
         stderr_sections.append(f"=== gencase stderr ===\n{gencase_stderr}")
         if gencase_proc.returncode != 0:
-            return {
+            result = {
                 "status": "fail",
                 "stage": "gencase",
                 "stdout": "".join(stdout_sections).strip(),
                 "stderr": "".join(stderr_sections).strip(),
                 "workdir": str(workdir_path),
             }
+            return _augment_result(result, workspace)
         
         # Check if GenCase actually produced the output XML
         expected_case_xml = workdir_path / dirout / f"{CASE_NAME}.xml"
         if not expected_case_xml.exists():
             stderr_sections.append(f"\n=== validation error ===\nGenCase succeeded (exit code 0) but did not produce the expected output file: {expected_case_xml}")
-            return {
+            result = {
                 "status": "fail",
                 "stage": "gencase",
                 "stdout": "".join(stdout_sections).strip(),
                 "stderr": "".join(stderr_sections).strip(),
                 "workdir": str(workdir_path),
             }
+            return _augment_result(result, workspace)
     else:
         stdout_sections.append("=== gencase stdout ===\n<skipped>")
         stderr_sections.append("=== gencase stderr ===\n<skipped>")
 
     if not run_solver:
         stage = "gencase" if run_gencase else "precheck"
-        return {
+        result = {
             "status": "success",
             "stage": stage,
             "stdout": "".join(stdout_sections).strip(),
             "stderr": "".join(stderr_sections).strip(),
             "workdir": str(workdir_path),
         }
+        return _augment_result(result, workspace)
 
     solver_cmd = [str(solver_path), base_name, dirout]
     solver_proc = subprocess.run(
@@ -348,21 +602,23 @@ def _run_direct_exec(xml_str: str):
     stderr_full = "".join(stderr_sections).strip()
 
     if solver_proc.returncode != 0:
-        return {
+        result = {
             "status": "fail",
             "stage": "solver",
             "stdout": stdout_full,
             "stderr": stderr_full,
             "workdir": str(workdir_path),
         }
+        return _augment_result(result, workspace)
 
-    return {
+    result = {
         "status": "success",
         "stage": "solver",
         "stdout": stdout_full,
         "stderr": stderr_full,
         "workdir": str(workdir_path),
     }
+    return _augment_result(result, workspace)
 
 def _run_headless_bat(xml_str: str):
     if not DSPH_BIN_DIR:
@@ -375,14 +631,21 @@ def _run_headless_bat(xml_str: str):
     bat_path = workdir_path / "run_headless.bat"
     bat_path.write_text(HEADLESS_BAT, encoding="utf-8")
     mode = "GPU" if USE_GPU else "CPU"
-    bin_dir = str(pathlib.Path(DSPH_BIN_DIR))
+    bin_dir = str(pathlib.Path(DSPH_BIN_DIR).resolve())
     cmd = ["cmd", "/c", str(bat_path), CASE_NAME, bin_dir, mode]
     env = os.environ.copy()
     env.setdefault("DSPH_AUTODELETE_OUT", "1")
     proc = subprocess.run(cmd, cwd=str(workdir_path), capture_output=True, text=True, env=env)
     stage_value = _stage_from_headless_return(proc.returncode)
     status = "success" if proc.returncode == 0 else "fail"
-    return {"status": status, "stage": stage_value, "stdout": proc.stdout, "stderr": proc.stderr, "workdir": str(workdir_path)}
+    result = {
+        "status": status,
+        "stage": stage_value,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+        "workdir": str(workdir_path),
+    }
+    return _augment_result(result, workspace)
 
 def _run_existing_bat(xml_str: str):
     if not BATCH_PATH:
@@ -398,7 +661,8 @@ def _run_existing_bat(xml_str: str):
     stderr = proc.stderr or ""
     status = "success" if proc.returncode == 0 or ("All done" in stdout) else "fail"
     stage = _infer_stage_from_logs(stdout, stderr, "post" if status == "success" else "unknown")
-    return {"status": status, "stage": stage, "stdout": stdout, "stderr": stderr, "workdir": bat_dir}
+    result = {"status": status, "stage": stage, "stdout": stdout, "stderr": stderr, "workdir": bat_dir}
+    return result
 def run_dualsphysics(xml_str: str):
     if USE_EXISTING_BATCH:
         return _run_existing_bat(xml_str)

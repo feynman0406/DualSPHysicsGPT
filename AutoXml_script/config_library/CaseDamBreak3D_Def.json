@@ -1,0 +1,753 @@
+{
+  "constants": {
+    "gravity": {
+      "x": 0,
+      "y": 0,
+      "z": -9.81,
+      "comment": "Gravitational acceleration",
+      "units_comment": "m/s^2",
+      "tag": "gravity"
+    },
+    "rhop0": {
+      "value": 1000,
+      "comment": "Reference density of the fluid",
+      "units_comment": "kg/m^3",
+      "tag": "rhop0"
+    },
+    "rhopgradient": {
+      "value": 2,
+      "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+      "tag": "rhopgradient"
+    },
+    "hswl": {
+      "value": 0,
+      "auto": true,
+      "comment": "Maximum still water level to calculate speedofsound using coefsound",
+      "units_comment": "metres (m)",
+      "tag": "hswl"
+    },
+    "gamma": {
+      "value": 7,
+      "comment": "Polytropic constant for water used in the state equation",
+      "tag": "gamma"
+    },
+    "speedsystem": {
+      "value": 0,
+      "auto": true,
+      "comment": "Maximum system speed (by default the dam-break propagation is used)",
+      "tag": "speedsystem"
+    },
+    "coefsound": {
+      "value": 20,
+      "comment": "Coefficient to multiply speedsystem",
+      "tag": "coefsound"
+    },
+    "speedsound": {
+      "value": 0,
+      "auto": true,
+      "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+      "tag": "speedsound"
+    },
+    "hdp": {
+      "value": 2,
+      "comment": "Alternative option to calculate the smoothing length (h=hdp*dp)",
+      "tag": "hdp"
+    },
+    "cflnumber": {
+      "value": 0.2,
+      "comment": "Coefficient to multiply dt",
+      "tag": "cflnumber"
+    }
+  },
+  "mkconfig": {
+    "boundcount": 241,
+    "fluidcount": 9
+  },
+  "geometry": {
+    "definition": {
+      "attributes": {
+        "dp": 0.01,
+        "units_comment": "metres (m)"
+      },
+      "children": [
+        {
+          "tag": "pointref",
+          "vector": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "tag": "pointmin",
+          "vector": {
+            "x": -1,
+            "y": -1,
+            "z": -1
+          }
+        },
+        {
+          "tag": "pointmax",
+          "vector": {
+            "x": 3.3,
+            "y": 1.1,
+            "z": 1.1
+          }
+        }
+      ]
+    },
+    "commands": {
+      "lists": [
+        {
+          "name": "GeometryForNormals",
+          "commands": [
+            {
+              "type": "setactive",
+              "attributes": {
+                "drawpoints": 0,
+                "drawshapes": 1
+              }
+            },
+            {
+              "type": "setshapemode",
+              "text": "actual | bound"
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": 0
+              }
+            },
+            {
+              "type": "setnormalinvert",
+              "attributes": {
+                "invert": true
+              }
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "all^top^right"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "#Tankpx1",
+                    "y": "#Tankpy1",
+                    "z": "#Tankpz1"
+                  }
+                },
+                {
+                  "tag": "endpoint",
+                  "vector": {
+                    "x": "#Boxpx1-Dpm",
+                    "y": "#Tankpy2",
+                    "z": "#Tankpz2"
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": -0.5
+                }
+              ]
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "all^top^left"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "#Boxpx2+Dpm",
+                    "y": "#Tankpy1",
+                    "z": "#Tankpz1"
+                  }
+                },
+                {
+                  "tag": "endpoint",
+                  "vector": {
+                    "x": "#Tankpx2",
+                    "y": "#Tankpy2",
+                    "z": "#Tankpz2"
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": -0.5
+                }
+              ]
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "front|bottom"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "#Boxpx1-Dpm",
+                    "y": "#Tankpy1",
+                    "z": "#Tankpz1"
+                  }
+                },
+                {
+                  "tag": "endpoint",
+                  "vector": {
+                    "x": "#Boxpx2+Dpm",
+                    "y": "#Boxpy1-Dpm",
+                    "z": "#Tankpz2"
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": -0.5
+                }
+              ]
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "back|bottom"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "#Boxpx1-Dpm",
+                    "y": "#Boxpy2+Dpm",
+                    "z": "#Tankpz1"
+                  }
+                },
+                {
+                  "tag": "endpoint",
+                  "vector": {
+                    "x": "#Boxpx2+Dpm",
+                    "y": "#Tankpy2",
+                    "z": "#Tankpz2"
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": -0.5
+                }
+              ]
+            },
+            {
+              "type": "setnormalinvert",
+              "attributes": {
+                "invert": false
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": 1
+              }
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "all^bottom"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "#Boxpx1",
+                    "y": "#Boxpy1",
+                    "z": "#Tankpz1+Dpm"
+                  }
+                },
+                {
+                  "tag": "endpoint",
+                  "vector": {
+                    "x": "#Boxpx2",
+                    "y": "#Boxpy2",
+                    "z": "#Boxpz2"
+                  }
+                },
+                {
+                  "tag": "layers",
+                  "vdp": 0.5
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "hdp"
+              }
+            },
+            {
+              "type": "resetdraw"
+            }
+          ]
+        }
+      ],
+      "mainlist": [
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Dpm": "Dp/2"
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "DefTankpx": 0,
+            "DefTankpy": 0,
+            "DefTankpz": 0
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "DefTanksx": 3.22,
+            "DefTanksy": 1.0,
+            "DefTanksz": 1.0
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "DefBoxpx": 0.66,
+            "DefBoxpy": 0.3
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "DefBoxsx": 0.16,
+            "DefBoxsy": 0.4,
+            "DefBoxsz": 0.16
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Tankpx1": "roundposx(DefTankpx)",
+            "Tankpx2": "roundposx(DefTankpx+DefTanksx)"
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Tankpy1": "roundposy(DefTankpy)",
+            "Tankpy2": "roundposy(DefTankpy+DefTanksy)"
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Tankpz1": "roundposz(DefTankpz)",
+            "Tankpz2": "roundposz(DefTankpz+DefTanksz)"
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Boxpx1": "roundposx(DefBoxpx)",
+            "Boxpx2": "roundposx(DefBoxpx+DefBoxsx)"
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Boxpy1": "roundposy(DefBoxpy)",
+            "Boxpy2": "roundposy(DefBoxpy+DefBoxsy)"
+          }
+        },
+        {
+          "type": "newvarcte",
+          "attributes": {
+            "Boxpz2": "roundposy(DefTankpz+DefBoxsz)"
+          }
+        },
+        {
+          "type": "runlist",
+          "attributes": {
+            "name": "GeometryForNormals"
+          }
+        },
+        {
+          "type": "setdrawmode",
+          "attributes": {
+            "mode": "full"
+          }
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 0
+          }
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "all^top^right"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": "#Tankpx1",
+                "y": "#Tankpy1",
+                "z": "#Tankpz1"
+              }
+            },
+            {
+              "tag": "endpoint",
+              "vector": {
+                "x": "#Boxpx1",
+                "y": "#Tankpy2",
+                "z": "#Tankpz2"
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,1,2"
+            }
+          ]
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "all^top^left"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": "#Boxpx2",
+                "y": "#Tankpy1",
+                "z": "#Tankpz1"
+              }
+            },
+            {
+              "tag": "endpoint",
+              "vector": {
+                "x": "#Tankpx2",
+                "y": "#Tankpy2",
+                "z": "#Tankpz2"
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,1,2"
+            }
+          ]
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "front|bottom"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": "#Boxpx1",
+                "y": "#Tankpy1",
+                "z": "#Tankpz1"
+              }
+            },
+            {
+              "tag": "endpoint",
+              "vector": {
+                "x": "#Boxpx2",
+                "y": "#Boxpy1",
+                "z": "#Tankpz2"
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,1,2"
+            }
+          ]
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "back|bottom"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": "#Boxpx1",
+                "y": "#Boxpy2",
+                "z": "#Tankpz1"
+              }
+            },
+            {
+              "tag": "endpoint",
+              "vector": {
+                "x": "#Boxpx2",
+                "y": "#Tankpy2",
+                "z": "#Tankpz2"
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,1,2"
+            }
+          ]
+        },
+        {
+          "type": "setmkbound",
+          "attributes": {
+            "mk": 1
+          }
+        },
+        {
+          "type": "drawbox",
+          "children": [
+            {
+              "tag": "boxfill",
+              "text": "all^bottom"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": "#Boxpx1",
+                "y": "#Boxpy1",
+                "z": "#Tankpz1-Dp*2"
+              }
+            },
+            {
+              "tag": "endpoint",
+              "vector": {
+                "x": "#Boxpx2",
+                "y": "#Boxpy2",
+                "z": "#Boxpz2"
+              }
+            },
+            {
+              "tag": "layers",
+              "vdp": "0,-1,-2"
+            }
+          ]
+        },
+        {
+          "type": "_shapeout",
+          "attributes": {
+            "file": "parts"
+          }
+        },
+        {
+          "type": "setmkfluid",
+          "attributes": {
+            "mk": 0
+          }
+        },
+        {
+          "type": "fillbox",
+          "attributes": {
+            "x": 2.1,
+            "y": 0.1,
+            "z": 0.2
+          },
+          "children": [
+            {
+              "tag": "modefill",
+              "text": "void"
+            },
+            {
+              "tag": "point",
+              "vector": {
+                "x": 1.992,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "tag": "size",
+              "vector": {
+                "x": 1.4,
+                "y": 1,
+                "z": 0.55
+              }
+            }
+          ]
+        },
+        {
+          "type": "shapeout",
+          "attributes": {
+            "file": ""
+          }
+        }
+      ]
+    }
+  },
+  "casedef_extra": [
+    {
+      "tag": "normals",
+      "active": true,
+      "children": [
+        {
+          "tag": "norgeometry",
+          "comment": "Define initial configuration of normals before applying other configurations",
+          "children": [
+            {
+              "tag": "geometryfile",
+              "file": "[CaseName]_hdp_Actual.vtk",
+              "comment": "File with boundary geometry (VTK format)"
+            },
+            {
+              "tag": "distanceh",
+              "v": 2.0,
+              "comment": "Maximum orthogonal distance (H*value) to compute normals data (default=2)"
+            },
+            {
+              "tag": "svshapes",
+              "v": true,
+              "comment": "Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "execution": {
+    "parameters": {
+      "SavePosDouble": {
+        "value": 0,
+        "comment": "Saves particle position using double precision (default=0)"
+      },
+      "Boundary": {
+        "value": 2,
+        "comment": "Boundary method 1:DBC, 2:mDBC (default=1)"
+      },
+      "SlipMode": {
+        "value": 1,
+        "comment": "Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"
+      },
+      "NoPenetration": {
+        "value": 0,
+        "comment": "Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"
+      },
+      "StepAlgorithm": {
+        "value": 2,
+        "comment": "Step Algorithm 1:Verlet, 2:Symplectic (default=1)"
+      },
+      "VerletSteps": {
+        "value": 40,
+        "comment": "Verlet only: Number of steps to apply Euler timestepping (default=40)"
+      },
+      "Kernel": {
+        "value": 2,
+        "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"
+      },
+      "ViscoTreatment": {
+        "value": 1,
+        "comment": "Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"
+      },
+      "Visco": {
+        "value": 0.01,
+        "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
+      },
+      "ViscoBoundFactor": {
+        "value": 1,
+        "comment": "Multiply viscosity value with boundary (default=1)"
+      },
+      "DensityDT": {
+        "value": 3,
+        "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
+      },
+      "DensityDTvalue": {
+        "value": 0.1,
+        "comment": "DDT value (default=0.1)"
+      },
+      "Shifting": {
+        "value": 0,
+        "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
+      },
+      "ShiftCoef": {
+        "value": -2,
+        "comment": "Coefficient for shifting computation (default=-2)"
+      },
+      "ShiftTFS": {
+        "value": 0,
+        "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
+      },
+      "RigidAlgorithm": {
+        "value": 1,
+        "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
+      },
+      "FtPause": {
+        "value": 0.0,
+        "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
+        "units_comment": "seconds"
+      },
+      "CoefDtMin": {
+        "value": 0.05,
+        "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
+      },
+      "DtIni": {
+        "value": 0,
+        "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtMin": {
+        "value": 0,
+        "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtFixed": {
+        "value": 0,
+        "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
+        "units_comment": "seconds"
+      },
+      "DtFixedFile": {
+        "value": "NONE",
+        "comment": "Dt values are loaded from file. Use NONE to disable (default=disabled)",
+        "units_comment": "milliseconds (ms)"
+      },
+      "DtAllParticles": {
+        "value": 0,
+        "comment": "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"
+      },
+      "TimeMax": {
+        "value": 6,
+        "comment": "Time of simulation",
+        "units_comment": "seconds"
+      },
+      "TimeOut": {
+        "value": 0.01,
+        "comment": "Time out data",
+        "units_comment": "seconds"
+      },
+      "RhopOutMin": {
+        "value": 700,
+        "comment": "Minimum rhop valid (default=700)",
+        "units_comment": "kg/m^3"
+      },
+      "RhopOutMax": {
+        "value": 1300,
+        "comment": "Maximum rhop valid (default=1300)",
+        "units_comment": "kg/m^3"
+      },
+      "WrnPartsOut": {
+        "value": 1,
+        "comment": "Active warning according to number of out particles (default=1)"
+      },
+      "MinFluidStop": {
+        "value": 0,
+        "comment": "Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"
+      }
+    }
+  }
+}

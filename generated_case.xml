@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<case>
+  <casedef>
+    <constantsdef>
+      <gravity x="0" y="0" z="-9.81"/>
+      <rhop0 value="1000"/>
+      <gamma value="7"/>
+      <speedsystem value="0"/>
+      <coefsound value="20"/>
+      <hdp value="2"/>
+      <cflnumber value="0.2"/>
+    </constantsdef>
+    <mkconfig boundcount="240" fluidcount="9"/>
+    <geometry>
+      <definition dp="0.01">
+        <pointmin x="0.0" y="0.0" z="0.0"/>
+        <pointmax x="3.22" y="0.0" z="1.0"/>
+      </definition>
+      <commands>
+        <list name="GeometryForNormals">
+          <setactive drawpoints="0" drawshapes="1"/>
+          <setshapemode>actual | bound</setshapemode>
+          <setmkbound mk="0"/>
+          <drawbox>
+            <boxfill>bottom</boxfill>
+            <point x="0.0" y="0.0" z="0.0"/>
+            <size x="3.22" y="0.0" z="1.0"/>
+          </drawbox>
+          <drawbox>
+            <boxfill>left</boxfill>
+            <point x="0.0" y="0.0" z="0.0"/>
+            <size x="3.22" y="0.0" z="1.0"/>
+          </drawbox>
+          <drawbox>
+            <boxfill>right</boxfill>
+            <point x="0.0" y="0.0" z="0.0"/>
+            <size x="3.22" y="0.0" z="1.0"/>
+          </drawbox>
+          <shapeout file="hdp"/>
+          <resetdraw/>
+        </list>
+        <mainlist>
+          <runlist name="GeometryForNormals"/>
+          <setdrawmode mode="full"/>
+          <setmkbound mk="10"/>
+          <setshapemode>bound</setshapemode>
+          <layers vdp="0,1,2"/>
+          <drawbox>
+            <boxfill>bottom</boxfill>
+            <point x="0.0" y="0.0" z="0.0"/>
+            <size x="3.22" y="0.0" z="1.0"/>
+          </drawbox>
+          <drawbox>
+            <boxfill>left</boxfill>
+            <point x="0.0" y="0.0" z="0.0"/>
+            <size x="3.22" y="0.0" z="1.0"/>
+          </drawbox>
+          <drawbox>
+            <boxfill>right</boxfill>
+            <point x="0.0" y="0.0" z="0.0"/>
+            <size x="3.22" y="0.0" z="1.0"/>
+          </drawbox>
+          <setmkfluid mk="0"/>
+          <setactive drawpoints="1" drawshapes="0"/>
+          <fillbox x="0.01" y="0.0" z="0.01">
+            <modefill>void</modefill>
+            <point x="0.01" y="0.0" z="0.01"/>
+            <size x="0.6" y="0.0" z="0.6"/>
+          </fillbox>
+        </mainlist>
+      </commands>
+    </geometry>
+    <normals>
+      <norgeometry>
+        <geometryfile file="[CaseName]_hdp_Actual.vtk"/>
+        <distanceh v="2.0"/>
+      </norgeometry>
+    </normals>
+  </casedef>
+  <execution>
+    <parameters>
+      <parameter key="Boundary" value="2"/>
+      <parameter key="Kernel" value="2"/>
+      <parameter key="PeriodicDomain" x="0" y="0" z="0"/>
+      <parameter key="SaveInterval" value="0.01"/>
+      <parameter key="SlipMode" value="1"/>
+      <parameter key="StepAlgorithm" value="2"/>
+      <parameter key="TimeMax" value="2.0"/>
+      <parameter key="Visco" value="0.01"/>
+      <parameter key="ViscoTreatment" value="1"/>
+    </parameters>
+  </execution>
+</case>

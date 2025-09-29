@@ -1,16 +1,60 @@
-﻿import os
-from typing import Optional, Dict, Any, List
+﻿import json
+import os
+import re
+from typing import Optional, Dict, Any, List, Tuple
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_core.documents import Document
-from rag.retrievers import design_retriever
-from chains.rag_utils import (
-    use_openai_file_search,
-    build_metadata_filter,
-    persist_sources,
-    get_last_run_info,
-)
+try:
+    from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+    from langchain_core.documents import Document
+except ImportError:  # pragma: no cover - lightweight stubs for test environments
+    class _BaseMessage:
+        def __init__(self, content: str):
+            self.content = content
+
+    class SystemMessage(_BaseMessage):
+        pass
+
+    class HumanMessage(_BaseMessage):
+        pass
+
+    class AIMessage(_BaseMessage):
+        pass
+
+    class Document(dict):
+        """Minimal Document stub replicating .page_content/.metadata attributes."""
+
+        def __init__(self, page_content: str = "", metadata: Optional[Dict[str, Any]] = None):
+            super().__init__()
+            self.page_content = page_content
+            self.metadata = metadata or {}
+from AutoXml_script.generate_xml import generate_case_xml
+from chains.json_normalizer import normalize_case_config, NormalizationResult
+try:
+    from rag.retrievers import design_retriever
+except Exception:  # pragma: no cover - optional dependency for tests
+    def design_retriever():
+        return None
+
+try:
+    from chains.rag_utils import (
+        use_openai_file_search,
+        build_metadata_filter,
+        persist_sources,
+        get_last_run_info,
+    )
+except Exception:  # pragma: no cover - optional dependency for tests
+    def use_openai_file_search() -> bool:  # type: ignore[override]
+        return False
+
+    def build_metadata_filter(*_args, **_kwargs) -> Dict[str, Any]:  # type: ignore[override]
+        return {}
+
+    def persist_sources(*_args, **_kwargs) -> None:  # type: ignore[override]
+        return None
+
+    def get_last_run_info() -> Optional[Dict[str, Any]]:  # type: ignore[override]
+        return None
+
 from llm.client import llm_call, get_model_name, get_reasoning_config
 
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "GPT-5-THINKING")
@@ -47,10 +91,64 @@ def _read(path: str) -> str:
 
 
 def extract_xml(text: str) -> Optional[str]:
-    import re
-
     match = re.search(r"<case[\s\S]*?</case>", text, re.IGNORECASE)
     return match.group(0) if match else None
+
+
+def _extract_json_snippet(text: str) -> Optional[str]:
+    """Best-effort extraction of the first JSON object embedded in text."""
+    text = text.strip()
+    if not text:
+        return None
+    # Attempt direct load first
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+
+    # Look for fenced code block
+    fence_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text, re.IGNORECASE)
+    if fence_match:
+        candidate = fence_match.group(1)
+        try:
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback: grab substring between first { and last }
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = text[start : end + 1]
+        try:
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _parse_generator_config(output_text: str) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Return (config, structured_meta) if JSON payload is found."""
+    snippet = _extract_json_snippet(output_text)
+    if not snippet:
+        return None, None
+    try:
+        parsed = json.loads(snippet)
+    except json.JSONDecodeError:
+        return None, None
+
+    if isinstance(parsed, dict) and "config" in parsed and isinstance(parsed["config"], dict):
+        meta = dict(parsed)
+        config = meta.pop("config")
+        return config, meta
+
+    if isinstance(parsed, dict):
+        return parsed, None
+
+    return None, None
 
 
 def sanitize_newvarcte(xml: str) -> str:
@@ -207,6 +305,12 @@ def _log_prompt_metrics(lc_messages: List, docs: List, ctx: str, model: str) -> 
 
 def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_docs: Optional[List[Document]] = None) -> Dict[str, Any]:
     sys_prompt = _read(PROMPT_PATH)
+    # Switch to JSON contract prompt when JSON mode is enabled
+    if os.environ.get("GENERATOR_JSON_MODE", "0") == "1":
+        json_prompt_path = os.environ.get("GENERATOR_PROMPT_PATH_JSON", "prompts/auto_xml_contract.md")
+        alt_prompt = _read(json_prompt_path)
+        if alt_prompt:
+            sys_prompt = alt_prompt
 
     design_vs_id = os.environ.get("OPENAI_RAG_VS_DESIGN_ID")
     use_file_search = bool(design_vs_id) and _should_use_file_search()
@@ -239,18 +343,33 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
 
     human_content = ""
     freeze_prefix = "FreezeRetrieval=true\n" if freeze_retrieval else ""
-    if is_detailed_prompt:
-        # For detailed prompts, append the references directly
-        human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
+    json_mode = os.environ.get("GENERATOR_JSON_MODE", "0") == "1"
+    if json_mode:
+        if is_detailed_prompt:
+            # Detailed prompts: keep content + references, enforce JSON-only output
+            human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n\n[Output]\nReturn exactly one JSON object following the system contract. No comments, no code fences."
+        else:
+            # Simple prompts: request JSON config strictly following the contract
+            human_content = (
+                f"{freeze_prefix}"
+                "[Task] Based on the user's requirements and available references, generate a DualSPHysics case configuration as JSON following the contract strictly.\n"
+                "[Constraints] Return exactly one JSON object. No commentary, no Markdown, no code fences.\n"
+                f"[User Requirements]\n{user_query}\n"
+                f"[References]\n{ctx}\n"
+            )
     else:
-        # For simple queries, use the standard template
-        human_content = (
-            f"{freeze_prefix}"
-            "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
-            "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
-            f"[User Requirements]\n{user_query}\n"
-            f"[References]\n{ctx}\n"
-        )
+        if is_detailed_prompt:
+            # For detailed prompts, append the references directly
+            human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
+        else:
+            # For simple queries, use the standard XML template
+            human_content = (
+                f"{freeze_prefix}"
+                "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
+                "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
+                f"[User Requirements]\n{user_query}\n"
+                f"[References]\n{ctx}\n"
+            )
 
     lc_messages = [
         SystemMessage(content=sys_prompt),
@@ -289,7 +408,25 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
         if debug_enabled:
             print("\n=== generator: post_file_search_metrics ===")
             _log_prompt_metrics(lc_messages, docs, ctx, model)
-    xml = extract_xml(out) or out  # fallback when the model emits plain XML
+    config_payload, structured_meta = _parse_generator_config(out)
+    generation_error: Optional[str] = None
+    xml: Optional[str] = None
+    if config_payload is not None:
+        normalization: Optional[NormalizationResult] = None
+        try:
+            normalization = normalize_case_config(config_payload)
+            xml = generate_case_xml(normalization.config)
+        except Exception as exc:
+            generation_error = f"Failed to build XML from JSON config: {exc}"
+        else:
+            config_payload = normalization.config
+            if structured_meta is None:
+                structured_meta = {}
+            if normalization.warnings:
+                structured_meta.setdefault("normalization_warnings", normalization.warnings)
+
+    if xml is None:
+        xml = extract_xml(out) or out  # fallback when the model emits plain XML
 
     if debug_enabled:
         print("\n=== generator: lc_messages ===")
@@ -300,10 +437,24 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
         print("=== generator: raw_out ===")
         print(out)
 
+        if config_payload is not None:
+            print("=== generator: parsed_config ===")
+            print(json.dumps(config_payload, indent=2, ensure_ascii=False))
+        if structured_meta is not None:
+            print("=== generator: structured_meta ===")
+            print(json.dumps(structured_meta, indent=2, ensure_ascii=False))
+
         print("=== generator: extracted_xml ===")
         print(xml)
         print("=== generator: end ===\n")
 
     # Post-sanitize to ensure attribute-style variables in <predefinition>/<newvarcte>
     xml = sanitize_newvarcte(xml)
-    return {"xml": xml, "sources": docs}
+    result: Dict[str, Any] = {"xml": xml, "sources": docs}
+    if config_payload is not None:
+        result["config"] = config_payload
+    if structured_meta is not None:
+        result["structured_meta"] = structured_meta
+    if generation_error:
+        result["warnings"] = [generation_error]
+    return result

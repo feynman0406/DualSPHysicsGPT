@@ -1,0 +1,124 @@
+{
+"constants": {
+"gravity": { "x": 0, "y": 0, "z": -9.81 },
+"rhop0": 1000,
+"gamma": 7,
+"speedsystem": 0,
+"coefsound": 20,
+"hdp": 2,
+"cflnumber": 0.2
+},
+"mkconfig": { "boundcount": 240, "fluidcount": 9 },
+"geometry": {
+"definition": {
+"dp": 0.01,
+"pointmin": { "x": 0.0, "y": 0.0, "z": 0.0 },
+"pointmax": { "x": 3.22, "y": 0.0, "z": 1.0 }
+},
+"commands": {
+"lists": [
+{
+"name": "GeometryForNormals",
+"items": [
+{ "type": "setactive", "drawpoints": 0, "drawshapes": 1 },
+{ "type": "setshapemode", "text": "actual | bound" },
+{ "type": "setmkbound", "mk": 0 },
+{
+"type": "drawbox",
+"children": [
+{ "tag": "boxfill", "text": "bottom" },
+{ "tag": "point", "vector": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+{ "tag": "size", "vector": { "x": 3.22, "y": 0.0, "z": 1.0 } }
+]
+},
+{
+"type": "drawbox",
+"children": [
+{ "tag": "boxfill", "text": "left" },
+{ "tag": "point", "vector": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+{ "tag": "size", "vector": { "x": 3.22, "y": 0.0, "z": 1.0 } }
+]
+},
+{
+"type": "drawbox",
+"children": [
+{ "tag": "boxfill", "text": "right" },
+{ "tag": "point", "vector": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+{ "tag": "size", "vector": { "x": 3.22, "y": 0.0, "z": 1.0 } }
+]
+},
+{ "type": "shapeout", "file": "hdp" },
+{ "type": "resetdraw" }
+]
+}
+],
+"mainlist": [
+{ "type": "runlist", "name": "GeometryForNormals" },
+{ "type": "setdrawmode", "mode": "full" },
+{ "type": "setmkbound", "mk": 10 },
+{ "type": "setshapemode", "text": "bound" },
+{ "type": "layers", "vdp": "0,1,2" },
+{
+"type": "drawbox",
+"children": [
+{ "tag": "boxfill", "text": "bottom" },
+{ "tag": "point", "vector": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+{ "tag": "size", "vector": { "x": 3.22, "y": 0.0, "z": 1.0 } }
+]
+},
+{
+"type": "drawbox",
+"children": [
+{ "tag": "boxfill", "text": "left" },
+{ "tag": "point", "vector": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+{ "tag": "size", "vector": { "x": 3.22, "y": 0.0, "z": 1.0 } }
+]
+},
+{
+"type": "drawbox",
+"children": [
+{ "tag": "boxfill", "text": "right" },
+{ "tag": "point", "vector": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+{ "tag": "size", "vector": { "x": 3.22, "y": 0.0, "z": 1.0 } }
+]
+},
+{ "type": "setmkfluid", "mk": 0 },
+{
+"type": "fillbox",
+"children": [
+{ "tag": "modefill", "text": "void" },
+{ "tag": "point", "vector": { "x": 0.01, "y": 0.0, "z": 0.01 } },
+{ "tag": "size", "vector": { "x": 0.6, "y": 0.0, "z": 0.6 } }
+]
+}
+]
+}
+},
+"casedef_extra": [
+{
+"tag": "normals",
+"children": [
+{
+"tag": "norgeometry",
+"children": [
+{ "tag": "geometryfile", "attributes": { "file": "[CaseName]_hdp_Actual.vtk" } },
+{ "tag": "distanceh", "attributes": { "v": 2.0 } }
+]
+}
+]
+}
+],
+"execution": {
+"parameters": {
+"TimeMax": 2.0,
+"SaveInterval": 0.01,
+"Boundary": 2,
+"Kernel": 2,
+"StepAlgorithm": 2,
+"Visco": 0.01,
+"ViscoTreatment": 1,
+"SlipMode": 1,
+"PeriodicDomain": { "x": 0, "y": 0, "z": 0 }
+}
+}
+}

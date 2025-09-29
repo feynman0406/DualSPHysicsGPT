@@ -1,14 +1,41 @@
-import json
+﻿import json
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "AutoXml_script" / "generate_xml.py"
+from AutoXml_script.generate_xml import generate_case_xml
 
 
 def run_generator(tmp_path: Path, config: dict) -> Path:
+    config = dict(config)
+    geometry = config.get("geometry") or {}
+    if "commands" not in geometry and not geometry.get("objects"):
+        geometry = dict(geometry)
+        geometry.setdefault("definition", {"attributes": {"dp": 0.02}, "children": [
+            {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
+            {"tag": "pointmax", "vector": {"x": 0.1, "y": 0.1, "z": 0.1}},
+        ]})
+        geometry["commands"] = {
+            "mainlist": [
+                {"type": "setmkfluid", "attributes": {"mk": 0}},
+                {
+                    "type": "fillbox",
+                    "children": [
+                        {"tag": "modefill", "text": "void"},
+                        {"tag": "point", "vector": {"x": 0, "y": 0, "z": 0}},
+                        {"tag": "size", "vector": {"x": 0.1, "y": 0.1, "z": 0.1}},
+                    ],
+                },
+            ]
+        }
+        config["geometry"] = geometry
+    if "mkconfig" not in config:
+        config["mkconfig"] = {"boundcount": 1, "fluidcount": 1}
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps(config), encoding="utf-8")
     output_path = tmp_path / "case.xml"
@@ -17,11 +44,10 @@ def run_generator(tmp_path: Path, config: dict) -> Path:
         check=True,
     )
     return output_path
-
-
 def test_geometry_fallback_support(tmp_path: Path) -> None:
     config = {
         "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 2, "fluidcount": 1},
         "geometry": {
             "dp": 0.05,
             "domain": {
@@ -57,7 +83,10 @@ def test_geometry_fallback_support(tmp_path: Path) -> None:
 
     mainlist = root.find("casedef/geometry/commands/mainlist")
     tags = [child.tag for child in list(mainlist)]
-    assert tags == ["setmkfluid", "drawbox", "setmkbound", "drawbox"]
+    assert tags == ["setmkfluid", "setactive", "fillbox", "setmkbound", "drawbox"]
+    fillbox = mainlist.find("fillbox")
+    assert fillbox is not None
+    assert fillbox.attrib == {"x": "0", "y": "0", "z": "0"}
 
 
 def test_mkconfig_patterns_and_timeout(tmp_path: Path) -> None:
@@ -296,3 +325,107 @@ def test_execution_special_sections(tmp_path: Path) -> None:
     assert filterpos.find("posmax").attrib["x"] == "1.0"
     operation = particle.find("operation")
     assert operation.attrib == {"type": "add"}
+
+
+
+
+def test_fillbox_infers_point_attributes(tmp_path: Path) -> None:
+    config = {
+        "geometry": {
+            "definition": {
+                "attributes": {"dp": 0.05},
+                "children": [
+                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": -0.5}},
+                    {"tag": "pointmax", "vector": {"x": 2, "y": 0, "z": 0.5}},
+                ],
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "children": [
+                            {"tag": "modefill", "text": "void"},
+                            {"tag": "point", "vector": {"x": 1.1, "y": 0.0, "z": -0.2}},
+                            {"tag": "size", "vector": {"x": 0.3, "y": 0.02, "z": 0.3}},
+                        ],
+                    },
+                ],
+            },
+        }
+    }
+
+    output_xml = run_generator(tmp_path, config)
+    fillbox = ET.parse(output_xml).getroot().find("casedef/geometry/commands/mainlist/fillbox")
+    assert fillbox is not None
+    assert fillbox.attrib == {"x": "1.1", "y": "0.0", "z": "-0.2"}
+
+def test_fillbox_inserts_setactive(tmp_path: Path) -> None:
+    config = {
+        "geometry": {
+            "definition": {
+                "attributes": {"dp": 0.02},
+                "children": [
+                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
+                    {"tag": "pointmax", "vector": {"x": 1, "y": 0.02, "z": 0.5}},
+                ],
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkbound", "attributes": {"mk": 0}},
+                    {
+                        "type": "drawbox",
+                        "children": [
+                            {"tag": "boxfill", "text": "bottom"},
+                            {"tag": "point", "vector": {"x": 0, "y": 0, "z": 0}},
+                            {"tag": "size", "vector": {"x": 1, "y": 0.02, "z": 0.5}},
+                        ],
+                    },
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "attributes": {"x": 0.0, "y": 0.0, "z": 0.0},
+                        "children": [
+                            {"tag": "modefill", "text": "void"},
+                            {"tag": "point", "vector": {"x": 0.0, "y": 0.0, "z": 0.0}},
+                            {"tag": "size", "vector": {"x": 0.5, "y": 0.02, "z": 0.4}},
+                        ],
+                    },
+                ]
+            },
+        }
+    }
+
+    output_xml = run_generator(tmp_path, config)
+    mainlist = ET.parse(output_xml).getroot().find("casedef/geometry/commands/mainlist")
+    assert mainlist is not None
+    tags = [child.tag for child in list(mainlist)]
+    assert "fillbox" in tags
+    fill_index = tags.index("fillbox")
+    assert fill_index > 0
+    assert tags[fill_index - 1] == "setactive"
+    setactive_attrs = list(mainlist.findall("setactive"))[0].attrib
+    assert setactive_attrs == {"drawpoints": "1", "drawshapes": "0"}
+def test_generate_case_requires_fluid_fill():
+    config = {
+        "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 2, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "attributes": {"dp": 0.02},
+                "children": [
+                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
+                    {"tag": "pointmax", "vector": {"x": 1, "y": 0, "z": 1}},
+                ],
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {"type": "setmkbound", "attributes": {"mk": 0}},
+                ],
+            },
+        },
+    }
+    with pytest.raises(ValueError) as excinfo:
+        generate_case_xml(config)
+    assert "no fluid fill command" in str(excinfo.value)

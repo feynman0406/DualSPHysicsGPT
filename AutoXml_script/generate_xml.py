@@ -4,8 +4,7 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
+from lxml import etree as ET
 
 VectorDict = Dict[str, Any]
 Attributes = Dict[str, Any]
@@ -30,12 +29,9 @@ def looks_like_vector(candidate: Any) -> bool:
 
 
 def element_with_attributes(name: str, attribs: Attributes) -> ET.Element:
-    element = ET.Element(name)
-    for key, value in attribs.items():
-        if value is None:
-            continue
-        element.set(str(key), stringify(value))
-    return element
+    # Sort attributes for deterministic output
+    sorted_attribs = {str(k): stringify(v) for k, v in sorted(attribs.items()) if v is not None}
+    return ET.Element(name, sorted_attribs)
 
 
 def vector_element(name: str, vector: VectorDict) -> ET.Element:
@@ -55,6 +51,11 @@ def build_generic_node(spec: Dict[str, Any]) -> ET.Element:
     tag = data.pop("tag", None) or data.pop("name", None) or data.pop("type", None)
     if not tag:
         raise ValueError(f"Generic node specification missing 'tag': {spec}")
+
+    # Handle comments
+    if tag == "comment":
+        return ET.Comment(' ' + data.get("text", "").strip() + ' ')
+
     attributes = dict(data.pop("attributes", {}))
     node = element_with_attributes(tag, attributes)
     vector = data.pop("vector", None)
@@ -100,20 +101,58 @@ class CaseBuilder:
 
     def _build_casedef(self) -> ET.Element:
         casedef = element_with_attributes("casedef", self.config.get("casedef_attributes", {}))
-        append_if_not_none(casedef, self._build_constantsdef())
-        append_if_not_none(casedef, self._build_mkconfig())
-        append_if_not_none(casedef, self._build_patterns())
-        append_if_not_none(casedef, self._build_geometry())
-        append_if_not_none(casedef, self._build_section_list("initials"))
-        append_if_not_none(casedef, self._build_section_list("floatings"))
-        append_if_not_none(casedef, self._build_section_list("motion"))
-        for spec in self.config.get("casedef_extra", []):
-            casedef.append(build_generic_node(spec))
+        added_sections: set[str] = set()
+        ordered_entries = self.config.get("casedef_children")
+        if ordered_entries:
+            for entry in ordered_entries:
+                entry_type = entry.get("type")
+                if entry_type == "section":
+                    key = entry.get("key")
+                    if key == "constants" and "constants" in self.config and key not in added_sections:
+                        append_if_not_none(casedef, self._build_constantsdef())
+                        added_sections.add(key)
+                    elif key == "mkconfig" and "mkconfig" in self.config and key not in added_sections:
+                        append_if_not_none(casedef, self._build_mkconfig())
+                        added_sections.add(key)
+                    elif key == "patterns" and "patterns" in self.config and key not in added_sections:
+                        append_if_not_none(casedef, self._build_patterns())
+                        added_sections.add(key)
+                    elif key == "geometry" and "geometry" in self.config and key not in added_sections:
+                        append_if_not_none(casedef, self._build_geometry())
+                        added_sections.add(key)
+                    elif key in {"initials", "floatings", "motion"} and key in self.config and key not in added_sections:
+                        append_if_not_none(casedef, self._build_section_list(key))
+                        added_sections.add(key)
+                elif entry_type == "generic":
+                    casedef.append(build_generic_node(entry["spec"]))
+        else:
+            config_order = ["constants", "mkconfig", "patterns", "geometry", "initials", "floatings", "motion", "casedef_extra"]
+            for key in config_order:
+                if key == "constants":
+                    if "constants" in self.config or "constantsdef" in self.config:
+                        append_if_not_none(casedef, self._build_constantsdef())
+                elif key == "mkconfig" and "mkconfig" in self.config:
+                    append_if_not_none(casedef, self._build_mkconfig())
+                elif key == "patterns" and "patterns" in self.config:
+                    append_if_not_none(casedef, self._build_patterns())
+                elif key == "geometry" and "geometry" in self.config:
+                    append_if_not_none(casedef, self._build_geometry())
+                elif key in {"initials", "floatings", "motion"} and key in self.config:
+                    append_if_not_none(casedef, self._build_section_list(key))
+                elif key == "casedef_extra" and "casedef_extra" in self.config:
+                    for spec in self.config["casedef_extra"]:
+                        casedef.append(build_generic_node(spec))
+
+        remaining_extras = self.config.get("casedef_extra", [])
+        if ordered_entries:
+            for spec in remaining_extras:
+                if not any(entry.get("type") == "generic" and entry.get("spec") is spec for entry in ordered_entries):
+                    casedef.append(build_generic_node(spec))
         return casedef
 
     def _build_constantsdef(self) -> ET.Element:
         constants_node = ET.Element("constantsdef")
-        constants = self.config.get("constants", {})
+        constants = self.config.get("constants") or self.config.get("constantsdef") or {}
         for name, value in constants.items():
             if value is None:
                 continue
@@ -178,11 +217,14 @@ class CaseBuilder:
         if geometry_cfg is None:
             return None
         geometry_node = ET.Element("geometry")
-        append_if_not_none(geometry_node, self._build_geometry_predefinition(geometry_cfg.get("predefinition")))
-        geometry_node.append(self._build_geometry_definition(geometry_cfg))
-        commands = self._build_geometry_commands(geometry_cfg)
-        if commands is not None:
-            geometry_node.append(commands)
+        if "predefinition" in geometry_cfg:
+            append_if_not_none(geometry_node, self._build_geometry_predefinition(geometry_cfg.get("predefinition")))
+        # Always attempt to build definition; handles fallback when only dp/domain are provided
+        append_if_not_none(geometry_node, self._build_geometry_definition(geometry_cfg))
+        if "commands" in geometry_cfg or "objects" in geometry_cfg:
+            commands = self._build_geometry_commands(geometry_cfg)
+            if commands is not None:
+                geometry_node.append(commands)
         for spec in geometry_cfg.get("extra", []):
             geometry_node.append(build_generic_node(spec))
         return geometry_node
@@ -202,12 +244,13 @@ class CaseBuilder:
             node.append(build_generic_node(spec))
         return node
 
-    def _build_geometry_definition(self, geometry_cfg: Dict[str, Any]) -> ET.Element:
+    def _build_geometry_definition(self, geometry_cfg: Dict[str, Any]) -> Optional[ET.Element]:
         definition_cfg = geometry_cfg.get("definition")
         if definition_cfg is None:
+            # Fallback for old structure where dp and domain are at the geometry level
             dp = geometry_cfg.get("dp")
             if dp is None:
-                raise ValueError("geometry.definition or geometry.dp must be provided")
+                 return None
             domain = geometry_cfg.get("domain", {})
             definition_cfg = {
                 "attributes": {"dp": dp},
@@ -217,6 +260,7 @@ class CaseBuilder:
                 definition_cfg["children"].append({"tag": "pointmin", "vector": domain["min"]})
             if "max" in domain:
                 definition_cfg["children"].append({"tag": "pointmax", "vector": domain["max"]})
+        
         if isinstance(definition_cfg, dict) and (definition_cfg.get("tag") or definition_cfg.get("name")):
             definition_node = build_generic_node(definition_cfg)
         else:
@@ -245,34 +289,44 @@ class CaseBuilder:
             raise ValueError("definition.dp attribute is required")
         return definition_node
 
-    def _build_geometry_commands(self, geometry_cfg: Dict[str, Any]) -> Optional[ET.Element]:
+    def _build_geometry_commands(self, geometry_cfg: Dict[str, Any]):
         commands_cfg = geometry_cfg.get("commands")
         objects_cfg = geometry_cfg.get("objects")
         if not commands_cfg and not objects_cfg:
             return None
+
         node = ET.Element("commands")
-        if commands_cfg:
-            for list_cfg in commands_cfg.get("lists", []):
-                list_attributes = {
-                    key: value
-                    for key, value in list_cfg.items()
-                    if key not in {"commands", "children"}
-                }
-                list_node = element_with_attributes("list", list_attributes)
-                for command in list_cfg.get("commands", []):
-                    list_node.append(self._build_command(command))
-                for child_spec in list_cfg.get("children", []):
-                    list_node.append(build_generic_node(child_spec))
-                node.append(list_node)
-            mainlist_commands = commands_cfg.get("mainlist")
+        mainlist_node = None
+
+        if commands_cfg and "children" in commands_cfg:
+            for child_spec in commands_cfg["children"]:
+                built_child = build_generic_node(child_spec)
+                node.append(built_child)
+                if str(built_child.tag) == "mainlist":
+                    mainlist_node = built_child
         else:
-            mainlist_commands = None
-        if mainlist_commands is None and objects_cfg:
-            mainlist_commands = self._objects_to_commands(objects_cfg)
-        if mainlist_commands:
-            mainlist_node = ET.SubElement(node, "mainlist")
-            for command in mainlist_commands:
-                mainlist_node.append(self._build_command(command))
+            if commands_cfg:
+                if "lists" in commands_cfg:
+                    for list_cfg in commands_cfg.get("lists", []):
+                        list_children = list_cfg.pop("items", [])
+                        list_spec = {"tag": "list", "attributes": list_cfg, "children": list_children}
+                        node.append(self._build_command(list_spec))
+                if "mainlist" in commands_cfg:
+                    mainlist_node = ET.Element("mainlist")
+                    for cmd_spec in commands_cfg["mainlist"]:
+                        mainlist_node.append(self._build_command(cmd_spec))
+                    node.append(mainlist_node)
+        
+        if objects_cfg:
+            if mainlist_node is None:
+                mainlist_node = ET.SubElement(node, "mainlist")
+            legacy_commands = self._objects_to_commands(objects_cfg)
+            for command_spec in legacy_commands:
+                mainlist_node.append(self._build_command(command_spec))
+        
+        if mainlist_node is not None and not (commands_cfg and "children" in commands_cfg):
+            self._ensure_fillcommands_use_points(mainlist_node)
+
         return node
 
     def _objects_to_commands(self, objects: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -285,39 +339,166 @@ class CaseBuilder:
                 raise ValueError(f"Only box shapes are supported in geometry.objects, got: {obj}")
             mk = obj.get("mk")
             commands.append({"type": f"setmk{obj_type}", "attributes": {"mk": mk}})
-            box_children = [
-                {"tag": "boxfill", "text": obj.get("fill_mode", "solid")},
-                {"tag": "point", "vector": obj.get("position", {})},
-                {"tag": "size", "vector": obj.get("size", {})},
-            ]
-            commands.append({"type": "drawbox", "children": box_children})
+            if obj_type == "fluid":
+                children = [
+                    {"tag": "modefill", "text": obj.get("modefill", "void")},
+                    {"tag": "point", "vector": obj.get("position", {})},
+                    {"tag": "size", "vector": obj.get("size", {})},
+                ]
+                command_type = "fillbox"
+            else:
+                children = [
+                    {"tag": "boxfill", "text": obj.get("fill_mode", "solid")},
+                    {"tag": "point", "vector": obj.get("position", {})},
+                    {"tag": "size", "vector": obj.get("size", {})},
+                ]
+                command_type = "drawbox"
+            commands.append({"type": command_type, "children": children})
         return commands
-
+        
     def _build_command(self, command_config: Dict[str, Any]) -> ET.Element:
-        if not isinstance(command_config, dict):
-            raise TypeError(f"Command specification must be a dict, got {type(command_config)!r}")
-        command_type = command_config.get("type")
+        cfg_copy = dict(command_config)
+        
+        if cfg_copy.get('tag') == 'list':
+            list_attribs = cfg_copy.get("attributes", {})
+            list_node = element_with_attributes("list", list_attribs)
+            for cmd_spec in cfg_copy.get("children", []):
+                list_node.append(self._build_command(cmd_spec))
+            return list_node
+
+        # Preserve XML comments that were parsed as commands
+        if (cfg_copy.get("type") == "comment") or (cfg_copy.get("tag") == "comment"):
+            text = cfg_copy.get("text", "")
+            return build_generic_node({"tag": "comment", "text": text})
+
+        command_type = cfg_copy.pop("type", None) or cfg_copy.pop("tag", None)
         if not command_type:
-            raise ValueError(f"Command specification missing 'type': {command_config}")
-        node = element_with_attributes(command_type, command_config.get("attributes", {}))
-        for child_spec in command_config.get("children", []):
+            raise ValueError(f"Command specification missing 'type' or 'tag': {cfg_copy}")
+        
+        attributes = cfg_copy.pop("attributes", {})
+        if not attributes:
+             attributes = {k: v for k, v in cfg_copy.items() if k not in {"type", "tag", "children", "extra", "text", "vector"}}
+
+        # Lift special dict attributes into child elements (avoids stringified dicts in XML)
+        special_children: List[Dict[str, Any]] = []
+        for special_key in ("point", "size"):
+            val = attributes.get(special_key)
+            if isinstance(val, dict) and looks_like_vector(val):
+                special_children.append({"tag": special_key, "vector": val})
+                del attributes[special_key]
+                # Also remove from cfg_copy so it is not re-added as a stringified attribute below
+                if special_key in cfg_copy:
+                    cfg_copy.pop(special_key, None)
+        # Prefer child <boxfill> node for draw* commands
+        if str(command_type).lower().startswith("draw"):
+            val = attributes.get("boxfill")
+            if val is not None:
+                special_children.append({"tag": "boxfill", "text": val})
+                del attributes["boxfill"]
+                cfg_copy.pop("boxfill", None)
+
+        node = element_with_attributes(command_type, attributes)
+        for child_spec in special_children:
             node.append(build_generic_node(child_spec))
-        for extra_spec in command_config.get("extra", []):
+
+        # Ensure these keys are never serialized as stringified dict attributes
+        for _k in ("point", "size", "boxfill"):
+            cfg_copy.pop(_k, None)
+        
+        vector = cfg_copy.pop("vector", None)
+        if vector:
+            for axis, value in vector.items():
+                node.set(str(axis), stringify(value))
+
+        for child_spec in cfg_copy.pop("children", []):
+            node.append(build_generic_node(child_spec))
+        for extra_spec in cfg_copy.pop("extra", []):
             node.append(build_generic_node(extra_spec))
-        if command_config.get("text") is not None:
-            node.text = stringify(command_config["text"])
+        if cfg_copy.get("text") is not None:
+            node.text = stringify(cfg_copy.pop("text"))
+        
+        # any remaining items are attributes
+        for key, value in cfg_copy.items():
+            node.set(str(key), stringify(value))
+
+        # Special coercions/fallbacks for compatibility
+        cmd = str(command_type).lower()
+        if cmd == "setdrawmode":
+            val = node.attrib.pop("value", None)
+            if val is not None and "mode" not in node.attrib:
+                node.set("mode", stringify(val))
+        elif cmd == "setshapemode":
+            val = node.attrib.pop("value", None)
+            if (node.text is None or node.text == "") and val is not None:
+                node.text = stringify(val)
+
         return node
+
+    def _ensure_fillcommands_use_points(self, mainlist_node: ET.Element) -> None:
+        drawpoints_enabled = False
+        children = list(mainlist_node)
+        idx = 0
+        while idx < len(children):
+            child = children[idx]
+            tag = str(child.tag or "").lower()
+            if tag == "resetdraw":
+                drawpoints_enabled = True
+            elif tag == "setactive":
+                value = child.attrib.get("drawpoints")
+                if value is None:
+                    drawpoints_enabled = True
+                else:
+                    drawpoints_enabled = str(value).lower() not in {"0", "false"}
+            elif tag.startswith("fill"):
+                if not drawpoints_enabled:
+                    setactive = ET.Element("setactive")
+                    setactive.set("drawpoints", "1")
+                    setactive.set("drawshapes", "0")
+                    mainlist_node.insert(idx, setactive)
+                    children.insert(idx, setactive)
+                    drawpoints_enabled = True
+                    idx += 1
+                    child = children[idx]
+                self._ensure_fill_command_position(child)
+                drawpoints_enabled = True
+            idx += 1
+
+    def _ensure_fill_command_position(self, command_node: ET.Element) -> None:
+        missing_axes = [axis for axis in ("x", "y", "z") if axis not in command_node.attrib]
+        if not missing_axes:
+            return
+        point_node = None
+        for child in list(command_node):
+            if str(child.tag or "").lower() == "point":
+                point_node = child
+                break
+        if point_node is None:
+            return
+        for axis in ("x", "y", "z"):
+            if axis in command_node.attrib:
+                continue
+            value = point_node.attrib.get(axis)
+            if value is not None:
+                command_node.set(axis, value)
 
     def _build_section_list(self, section_key: str) -> Optional[ET.Element]:
         specs_config = self.config.get(section_key)
         if not specs_config:
             return None
         if isinstance(specs_config, dict):
-            entries = specs_config.get('entries')
-            if entries is None:
+            if 'entries' in specs_config:
+                entries = specs_config['entries']
+            elif 'children' in specs_config:
+                entries = specs_config['children']
+            else:
                 entries = [specs_config]
-        else:
+        elif isinstance(specs_config, list):
             entries = specs_config
+        else:
+            raise TypeError(f"Unsupported configuration for section '{section_key}': {type(specs_config)!r}")
+
+        if not entries:
+            return None
         node = ET.Element(section_key)
         for spec in entries:
             node.append(build_generic_node(spec))
@@ -326,54 +507,161 @@ class CaseBuilder:
     def _build_execution(self) -> ET.Element:
         execution = element_with_attributes("execution", self.config.get("execution_attributes", {}))
         exec_config = self.config.get("execution", {})
-        parameters = exec_config.get("parameters")
-        if parameters:
-            execution.append(self._build_parameters(parameters))
-        special_node: Optional[ET.Element] = None
-        gauges = exec_config.get("gauges")
-        if gauges:
-            if special_node is None:
+        
+        build_order = exec_config.get("children_order", ["parameters", "special", "extra_nodes"])
+
+        for key in build_order:
+            if key == "parameters" and exec_config.get("parameters"):
+                execution.append(
+                    self._build_parameters(
+                        exec_config.get("parameters"),
+                        exec_config.get("parameters_order"),
+                        exec_config.get("parameters_children"),
+                    )
+                )
+            elif key == "special":
+                special_children = exec_config.get("special_children")
                 special_node = ET.Element("special")
-            special_node.append(self._build_gauges(gauges))
-        timeout_cfg = exec_config.get("timeout")
-        if timeout_cfg:
-            if special_node is None:
-                special_node = ET.Element("special")
-            special_node.append(self._build_timeout(timeout_cfg))
-        for spec in exec_config.get("special", []):
-            if special_node is None:
-                special_node = ET.Element("special")
-            special_node.append(build_generic_node(spec))
-        special_sections = {
-            "wavepaddles": exec_config.get("wavepaddles"),
-            "activeabsorption": exec_config.get("active_absorption") or exec_config.get("activeabsorption"),
-            "passiveabsorption": exec_config.get("passive_absorption") or exec_config.get("passiveabsorption"),
-            "relaxationzones": exec_config.get("relaxation_zones") or exec_config.get("relaxationzones"),
-            "particlefilter": exec_config.get("particle_filters") or exec_config.get("particlefilter"),
-        }
-        for tag, cfg in special_sections.items():
-            if cfg:
-                if special_node is None:
-                    special_node = ET.Element("special")
-                special_node.append(self._build_special_section(tag, cfg))
-        if special_node is not None and len(special_node):
-            execution.append(special_node)
-        for spec in exec_config.get("extra_nodes", []):
-            execution.append(build_generic_node(spec))
+                if special_children:
+                    for entry in special_children:
+                        entry_type = entry.get("type")
+                        if entry_type == "generic":
+                            special_node.append(build_generic_node(entry["spec"]))
+                        elif entry_type == "known":
+                            mapped_key = entry.get("key")
+                            tag_name = entry.get("tag", mapped_key)
+                            if mapped_key == "gauges" and exec_config.get("gauges"):
+                                gauges_node = self._build_gauges(exec_config.get("gauges"))
+                                if gauges_node.tag != tag_name:
+                                    gauges_node.tag = tag_name
+                                special_node.append(gauges_node)
+                            elif mapped_key == "timeout" and exec_config.get("timeout"):
+                                timeout_node = self._build_timeout(exec_config.get("timeout"))
+                                if timeout_node.tag != tag_name:
+                                    timeout_node.tag = tag_name
+                                special_node.append(timeout_node)
+                            else:
+                                section_cfg = exec_config.get(mapped_key)
+                                if section_cfg:
+                                    special_node.append(self._build_special_section(tag_name, section_cfg))
+                        # Ignore unknown entry types silently to preserve robustness
+                    if len(special_node):
+                        execution.append(special_node)
+                else:
+                    special_cfg = exec_config.get("special", [])
+                    has_special_content = (
+                        special_cfg
+                        or exec_config.get("wavepaddles")
+                        or exec_config.get("gauges")
+                        or exec_config.get("timeout")
+                        or exec_config.get("activeabsorption")
+                        or exec_config.get("passiveabsorption")
+                        or exec_config.get("relaxationzones")
+                        or exec_config.get("particlefilter")
+                        or exec_config.get("active_absorption")
+                        or exec_config.get("passive_absorption")
+                        or exec_config.get("relaxation_zones")
+                        or exec_config.get("particle_filters")
+                    )
+                    if has_special_content:
+                        special_order = [
+                            "gauges",
+                            "timeout",
+                            "activeabsorption",
+                            "passiveabsorption",
+                            "relaxationzones",
+                            "wavepaddles",
+                            "particlefilter",
+                            "special",
+                        ]
+                        key_aliases = {
+                            "activeabsorption": "active_absorption",
+                            "passiveabsorption": "passive_absorption",
+                            "relaxationzones": "relaxation_zones",
+                            "particlefilter": "particle_filters",
+                        }
+                        for special_key in special_order:
+                            if special_key == "special":
+                                for spec in special_cfg:
+                                    special_node.append(build_generic_node(spec))
+                                continue
+                            cfg = exec_config.get(special_key)
+                            if cfg is None and special_key in key_aliases:
+                                cfg = exec_config.get(key_aliases[special_key])
+                            if cfg is None:
+                                continue
+                            if special_key == "gauges":
+                                special_node.append(self._build_gauges(cfg))
+                            elif special_key == "timeout":
+                                special_node.append(self._build_timeout(cfg))
+                            else:
+                                special_node.append(self._build_special_section(special_key, cfg))
+                        if len(special_node):
+                            execution.append(special_node)
+            elif key == "extra_nodes":
+                for spec in exec_config.get("extra_nodes", []):
+                    execution.append(build_generic_node(spec))
+
         return execution
 
-    def _build_parameters(self, parameters_config: Any) -> ET.Element:
+    def _build_parameters(self, parameters_config: Any, order: Optional[Sequence[str]] = None, children_plan: Optional[Sequence[Dict[str, Any]]] = None) -> ET.Element:
         node = ET.Element("parameters")
         if isinstance(parameters_config, dict):
-            for key, value in parameters_config.items():
+            emitted: set[str] = set()
+
+            def append_parameter(key: str, value: Any) -> None:
                 if value is None:
-                    continue
+                    return
                 if isinstance(value, dict):
-                    attributes = {"key": key}
-                    attributes.update(value)
+                    is_generic = any(
+                        marker in value
+                        for marker in ("tag", "children", "text", "vector", "extra", "attributes")
+                    )
+                    if is_generic:
+                        spec = dict(value)
+                        spec.setdefault("tag", "parameter")
+                        if "key" not in spec:
+                            if "attributes" in spec and isinstance(spec["attributes"], dict):
+                                attrs = dict(spec["attributes"])
+                                attrs.setdefault("key", key)
+                                spec["attributes"] = attrs
+                            else:
+                                spec.setdefault("key", key)
+                        node.append(build_generic_node(spec))
+                    else:
+                        attributes = dict(value)
+                        attributes.setdefault("key", key)
+                        node.append(element_with_attributes("parameter", attributes))
                 else:
                     attributes = {"key": key, "value": value}
-                node.append(element_with_attributes("parameter", attributes))
+                    node.append(element_with_attributes("parameter", attributes))
+
+            if children_plan:
+                for entry in children_plan:
+                    entry_type = entry.get("type")
+                    if entry_type == "parameter":
+                        key = entry.get("key")
+                        if key is None or key not in parameters_config:
+                            continue
+                        append_parameter(key, parameters_config[key])
+                        emitted.add(key)
+                    elif entry_type == "generic":
+                        node.append(build_generic_node(entry["spec"]))
+                remaining_keys = [
+                    key for key in parameters_config.keys() if key not in emitted
+                ]
+                if remaining_keys:
+                    for key in remaining_keys:
+                        append_parameter(key, parameters_config[key])
+            else:
+                if order:
+                    keys: Iterable[str] = order
+                else:
+                    keys = sorted(parameters_config.keys())
+                for key in keys:
+                    if key not in parameters_config:
+                        continue
+                    append_parameter(key, parameters_config[key])
         elif isinstance(parameters_config, list):
             for item in parameters_config:
                 if "key" not in item:
@@ -393,11 +681,49 @@ class CaseBuilder:
             if "name" in gauge:
                 attributes.setdefault("name", gauge["name"])
             gauge_element = element_with_attributes(gauge_type, attributes)
-            if "start" in gauge:
-                gauge_element.append(build_generic_node({"tag": "point0", "vector": gauge["start"]}))
-            if "end" in gauge:
-                gauge_element.append(build_generic_node({"tag": "point2", "vector": gauge["end"]}))
+            plan = gauge.get("children_plan")
+            processed_keys = set()
+            planned_generic_ids = set()
+            if plan:
+                for entry in plan:
+                    entry_type = entry.get("type")
+                    if entry_type == "mapped":
+                        key = entry.get("key")
+                        if not key or key not in gauge:
+                            continue
+                        processed_keys.add(key)
+                        tag_name = entry.get("tag")
+                        if key == "start":
+                            default_tag = "point0"
+                        elif key == "mid":
+                            default_tag = "point1"
+                        elif key == "end":
+                            default_tag = "point2"
+                        else:
+                            default_tag = key
+                        gauge_element.append(
+                            build_generic_node({"tag": tag_name or default_tag, "vector": gauge[key]})
+                        )
+                    elif entry_type == "generic":
+                        spec = entry["spec"]
+                        planned_generic_ids.add(id(spec))
+                        gauge_element.append(build_generic_node(spec))
+                for key, default_tag in (("start", "point0"), ("mid", "point1"), ("end", "point2")):
+                    if key in gauge and key not in processed_keys:
+                        gauge_element.append(
+                            build_generic_node({"tag": default_tag, "vector": gauge[key]})
+                        )
+                        processed_keys.add(key)
+            else:
+                if "start" in gauge:
+                    gauge_element.append(build_generic_node({"tag": "point0", "vector": gauge["start"]}))
+                if "mid" in gauge:
+                    gauge_element.append(build_generic_node({"tag": "point1", "vector": gauge["mid"]}))
+                if "end" in gauge:
+                    gauge_element.append(build_generic_node({"tag": "point2", "vector": gauge["end"]}))
             for child_spec in gauge.get("children", []):
+                if plan and id(child_spec) in planned_generic_ids:
+                    continue
                 gauge_element.append(build_generic_node(child_spec))
             gauges_node.append(gauge_element)
         return gauges_node
@@ -460,15 +786,157 @@ class CaseBuilder:
 
 
 def serialize_xml(root: ET.Element) -> str:
-    rough = ET.tostring(root, encoding="utf-8")
-    parsed = minidom.parseString(rough)
-    return parsed.toprettyxml(indent="    ")
+    return ET.tostring(root, pretty_print=True, xml_declaration=True, encoding="UTF-8").decode("utf-8")
 
+
+def build_case_element(config: Dict[str, Any]) -> ET.Element:
+    builder = CaseBuilder(config)
+    return builder.build()
+
+
+FILL_COMMAND_TAGS = {
+    "fillbox",
+    "fillcylinder",
+    "fillmesh",
+    "fillpoints",
+    "fillplane",
+    "fillprism",
+}
+
+THIN_AXIS_TOLERANCE = 1e-9
+
+def _parse_float_value(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_int_value(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_case_tree(root: ET.Element) -> List[str]:
+    errors: List[str] = []
+
+    casedef = root.find("casedef")
+    if casedef is None:
+        errors.append("missing <casedef> block")
+        return errors
+
+    geometry = casedef.find("geometry")
+    if geometry is None:
+        errors.append("missing <geometry> block")
+        return errors
+
+    definition = geometry.find("definition")
+    if definition is None:
+        errors.append("geometry.definition missing")
+    else:
+        dp_value = _parse_float_value(definition.attrib.get("dp"))
+        if dp_value is None or dp_value <= 0:
+            errors.append("geometry.definition.dp must be a positive number")
+
+        pointmin = definition.find("pointmin")
+        pointmax = definition.find("pointmax")
+        if pointmin is None or pointmax is None:
+            errors.append("geometry.definition requires <pointmin> and <pointmax>")
+        else:
+            thin_axes = 0
+            for axis in ("x", "y", "z"):
+                min_val = _parse_float_value(pointmin.attrib.get(axis))
+                max_val = _parse_float_value(pointmax.attrib.get(axis))
+                if min_val is None or max_val is None:
+                    errors.append(f"geometry.definition point{axis} missing numeric value")
+                    continue
+                if max_val < min_val:
+                    errors.append(f"geometry.definition {axis}-axis has pointmax < pointmin")
+                elif abs(max_val - min_val) <= THIN_AXIS_TOLERANCE:
+                    thin_axes += 1
+            if thin_axes > 1:
+                errors.append("geometry.definition collapses more than one axis; 2D cases may collapse only one axis")
+
+    commands_block = geometry.find("commands")
+    mainlist = commands_block.find("mainlist") if commands_block is not None else None
+    if mainlist is None:
+        errors.append("geometry.commands.mainlist missing or empty")
+    else:
+        used_fluid_mks: set[int] = set()
+        used_bound_mks: set[int] = set()
+        setmkfluid_seen = False
+        fluid_fill_found = False
+        current_role = None
+
+        for child in list(mainlist):
+            tag = str(child.tag or "").lower()
+            if tag == "setmkfluid":
+                current_role = "fluid"
+                setmkfluid_seen = True
+                mk_val = _parse_int_value(child.attrib.get("mk"))
+                if mk_val is not None:
+                    used_fluid_mks.add(mk_val)
+            elif tag == "setmkbound":
+                current_role = "bound"
+                mk_val = _parse_int_value(child.attrib.get("mk"))
+                if mk_val is not None:
+                    used_bound_mks.add(mk_val)
+            elif tag == "setmkvoid":
+                current_role = "void"
+            elif tag.startswith("setmk"):
+                current_role = None
+            elif tag in FILL_COMMAND_TAGS:
+                if current_role == "fluid":
+                    fluid_fill_found = True
+                elif current_role is None:
+                    errors.append(f"{tag} command appears without an active setmkfluid context")
+            elif tag.startswith("draw"):
+                if current_role == "fluid":
+                    fluid_fill_found = True
+                elif current_role is None:
+                    errors.append(f"{tag} command appears without an active setmkfluid context")
+
+        if setmkfluid_seen and not fluid_fill_found:
+            errors.append("no fluid fill command found after setmkfluid in geometry.commands.mainlist")
+
+        mkconfig = casedef.find("mkconfig")
+        if mkconfig is not None:
+            bound_count = _parse_int_value(mkconfig.attrib.get("boundcount"))
+            fluid_count = _parse_int_value(mkconfig.attrib.get("fluidcount"))
+            if used_bound_mks:
+                if bound_count is None:
+                    errors.append("mkconfig.boundcount missing while boundary mk are used")
+                elif bound_count <= max(used_bound_mks):
+                    errors.append(f"mkconfig.boundcount={bound_count} does not cover boundary mk {max(used_bound_mks)}")
+            if used_fluid_mks:
+                if fluid_count is None:
+                    errors.append("mkconfig.fluidcount missing while fluid mk are used")
+                elif fluid_count <= max(used_fluid_mks):
+                    errors.append(f"mkconfig.fluidcount={fluid_count} does not cover fluid mk {max(used_fluid_mks)}")
+        elif used_bound_mks or used_fluid_mks:
+            errors.append("mkconfig missing while setmk commands define markers")
+
+    return errors
+
+def generate_case_xml(config: Dict[str, Any], *, pretty: bool = True) -> str:
+    root = build_case_element(config)
+    errors = validate_case_tree(root)
+    if errors:
+        details = "; ".join(errors)
+        raise ValueError(f"Case validation failed: {details}")
+    if pretty:
+        return serialize_xml(root)
+    return ET.tostring(root, encoding="unicode")
 
 def write_case(config_path: Path, output_path: Path) -> None:
     config = load_config(config_path)
-    builder = CaseBuilder(config)
-    xml_string = serialize_xml(builder.build())
+    xml_string = generate_case_xml(config)
     output_path.write_text(xml_string, encoding="utf-8")
 
 

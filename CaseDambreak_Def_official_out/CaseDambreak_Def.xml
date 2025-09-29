@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<case app="GenCase v5.4.354.01 (07-04-2025)" date="27-09-2025 00:41:57">
+    <casedef>
+        <constantsdef>
+            <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2" />
+            <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3" />
+            <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)" />
+            <hswl value="0" auto="true" comment="Max still water level for speed of sound via coefsound" units_comment="m" />
+            <gamma value="7" comment="Tait EOS exponent for water" />
+            <speedsystem value="0" auto="true" comment="Max system speed (auto from dam-break propagation)" />
+            <coefsound value="20" comment="Speedsound = coefsound * speedsystem" />
+            <speedsound value="0" auto="true" comment="Auto speed of sound" />
+            <coefh value="1.0" comment="h = coefh * sqrt(3*dp^2) in 3D" />
+            <_hdp value="2" comment="Alternative: h = hdp * dp" />
+            <cflnumber value="0.2" comment="CFL number" />
+        </constantsdef>
+        <!-- 2D-style: use very thin Y thickness = Dp -->
+        <mkconfig boundcount="20" fluidcount="20" />
+        <geometry>
+            <definition dp="0.01" units_comment="m">
+                <pointmin x="0.0" y="0.0" z="0.0" />
+                <pointmax x="1.6" y="0.01" z="0.4" />
+            </definition>
+            <commands>
+                <mainlist>
+                    <!-- DBC boundary generation (faces), not mDBC -->
+                    <setshapemode>dp | bound</setshapemode>
+                    <setdrawmode mode="full" />
+                    <!-- Fluid column (left-bottom corner), size 0.4 x (Dp) x 0.3 m -->
+                    <setmkfluid mk="0" />
+                    <drawbox>
+                        <boxfill>solid</boxfill>
+                        <point x="0.0" y="0.0" z="0.0" />
+                        <size x="0.4" y="0.01" z="0.3" />
+                    </drawbox>
+                    <!-- Tank walls: bottom, left, right, front, back (top open) -->
+                    <setmkbound mk="0" />
+                    <drawbox>
+                        <boxfill>bottom | left | right | front | back</boxfill>
+                        <point x="0.0" y="0.0" z="0.0" />
+                        <size x="1.6" y="0.01" z="0.4" />
+                    </drawbox>
+                    <shapeout file="Tank" />
+                </mainlist>
+            </commands>
+        </geometry>
+    </casedef>
+    <execution>
+        <parameters>
+            <parameter key="SavePosDouble" value="0" comment="Save double-precision positions (0=off)" />
+            <parameter key="StepAlgorithm" value="1" comment="1:Verlet, 2:Symplectic" />
+            <parameter key="VerletSteps" value="40" comment="Euler warmup steps for Verlet" />
+            <parameter key="Kernel" value="2" comment="1:Cubic Spline, 2:Wendland" />
+            <parameter key="ViscoTreatment" value="1" comment="1:Artificial, 2:Laminar+SPS, 3:Laminar" />
+            <parameter key="Visco" value="0.01" comment="Artificial viscosity coeff (typ. 0.01)" />
+            <parameter key="ViscoBoundFactor" value="1" comment="Multiply viscosity on boundary" />
+            <parameter key="DensityDT" value="2" comment="DDT 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full)" />
+            <parameter key="DensityDTvalue" value="0.1" comment="DDT coefficient" />
+            <parameter key="Shifting" value="0" comment="0:Off, 1:Ignore bound, 2:Ignore fixed, 3:Full" />
+            <parameter key="ShiftCoef" value="-2" comment="Shifting coefficient" />
+            <parameter key="ShiftTFS" value="0" comment="Free-surface threshold (1.5 for 2D, 2.75 for 3D if enabled)" />
+            <parameter key="RigidAlgorithm" value="1" comment="0:collision-free, 1:SPH, 2:DEM, 3:Chrono" />
+            <parameter key="FtPause" value="0.0" comment="Floating warmup freeze time (s)" />
+            <parameter key="CoefDtMin" value="0.05" comment="dtmin = coefdtmin*h/speedsound" />
+            <parameter key="DtIni" value="0" comment="Use default h/speedsound" />
+            <parameter key="DtMin" value="0" comment="Use default coefdtmin*h/speedsound" />
+            <parameter key="DtFixed" value="0" comment="Fixed dt disabled" />
+            <parameter key="DtFixedFile" value="NONE" comment="External dt schedule disabled" />
+            <parameter key="DtAllParticles" value="0" comment="0:Fluid/Floating only for dt calc" />
+            <parameter key="TimeMax" value="1.0" comment="Total simulation time (s)" />
+            <parameter key="TimeOut" value="0.01" comment="Output interval (s)" />
+            <parameter key="PartsOutMax" value="1" comment="**DEPRECATED** % of fluid allowed outside domain" />
+            <parameter key="RhopOutMin" value="700" comment="Min valid density (kg/m^3)" />
+            <parameter key="RhopOutMax" value="1300" comment="Max valid density (kg/m^3)" />
+            <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+                <posmin x="default" y="default" z="default" comment="e.g.: x=0.5, y=default-1, z=default-10%" />
+                <posmax x="default" y="default" z="default + 50%" />
+            </simulationdomain>
+        </parameters>
+        <particles np="6400" nb="6400" nbf="6400" mkboundfirst="21" mkfluidfirst="1">
+            <_summary>
+                <positions units_comment="metres (m)">
+                    <posmin x="0" y="0" z="0" />
+                    <posmax x="1.59" y="0" z="0.39" />
+                </positions>
+                <fixed count="6400" id="0-6399" mkcount="1" mkvalues="21" />
+            </_summary>
+            <fixed mkbound="0" mk="21" begin="0" count="6400" />
+        </particles>
+        <constants>
+            <data2d value="false" />
+            <gravity x="0" y="0" z="-9.81" units_comment="m/s^2" />
+            <cflnumber value="0.2" />
+            <gamma value="7" />
+            <rhop0 value="1000" units_comment="kg/m^3" />
+            <dp value="0.01" units_comment="metres (m)" />
+            <h value="0.017320508076" units_comment="metres (m)" />
+            <b value="0" units_comment="Pascal (Pa)" />
+            <massbound value="0.001" units_comment="kg" />
+            <massfluid value="0.001" units_comment="kg" />
+        </constants>
+        <uservars>
+            <varnum name="VResId" value="0" />
+        </uservars>
+        <motion />
+        <vtkout mkboundfirst="21" mkfluidfirst="1">
+            <vtkfile name="CaseDambreak_Def_Tank_Dp.vtk" mk="21" mkbound="0" />
+        </vtkout>
+    </execution>
+</case>
