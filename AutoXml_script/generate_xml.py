@@ -2,12 +2,60 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 from lxml import etree as ET
 
 VectorDict = Dict[str, Any]
 Attributes = Dict[str, Any]
+
+DEFAULT_CONSTANT_META: Dict[str, Dict[str, Any]] = {
+    "gravity": {
+        "comment": "Gravitational acceleration",
+        "units_comment": "m/s^2",
+    },
+    "rhop0": {
+        "comment": "Reference density of the fluid",
+        "units_comment": "kg/m^3",
+    },
+    "rhopgradient": {
+        "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+    },
+    "hswl": {
+        "auto": True,
+        "comment": "Maximum still water level to calculate speedofsound using coefsound",
+        "units_comment": "metres (m)",
+
+    },
+    "gamma": {
+        "comment": "Polytropic constant for water used in the state equation",
+    },
+    "speedsystem": {
+        "auto": True,
+        "comment": "Maximum system speed (by default the dam-break propagation is used)",
+        "units_comment": "m/s",
+
+    },
+    "coefsound": {
+        "comment": "Coefficient to multiply speedsystem",
+    },
+    "speedsound": {
+        "auto": True,
+        "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+        "units_comment": "m/s",
+
+    },
+    "coefh": {
+        "comment": "Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)",
+    },
+    "_hdp": {
+        "comment": "Alternative option to calculate the smoothing length (h=hdp*dp)",
+    },
+    "cflnumber": {
+        "comment": "Coefficient to multiply dt",
+    },
+}
 
 
 def load_config(path: Path) -> Dict[str, Any]:
@@ -28,10 +76,61 @@ def looks_like_vector(candidate: Any) -> bool:
     return bool(keys) and keys <= {"x", "y", "z"}
 
 
+def sanitize_xml_tag(name: str) -> str:
+    if name is None:
+        raise ValueError("XML tag name must not be None")
+    text = str(name).strip()
+    if not text:
+        raise ValueError("XML tag name must not be empty")
+    sanitized = re.sub(r"[^A-Za-z0-9_.-]", "_", text)
+    sanitized = re.sub(r"_+", "_", sanitized)
+    sanitized = sanitized.strip("_")
+    if not sanitized:
+        sanitized = "n"
+    if not re.match(r"[A-Za-z_]", sanitized[0]):
+        sanitized = f"n_{sanitized}"
+    if sanitized.lower().startswith("xml"):
+        sanitized = f"n_{sanitized}"
+    return sanitized
+
+
+def split_label(label: str) -> tuple[Optional[str], Optional[str]]:
+    text = label.strip()
+    match = re.match(r"^(?P<base>[^\[]+?)(?:\s*\[(?P<units>[^\]]+)\])?$", text)
+    if not match:
+        return text or None, None
+    base = match.group("base").strip()
+    units = match.group("units")
+    return (base or None), (units.strip() if units else None)
+
+
 def element_with_attributes(name: str, attribs: Attributes) -> ET.Element:
-    # Sort attributes for deterministic output
-    sorted_attribs = {str(k): stringify(v) for k, v in sorted(attribs.items()) if v is not None}
-    return ET.Element(name, sorted_attribs)
+    original_name = str(name)
+    safe_name = sanitize_xml_tag(original_name)
+    attributes = dict(attribs or {})
+    if safe_name != original_name and "label" not in attributes:
+        attributes["label"] = original_name
+
+    value_value = attributes.pop("value", None) if "value" in attributes else None
+    auto_value = attributes.pop("auto", None) if "auto" in attributes else None
+    comment_value = attributes.pop("comment", None) if "comment" in attributes else None
+    units_value = attributes.pop("units_comment", None) if "units_comment" in attributes else None
+
+    element = ET.Element(safe_name)
+    if value_value is not None:
+        element.set("value", stringify(value_value))
+    if auto_value is not None:
+        element.set("auto", stringify(auto_value))
+
+    for key, value in sorted(attributes.items()):
+        element.set(str(key), stringify(value))
+
+    if comment_value is not None:
+        element.set("comment", stringify(comment_value))
+    if units_value is not None:
+        element.set("units_comment", stringify(units_value))
+
+    return element
 
 
 def vector_element(name: str, vector: VectorDict) -> ET.Element:
@@ -152,19 +251,67 @@ class CaseBuilder:
 
     def _build_constantsdef(self) -> ET.Element:
         constants_node = ET.Element("constantsdef")
-        constants = self.config.get("constants") or self.config.get("constantsdef") or {}
-        for name, value in constants.items():
-            if value is None:
+        constants_cfg = self.config.get("constants") or self.config.get("constantsdef") or {}
+        for name, cfg in constants_cfg.items():
+            if cfg is None:
                 continue
-            if looks_like_vector(value):
-                constants_node.append(build_generic_node({"tag": name, "vector": value}))
-            elif isinstance(value, dict):
-                node_spec = dict(value)
-                if 'tag' not in node_spec and 'name' not in node_spec and 'type' not in node_spec:
-                    node_spec['tag'] = name
-                constants_node.append(build_generic_node(node_spec))
+
+            if isinstance(cfg, dict) and any(
+                key in cfg for key in ("tag", "attributes", "children", "text", "extra", "vector")
+            ):
+                spec = dict(cfg)
+                spec.setdefault("tag", name)
+                constants_node.append(build_generic_node(spec))
+                continue
+
+            meta = DEFAULT_CONSTANT_META.get(name, {})
+            attributes: Dict[str, Any] = {}
+
+            if isinstance(cfg, dict):
+                for key, value in cfg.items():
+                    if key in {"value", "auto", "comment", "units_comment", "label", "tag"}:
+                        continue
+                    attributes[key] = value
             else:
-                constants_node.append(build_generic_node({"tag": name, "attributes": {"value": value}}))
+                attributes["value"] = cfg
+
+            if isinstance(cfg, dict) and cfg.get("value") is not None:
+                attributes["value"] = cfg["value"]
+
+            vector_only = bool(attributes) and set(attributes.keys()) <= {"x", "y", "z"}
+            include_meta = isinstance(cfg, dict)
+
+            if include_meta and "value" not in attributes and not vector_only and meta.get("value") is not None:
+                attributes["value"] = meta["value"]
+
+            if isinstance(cfg, dict) and "auto" in cfg:
+                attributes["auto"] = cfg["auto"]
+            elif include_meta and not vector_only and "auto" in meta:
+                attributes["auto"] = meta["auto"]
+
+            label_comment = None
+            label_units = None
+            has_label = False
+            if isinstance(cfg, dict) and cfg.get("label"):
+                label_comment, label_units = split_label(cfg["label"])
+                has_label = True
+
+            if isinstance(cfg, dict) and "comment" in cfg:
+                attributes["comment"] = cfg["comment"]
+            elif label_comment:
+                attributes.setdefault("comment", label_comment)
+            elif include_meta and not vector_only and not has_label and "comment" in meta and "comment" not in attributes:
+                attributes["comment"] = meta["comment"]
+
+            if isinstance(cfg, dict) and "units_comment" in cfg:
+                attributes["units_comment"] = cfg["units_comment"]
+            elif label_units and "units_comment" not in attributes:
+                attributes["units_comment"] = label_units
+            elif include_meta and not vector_only and not has_label and "units_comment" in meta and "units_comment" not in attributes:
+                attributes["units_comment"] = meta["units_comment"]
+
+            spec = {"tag": name, "attributes": attributes}
+            constants_node.append(build_generic_node(spec))
         return constants_node
 
     def _build_mkconfig(self) -> Optional[ET.Element]:
@@ -217,14 +364,19 @@ class CaseBuilder:
         if geometry_cfg is None:
             return None
         geometry_node = ET.Element("geometry")
-        if "predefinition" in geometry_cfg:
-            append_if_not_none(geometry_node, self._build_geometry_predefinition(geometry_cfg.get("predefinition")))
-        # Always attempt to build definition; handles fallback when only dp/domain are provided
-        append_if_not_none(geometry_node, self._build_geometry_definition(geometry_cfg))
-        if "commands" in geometry_cfg or "objects" in geometry_cfg:
-            commands = self._build_geometry_commands(geometry_cfg)
-            if commands is not None:
-                geometry_node.append(commands)
+
+        append_if_not_none(geometry_node, self._build_geometry_predefinition(geometry_cfg.get("predefinition")))
+
+        definition_node = self._build_geometry_definition(geometry_cfg)
+        if definition_node is not None:
+            geometry_node.append(definition_node)
+        elif "definition" in geometry_cfg:
+            raise ValueError("geometry.definition missing")
+
+        commands = self._build_geometry_commands(geometry_cfg)
+        if commands is not None:
+            geometry_node.append(commands)
+
         for spec in geometry_cfg.get("extra", []):
             geometry_node.append(build_generic_node(spec))
         return geometry_node
@@ -260,7 +412,7 @@ class CaseBuilder:
                 definition_cfg["children"].append({"tag": "pointmin", "vector": domain["min"]})
             if "max" in domain:
                 definition_cfg["children"].append({"tag": "pointmax", "vector": domain["max"]})
-        
+
         if isinstance(definition_cfg, dict) and (definition_cfg.get("tag") or definition_cfg.get("name")):
             definition_node = build_generic_node(definition_cfg)
         else:
@@ -316,14 +468,14 @@ class CaseBuilder:
                     for cmd_spec in commands_cfg["mainlist"]:
                         mainlist_node.append(self._build_command(cmd_spec))
                     node.append(mainlist_node)
-        
+
         if objects_cfg:
             if mainlist_node is None:
                 mainlist_node = ET.SubElement(node, "mainlist")
             legacy_commands = self._objects_to_commands(objects_cfg)
             for command_spec in legacy_commands:
                 mainlist_node.append(self._build_command(command_spec))
-        
+
         if mainlist_node is not None and not (commands_cfg and "children" in commands_cfg):
             self._ensure_fillcommands_use_points(mainlist_node)
 
@@ -355,10 +507,10 @@ class CaseBuilder:
                 command_type = "drawbox"
             commands.append({"type": command_type, "children": children})
         return commands
-        
+
     def _build_command(self, command_config: Dict[str, Any]) -> ET.Element:
         cfg_copy = dict(command_config)
-        
+
         if cfg_copy.get('tag') == 'list':
             list_attribs = cfg_copy.get("attributes", {})
             list_node = element_with_attributes("list", list_attribs)
@@ -366,15 +518,14 @@ class CaseBuilder:
                 list_node.append(self._build_command(cmd_spec))
             return list_node
 
-        # Preserve XML comments that were parsed as commands
+        command_type = cfg_copy.pop("type", None) or cfg_copy.pop("tag", None)
         if (cfg_copy.get("type") == "comment") or (cfg_copy.get("tag") == "comment"):
             text = cfg_copy.get("text", "")
             return build_generic_node({"tag": "comment", "text": text})
 
-        command_type = cfg_copy.pop("type", None) or cfg_copy.pop("tag", None)
         if not command_type:
             raise ValueError(f"Command specification missing 'type' or 'tag': {cfg_copy}")
-        
+
         attributes = cfg_copy.pop("attributes", {})
         if not attributes:
              attributes = {k: v for k, v in cfg_copy.items() if k not in {"type", "tag", "children", "extra", "text", "vector"}}
@@ -404,7 +555,7 @@ class CaseBuilder:
         # Ensure these keys are never serialized as stringified dict attributes
         for _k in ("point", "size", "boxfill"):
             cfg_copy.pop(_k, None)
-        
+
         vector = cfg_copy.pop("vector", None)
         if vector:
             for axis, value in vector.items():
@@ -416,7 +567,7 @@ class CaseBuilder:
             node.append(build_generic_node(extra_spec))
         if cfg_copy.get("text") is not None:
             node.text = stringify(cfg_copy.pop("text"))
-        
+
         # any remaining items are attributes
         for key, value in cfg_copy.items():
             node.set(str(key), stringify(value))
@@ -507,7 +658,7 @@ class CaseBuilder:
     def _build_execution(self) -> ET.Element:
         execution = element_with_attributes("execution", self.config.get("execution_attributes", {}))
         exec_config = self.config.get("execution", {})
-        
+
         build_order = exec_config.get("children_order", ["parameters", "special", "extra_nodes"])
 
         for key in build_order:
@@ -897,6 +1048,16 @@ def validate_case_tree(root: ET.Element) -> List[str]:
                 elif current_role is None:
                     errors.append(f"{tag} command appears without an active setmkfluid context")
             elif tag.startswith("draw"):
+                # Validate drawbox requires boxfill child
+                if tag == "drawbox":
+                    has_boxfill = any(
+                        str(c.tag or "").lower() == "boxfill"
+                        for c in list(child)
+                    )
+                    if not has_boxfill:
+                        errors.append(f"Error in geometry.commands.mainlist: drawbox requires child element <boxfill>\n"
+                                    f"Expected: <boxfill>solid</boxfill> or <boxfill>bottom | left | right</boxfill>")
+
                 if current_role == "fluid":
                     fluid_fill_found = True
                 elif current_role is None:
