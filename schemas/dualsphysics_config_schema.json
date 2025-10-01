@@ -1,0 +1,372 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DualSPHysics Configuration Schema (GOS) - Strict Mode",
+  "description": "Generator Output Schema for DualSPHysics case configurations. All mandatory fields for OpenAI strict-response compatibility.",
+  "type": "object",
+  "required": [
+    "constants",
+    "mkconfig",
+    "geometry",
+    "execution"
+  ],
+  "properties": {
+    "constants": {
+      "type": "object",
+      "description": "Physical constants and simulation parameters",
+      "required": [
+        "gravity",
+        "rhop0",
+        "rhopgradient",
+        "hswl",
+        "gamma",
+        "speedsystem",
+        "coefsound",
+        "speedsound",
+        "coefh",
+        "_hdp",
+        "cflnumber"
+      ],
+      "properties": {
+        "gravity": {
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rhop0": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "rhopgradient": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": false
+        },
+        "hswl": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "gamma": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "speedsystem": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "coefsound": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "speedsound": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "coefh": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "_hdp": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cflnumber": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "mkconfig": {
+      "type": "object",
+      "description": "MK (marker) configuration",
+      "required": [
+        "boundcount",
+        "fluidcount"
+      ],
+      "properties": {
+        "boundcount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fluidcount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "geometry": {
+      "type": "object",
+      "required": [
+        "definition",
+        "commands"
+      ],
+      "properties": {
+        "definition": {
+          "type": "object",
+          "required": [
+            "attributes",
+            "children"
+          ],
+          "properties": {
+            "attributes": {
+              "type": "object",
+              "required": [
+                "dp"
+              ],
+              "properties": {
+                "dp": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "commands": {
+          "type": "object",
+          "required": [
+            "mainlist"
+          ],
+          "properties": {
+            "mainlist": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/commandNode"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "required": [
+        "parameters"
+      ],
+      "properties": {
+        "parameters": {
+          "type": "object",
+          "required": [
+            "TimeMax",
+            "TimeOut"
+          ],
+          "properties": {
+            "TimeMax": {
+              "type": "object",
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "TimeOut": {
+              "type": "object",
+              "required": [
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "vector": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "genericNode": {
+      "type": "object",
+      "required": [
+        "tag",
+        "vector",
+        "children",
+        "text"
+      ],
+      "properties": {
+        "tag": {
+          "type": "string"
+        },
+        "vector": {
+          "$ref": "#/definitions/vector"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "commandNode": {
+      "type": "object",
+      "required": [
+        "type",
+        "children",
+        "text"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "setshapemode",
+            "setdrawmode",
+            "setmkbound",
+            "setmkfluid",
+            "drawbox",
+            "fillbox",
+            "shapeout"
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
