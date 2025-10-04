@@ -52,13 +52,26 @@ def test_normalize_nested_casedef_payload():
     assert config["mkconfig"] == {"boundcount": 10, "fluidcount": 5}
 
     geometry = config["geometry"]
-    assert geometry["definition"]["attributes"]["dp"] == 0.02
-    commands = geometry["commands"]["mainlist"]
-    assert commands[0]["type"] == "setmkfluid"
-    assert commands[1]["type"] == "drawbox"
+    assert geometry["definition"]["dp"] == 0.02
+    # ICS format: commands.children contains list/mainlist nodes
+    commands_children = geometry["commands"]["children"]
+    assert len(commands_children) == 1
+    mainlist_node = commands_children[0]
+    assert mainlist_node["tag"] == "mainlist"
+    assert len(mainlist_node["children"]) == 2
+    assert mainlist_node["children"][0]["type"] == "setmkfluid"
+    assert mainlist_node["children"][1]["type"] == "drawbox"
 
     execution = config["execution"]
     assert execution["parameters"]["TimeMax"] == 3.0
     assert execution["parameters"]["TimeOut"] == 0.01
+    # Check parameters_children plan was synthesized
+    assert "parameters_children" in execution
+    param_plan = execution["parameters_children"]
+    assert any(entry["type"] == "parameter" and entry["key"] == "TimeMax" for entry in param_plan)
+    assert any(entry["type"] == "parameter" and entry["key"] == "TimeOut" for entry in param_plan)
+    # Check extra_nodes for simulationdomain
     extra_nodes = execution.get("extra_nodes", [])
     assert extra_nodes and extra_nodes[0]["tag"] == "simulationdomain"
+    # Check simulationdomain is also in the plan
+    assert any(entry["type"] == "generic" and entry["spec"]["tag"] == "simulationdomain" for entry in param_plan)

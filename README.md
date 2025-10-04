@@ -122,19 +122,3 @@ Internally, the generator targets the design vector store (or FAISS index) while
 
 - The solver always runs DualSPHysics binaries; ensure `DSPH_BIN_DIR` points to a valid installation.
 - Session artifacts are written to `sessions/<session_id>/` to make runs reviewable and reproducible.
-
-## JSON Mode (Structured Outputs)
-
-To force the generator to emit a schema-valid JSON object that our pipeline converts into DualSPHysics XML, enable JSON Mode (OpenAI Responses API Structured Outputs).
-
-Quick steps:
-- Set environment variables:
-  - `LLM_PROVIDER=openai`
-  - `OPENAI_API_KEY=...`
-  - `GENERATOR_JSON_MODE=1`
-  - Optional overrides:
-    - `GENERATOR_PROMPT_PATH_JSON=prompts/auto_xml_contract.md`
-    - `GENERATOR_JSON_SCHEMA_PATH=docs/auto_xml_jsonschema.json`
-- Then call the usual CLI or generator chain; the model will be constrained by the schema and the output will be normalized and validated before XML generation.
-
-See docs/json_mode_usage.md for full details.

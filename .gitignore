@@ -14,6 +14,9 @@ __pycache__/
 *.pyc
 tmp_*.py
 
+# Metrics (generated)
+metrics/*.csv
+
 # IDE/OS
 .vscode/
 *.swp

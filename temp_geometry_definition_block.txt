@@ -1,0 +1,75 @@
+    def _build_geometry_definition(self, geometry_cfg: Dict[str, Any]) -> Optional[ET.Element]:
+        definition_cfg = geometry_cfg.get("definition")
+        if definition_cfg is None:
+            # Fallback for legacy structure where dp/domain are on geometry
+            dp = geometry_cfg.get("dp")
+            if dp is None:
+                return None
+            domain = geometry_cfg.get("domain", {})
+            definition_cfg = {
+                "dp": dp,
+                "pointmin": domain.get("min"),
+                "pointmax": domain.get("max"),
+            }
+
+        if isinstance(definition_cfg, dict) and (definition_cfg.get("tag") or definition_cfg.get("name")):
+            definition_node = build_generic_node(definition_cfg)
+            if "dp" not in definition_node.attrib:
+                raise ValueError("definition.dp attribute is required")
+            return definition_node
+
+        if not isinstance(definition_cfg, dict):
+            raise TypeError("geometry.definition must be a dict when provided")
+
+        attributes = dict(definition_cfg.get("attributes", {}))
+        if definition_cfg.get("dp") is not None and "dp" not in attributes:
+            attributes["dp"] = definition_cfg["dp"]
+        if "dp" not in attributes:
+            raise ValueError("geometry.definition requires dp value")
+
+        node = element_with_attributes("definition", attributes)
+
+        children_specs = definition_cfg.get("children")
+        if children_specs is None:
+            remaining_children: List[Dict[str, Any]] = []
+        elif isinstance(children_specs, list):
+            remaining_children = [dict(child) if isinstance(child, dict) else child for child in children_specs]
+        else:
+            raise TypeError("geometry.definition.children must be an array when provided")
+
+        def _pop_child(tag_name: str) -> Optional[Dict[str, Any]]:
+            for idx, child in enumerate(list(remaining_children)):
+                child_tag = child.get("tag") or child.get("name") or child.get("type")
+                if child_tag == tag_name:
+                    return remaining_children.pop(idx)
+            return None
+
+        def _vector_from_spec(source: Any, tag_name: str) -> Dict[str, Any]:
+            if source is None:
+                raise ValueError(f"geometry.definition requires {tag_name}")
+            if looks_like_vector(source):
+                return {axis: source[axis] for axis in ("x", "y", "z") if axis in source}
+            if isinstance(source, dict):
+                if looks_like_vector(source.get("vector")):
+                    vector = source["vector"]
+                    return {axis: vector[axis] for axis in ("x", "y", "z") if axis in vector}
+                if looks_like_vector(source.get("attributes")):
+                    attrs = source["attributes"]
+                    return {axis: attrs[axis] for axis in ("x", "y", "z") if axis in attrs}
+                if looks_like_vector(source):
+                    return {axis: source[axis] for axis in ("x", "y", "z") if axis in source}
+            raise TypeError(f"Unsupported {tag_name} specification: {source}")
+
+        for tag_name in ("pointmin", "pointmax"):
+            vector_source = definition_cfg.get(tag_name)
+            if vector_source is None:
+                popped = _pop_child(tag_name)
+                if popped is not None:
+                    vector_source = popped
+            vector = _vector_from_spec(vector_source, tag_name)
+            node.append(vector_element(tag_name, vector))
+
+        for child_spec in remaining_children:
+            node.append(build_generic_node(child_spec))
+
+        return node

@@ -30,7 +30,7 @@ from openai.types.responses.response_output_text import (
 LOGGER = logging.getLogger(__name__)
 
 _LAST_RUN_INFO: Dict[str, Any] | None = None
-_DEFAULT_SEARCH_LIMIT = 10
+_DEFAULT_SEARCH_LIMIT = 12
 
 # Based on OpenAI API documentation and observed errors
 _SUPPORTED_OPENAI_EXTS = {
@@ -579,7 +579,7 @@ def response_with_file_search(
     model: str,
     vector_store_ids: List[str],
     metadata_filter: Optional[Dict[str, Any]] = None,
-    max_output_tokens: int = 4096,
+    max_output_tokens: int = 12000,
     query_rewrite: bool = True,
     temperature: Optional[float] = None,
     reasoning: Optional[Dict[str, Any]] = None,

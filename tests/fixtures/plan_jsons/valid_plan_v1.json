@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "query": "Create a 2D dambreak simulation",
+  "metadata_filter": {
+    "case_type": "dambreak",
+    "dim": "2D"
+  },
+  "curated_examples": [
+    {
+      "filename": "CaseDambreak_Def.json",
+      "rank": 1,
+      "score": 0.95,
+      "file_id": "file-abc123",
+      "rationale": "Algorithm=5, Geometry=4 → Perfect match for 2D dambreak, geometry dimensions are similar",
+      "spans": [
+        {
+          "start": 100,
+          "end": 200,
+          "quote": "{\n  \"StepAlgorithm\": 1,\n  \"VerletSteps\": 40,\n  \"Kernel\": 2\n}"
+        },
+        {
+          "start": 500,
+          "end": 600,
+          "quote": "{\n  \"type\": \"drawbox\",\n  \"point\": {\"x\": 0, \"y\": 0, \"z\": 0},\n  \"size\": {\"x\": 1, \"y\": 0.6, \"z\": 0.8}\n}"
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "case_type": "dambreak",
+    "dim": "2D",
+    "features": ["standard"]
+  },
+  "extracted_params": [
+    {
+      "name": "StepAlgorithm",
+      "value": 1,
+      "unit": null,
+      "source": "CaseDambreak_Def.json"
+    },
+    {
+      "name": "dp",
+      "value": 0.01,
+      "unit": "m",
+      "source": "CaseDambreak_Def.json"
+    }
+  ],
+  "missing_params": [
+    "TimeMax",
+    "RhopOutMax"
+  ],
+  "conflicts": [],
+  "schema_guidance": "<<SCHEMA_GUIDANCE_TODO_BY_SCHEMA_AGENT>>\n[required_fields]\n- execution.parameters.TimeMax → needs to be specified\n\n[assumptions]\n- Using standard dambreak setup\n\n[open_questions]\n- Should we add gauges?"
+}

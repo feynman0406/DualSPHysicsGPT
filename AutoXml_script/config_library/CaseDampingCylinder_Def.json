@@ -1,83 +1,83 @@
 {
   "constants": {
     "lattice": {
-      "bound": 1,
-      "fluid": 1,
+      "bound": "1",
+      "fluid": "1",
       "comment": "Type of lattice to create the initial particles (default=1)",
       "tag": "lattice"
     },
     "gravity": {
-      "x": 0,
-      "y": 0,
-      "z": -9.81,
+      "x": "0",
+      "y": "0",
+      "z": "-9.81",
       "comment": "Gravitational acceleration",
       "units_comment": "m/s^2",
       "tag": "gravity"
     },
     "rhop0": {
-      "value": 1000,
+      "value": "1000",
       "comment": "Reference density of the fluid",
       "units_comment": "kg/m^3",
       "tag": "rhop0"
     },
     "rhopgradient": {
-      "value": 3,
+      "value": "3",
       "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
       "tag": "rhopgradient"
     },
     "hswl": {
-      "value": 0,
+      "value": "0",
       "auto": true,
       "comment": "Maximum height of still water to calculate speedofsound using coefsound",
       "units_comment": "metres (m)",
       "tag": "hswl"
     },
     "gamma": {
-      "value": 7,
+      "value": "7",
       "comment": "Polytropic constant for water used in the state equation",
       "tag": "gamma"
     },
     "speedsystem": {
-      "value": 0,
+      "value": "0",
       "auto": true,
       "comment": "Maximum system speed (by default the dam-break propagation is used)",
       "tag": "speedsystem"
     },
     "coefsound": {
-      "value": 20,
+      "value": "20",
       "comment": "Coefficient to multiply speedsystem",
       "tag": "coefsound"
     },
     "speedsound": {
-      "value": 0,
+      "value": "0",
       "auto": true,
       "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
       "tag": "speedsound"
     },
     "coefh": {
-      "value": 0.866025,
+      "value": "0.866025",
       "comment": "Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)",
       "tag": "coefh"
     },
     "_hdp": {
-      "value": 2,
+      "value": "2",
       "comment": "Alternative option to calculate the smoothing length (h=hdp*dp)",
       "tag": "_hdp"
     },
     "cflnumber": {
-      "value": 0.2,
+      "value": "0.2",
       "comment": "Coefficient to multiply dt",
       "tag": "cflnumber"
     }
   },
   "mkconfig": {
-    "boundcount": 241,
-    "fluidcount": 9
+    "boundcount": "241",
+    "fluidcount": "9"
   },
   "geometry": {
     "definition": {
       "attributes": {
-        "dp": 0.005,
+        "dp": "0.005",
         "comment": "Initial inter-particle distance",
         "units_comment": "metres (m)"
       },
@@ -85,122 +85,137 @@
         {
           "tag": "pointref",
           "vector": {
-            "x": 0,
-            "y": 0,
-            "z": 0
+            "x": "0",
+            "y": "0",
+            "z": "0"
           }
         },
         {
           "tag": "pointmin",
           "vector": {
-            "x": -2,
-            "y": -2,
-            "z": -1
+            "x": "-2",
+            "y": "-2",
+            "z": "-1"
           }
         },
         {
           "tag": "pointmax",
           "vector": {
-            "x": 5,
-            "y": 2,
-            "z": 2
+            "x": "5",
+            "y": "2",
+            "z": "2"
           }
         }
       ]
     },
     "commands": {
-      "lists": [
+      "children": [
         {
-          "name": "TankFluid",
-          "printcall": false,
-          "commands": [
+          "tag": "list",
+          "attributes": {
+            "name": "TankFluid",
+            "printcall": false
+          },
+          "children": [
+            {
+              "type": "comment",
+              "text": " Fluid "
+            },
             {
               "type": "setmkfluid",
               "attributes": {
-                "mk": 1
+                "mk": "1"
               }
             },
             {
               "type": "drawcylinder",
               "attributes": {
-                "radius": 0.6
+                "radius": "0.6"
               },
               "children": [
                 {
                   "tag": "point",
                   "vector": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0
+                    "x": "0",
+                    "y": "0",
+                    "z": "0"
                   }
                 },
                 {
                   "tag": "point",
                   "vector": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0.1
+                    "x": "0",
+                    "y": "0",
+                    "z": "0.1"
                   }
                 }
               ]
             },
             {
+              "type": "comment",
+              "text": " Fluid "
+            },
+            {
               "type": "setmkfluid",
               "attributes": {
-                "mk": 0
+                "mk": "0"
               }
             },
             {
               "type": "drawcylinder",
               "attributes": {
-                "radius": 0.06
+                "radius": "0.06"
               },
               "children": [
                 {
                   "tag": "point",
                   "vector": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0.15
+                    "x": "0",
+                    "y": "0",
+                    "z": "0.15"
                   }
                 },
                 {
                   "tag": "point",
                   "vector": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0.25
+                    "x": "0",
+                    "y": "0",
+                    "z": "0.25"
                   }
                 }
               ]
+            },
+            {
+              "type": "comment",
+              "text": " Tank "
             },
             {
               "type": "setmkbound",
               "attributes": {
-                "mk": 0
+                "mk": "0"
               }
             },
             {
               "type": "drawcylinder",
               "attributes": {
-                "radius": 0.6,
-                "mask": 2
+                "radius": "0.6",
+                "mask": "2"
               },
               "children": [
                 {
                   "tag": "point",
                   "vector": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0
+                    "x": "0",
+                    "y": "0",
+                    "z": "0"
                   }
                 },
                 {
                   "tag": "point",
                   "vector": {
-                    "x": 0,
-                    "y": 0,
-                    "z": 0.15
+                    "x": "0",
+                    "y": "0",
+                    "z": "0.15"
                   }
                 },
                 {
@@ -210,127 +225,275 @@
               ]
             }
           ]
-        }
-      ],
-      "mainlist": [
-        {
-          "type": "setdrawmode",
-          "attributes": {
-            "mode": "full"
-          }
         },
         {
-          "type": "setfrdrawmode",
-          "attributes": {
-            "auto": true
-          }
-        },
-        {
-          "type": "runlist",
-          "attributes": {
-            "name": "TankFluid"
-          }
-        },
-        {
-          "type": "move",
-          "attributes": {
-            "x": 1.35,
-            "y": 0,
-            "z": 0
-          }
-        },
-        {
-          "type": "runlist",
-          "attributes": {
-            "name": "TankFluid"
-          }
+          "tag": "mainlist",
+          "children": [
+            {
+              "type": "setdrawmode",
+              "attributes": {
+                "mode": "full"
+              }
+            },
+            {
+              "type": "setfrdrawmode",
+              "attributes": {
+                "auto": true
+              }
+            },
+            {
+              "type": "comment",
+              "text": " Tank with damping "
+            },
+            {
+              "type": "runlist",
+              "attributes": {
+                "name": "TankFluid"
+              }
+            },
+            {
+              "type": "comment",
+              "text": " Tank without damping "
+            },
+            {
+              "type": "move",
+              "attributes": {
+                "x": "1.35",
+                "y": "0",
+                "z": "0"
+              }
+            },
+            {
+              "type": "runlist",
+              "attributes": {
+                "name": "TankFluid"
+              }
+            }
+          ]
         }
       ]
     }
   },
+  "casedef_children": [
+    {
+      "type": "section",
+      "key": "constants"
+    },
+    {
+      "type": "section",
+      "key": "mkconfig"
+    },
+    {
+      "type": "section",
+      "key": "geometry"
+    }
+  ],
   "execution": {
+    "children_order": [
+      "special",
+      "parameters"
+    ],
+    "special": [
+      {
+        "tag": "damping",
+        "children": [
+          {
+            "tag": "comment",
+            "text": " Damping definition according to a cylinder domain "
+          },
+          {
+            "tag": "dampingcylinder",
+            "active": true,
+            "children": [
+              {
+                "tag": "point1",
+                "x": "0",
+                "y": "0",
+                "z": "0",
+                "comment": "Point for axis definition"
+              },
+              {
+                "tag": "point2",
+                "x": "0",
+                "y": "0",
+                "z": "0.12",
+                "comment": "Point for axis definition"
+              },
+              {
+                "tag": "limitmin",
+                "radius": "0.25",
+                "comment": "Limit where minimum reduction is applied"
+              },
+              {
+                "tag": "limitmax",
+                "radius": "0.6",
+                "comment": "Limit where maximum reduction is applied"
+              },
+              {
+                "tag": "overlimit",
+                "value": "0.1",
+                "comment": "The scope of maximum reduction over limitmax (default=0)"
+              },
+              {
+                "tag": "redumax",
+                "value": "10",
+                "comment": "Maximum reduction in location limitmax (default=10)"
+              },
+              {
+                "tag": "factorxyz",
+                "x": "1",
+                "y": "1",
+                "z": "1",
+                "comment": "Application factor in components (default x=1,y=1,z=1)"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "special_children": [
+      {
+        "type": "generic",
+        "spec": {
+          "tag": "damping",
+          "children": [
+            {
+              "tag": "comment",
+              "text": " Damping definition according to a cylinder domain "
+            },
+            {
+              "tag": "dampingcylinder",
+              "active": true,
+              "children": [
+                {
+                  "tag": "point1",
+                  "x": "0",
+                  "y": "0",
+                  "z": "0",
+                  "comment": "Point for axis definition"
+                },
+                {
+                  "tag": "point2",
+                  "x": "0",
+                  "y": "0",
+                  "z": "0.12",
+                  "comment": "Point for axis definition"
+                },
+                {
+                  "tag": "limitmin",
+                  "radius": "0.25",
+                  "comment": "Limit where minimum reduction is applied"
+                },
+                {
+                  "tag": "limitmax",
+                  "radius": "0.6",
+                  "comment": "Limit where maximum reduction is applied"
+                },
+                {
+                  "tag": "overlimit",
+                  "value": "0.1",
+                  "comment": "The scope of maximum reduction over limitmax (default=0)"
+                },
+                {
+                  "tag": "redumax",
+                  "value": "10",
+                  "comment": "Maximum reduction in location limitmax (default=10)"
+                },
+                {
+                  "tag": "factorxyz",
+                  "x": "1",
+                  "y": "1",
+                  "z": "1",
+                  "comment": "Application factor in components (default x=1,y=1,z=1)"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
     "parameters": {
       "SavePosDouble": {
-        "value": 0,
+        "value": "0",
         "comment": "Saves particle position using double precision (default=0)"
       },
       "Boundary": {
-        "value": 1,
+        "value": "1",
         "comment": "Boundary method 1:DBC, 2:mDBC (default=1)"
       },
       "StepAlgorithm": {
-        "value": 2,
+        "value": "2",
         "comment": "Step Algorithm 1:Verlet, 2:Symplectic (default=1)"
       },
       "VerletSteps": {
-        "value": 40,
+        "value": "40",
         "comment": "Verlet only: Number of steps to apply Euler timestepping (default=40)"
       },
       "Kernel": {
-        "value": 2,
+        "value": "2",
         "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland, 3:Gaussian (default=2)"
       },
       "ViscoTreatment": {
-        "value": 1,
+        "value": "1",
         "comment": "Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"
       },
       "Visco": {
-        "value": 0.01,
+        "value": "0.01",
         "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
       },
       "ViscoBoundFactor": {
-        "value": 0,
+        "value": "0",
         "comment": "Multiply viscosity value with boundary (default=1)"
       },
       "DensityDT": {
-        "value": 3,
+        "value": "3",
         "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
       },
       "DensityDTvalue": {
-        "value": 0.1,
+        "value": "0.1",
         "comment": "DDT value (default=0.1)"
       },
       "Shifting": {
-        "value": 0,
+        "value": "0",
         "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
       },
       "ShiftCoef": {
-        "value": -2,
+        "value": "-2",
         "comment": "Coefficient for shifting computation (default=-2)"
       },
       "ShiftTFS": {
-        "value": 0,
+        "value": "0",
         "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
       },
       "RigidAlgorithm": {
-        "value": 1,
+        "value": "1",
         "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
       },
       "FtPause": {
-        "value": 0.0,
+        "value": "0.0",
         "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
         "units_comment": "seconds"
       },
       "FtIgnoreRadius": {
-        "value": 0,
+        "value": "0",
         "comment": "Ignores floating body radius with periodic conditions (default=0)"
       },
       "CoefDtMin": {
-        "value": 0.05,
+        "value": "0.05",
         "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
       },
       "DtIni": {
-        "value": 0,
+        "value": "0",
         "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
         "units_comment": "seconds"
       },
       "DtMin": {
-        "value": 0,
+        "value": "0",
         "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
         "units_comment": "seconds"
       },
       "DtFixed": {
-        "value": 0,
+        "value": "0",
         "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
         "units_comment": "seconds"
       },
@@ -340,90 +503,204 @@
         "units_comment": "milliseconds (ms)"
       },
       "DtAllParticles": {
-        "value": 0,
+        "value": "0",
         "comment": "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"
       },
       "TimeMax": {
-        "value": 2.5,
+        "value": "2.5",
         "comment": "Time of simulation",
         "units_comment": "seconds"
       },
       "TimeOut": {
-        "value": 0.01,
+        "value": "0.01",
         "comment": "Time out data",
         "units_comment": "seconds"
       },
       "RhopOutMin": {
-        "value": 700,
+        "value": "700",
         "comment": "Minimum rhop valid (default=700)",
         "units_comment": "kg/m^3"
       },
       "RhopOutMax": {
-        "value": 1300,
+        "value": "1300",
         "comment": "Maximum rhop valid (default=1300)",
         "units_comment": "kg/m^3"
       },
       "MinFluidStop": {
-        "value": 0,
+        "value": "0",
         "comment": "Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"
       },
       "WrnPartsOut": {
-        "value": 1,
+        "value": "1",
         "comment": "Active warning according to number of out particles (default=1)"
       }
     },
-    "special": [
+    "parameters_order": [
+      "SavePosDouble",
+      "Boundary",
+      "StepAlgorithm",
+      "VerletSteps",
+      "Kernel",
+      "ViscoTreatment",
+      "Visco",
+      "ViscoBoundFactor",
+      "DensityDT",
+      "DensityDTvalue",
+      "Shifting",
+      "ShiftCoef",
+      "ShiftTFS",
+      "RigidAlgorithm",
+      "FtPause",
+      "FtIgnoreRadius",
+      "CoefDtMin",
+      "DtIni",
+      "DtMin",
+      "DtFixed",
+      "DtFixedFile",
+      "DtAllParticles",
+      "TimeMax",
+      "TimeOut",
+      "RhopOutMin",
+      "RhopOutMax",
+      "MinFluidStop",
+      "WrnPartsOut"
+    ],
+    "parameters_children": [
       {
-        "tag": "damping",
-        "children": [
-          {
-            "tag": "dampingcylinder",
-            "active": true,
-            "children": [
-              {
-                "tag": "point1",
-                "x": 0,
-                "y": 0,
-                "z": 0,
-                "comment": "Point for axis definition"
-              },
-              {
-                "tag": "point2",
-                "x": 0,
-                "y": 0,
-                "z": 0.12,
-                "comment": "Point for axis definition"
-              },
-              {
-                "tag": "limitmin",
-                "radius": 0.25,
-                "comment": "Limit where minimum reduction is applied"
-              },
-              {
-                "tag": "limitmax",
-                "radius": 0.6,
-                "comment": "Limit where maximum reduction is applied"
-              },
-              {
-                "tag": "overlimit",
-                "value": 0.1,
-                "comment": "The scope of maximum reduction over limitmax (default=0)"
-              },
-              {
-                "tag": "redumax",
-                "value": 10,
-                "comment": "Maximum reduction in location limitmax (default=10)"
-              },
-              {
-                "tag": "factorxyz",
-                "x": 1,
-                "y": 1,
-                "z": 1,
-                "comment": "Application factor in components (default x=1,y=1,z=1)"
+        "type": "parameter",
+        "key": "SavePosDouble"
+      },
+      {
+        "type": "parameter",
+        "key": "Boundary"
+      },
+      {
+        "type": "parameter",
+        "key": "StepAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "VerletSteps"
+      },
+      {
+        "type": "parameter",
+        "key": "Kernel"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoTreatment"
+      },
+      {
+        "type": "parameter",
+        "key": "Visco"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoBoundFactor"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDT"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDTvalue"
+      },
+      {
+        "type": "parameter",
+        "key": "Shifting"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftCoef"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftTFS"
+      },
+      {
+        "type": "parameter",
+        "key": "RigidAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "FtPause"
+      },
+      {
+        "type": "parameter",
+        "key": "FtIgnoreRadius"
+      },
+      {
+        "type": "parameter",
+        "key": "CoefDtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtIni"
+      },
+      {
+        "type": "parameter",
+        "key": "DtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixed"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixedFile"
+      },
+      {
+        "type": "parameter",
+        "key": "DtAllParticles"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeMax"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeOut"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMin"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMax"
+      },
+      {
+        "type": "parameter",
+        "key": "MinFluidStop"
+      },
+      {
+        "type": "parameter",
+        "key": "WrnPartsOut"
+      },
+      {
+        "type": "generic",
+        "spec": {
+          "tag": "simulationdomain",
+          "comment": "Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)",
+          "children": [
+            {
+              "tag": "posmin",
+              "x": "default",
+              "y": "default",
+              "z": "default",
+              "comment": "e.g.: x=0.5, y=default-1, z=default-10%"
+            },
+            {
+              "tag": "posmax",
+              "vector": {
+                "x": "default",
+                "y": "default",
+                "z": "0.3"
               }
-            ]
-          }
-        ]
+            }
+          ]
+        }
       }
     ]
   }

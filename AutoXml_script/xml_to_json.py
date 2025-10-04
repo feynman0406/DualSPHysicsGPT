@@ -120,13 +120,48 @@ def _parse_predefinition(predef_elem: ET.Element) -> List[Dict[str, Any]]:
 
 
 def _parse_definition(definition_elem: ET.Element) -> Dict[str, Any]:
-    definition_cfg: Dict[str, Any] = {"attributes": _convert_attrib(definition_elem.attrib)}
-    children = [_generic_from_element(child) for child in definition_elem]
+    attrs = _convert_attrib(definition_elem.attrib)
+    dp_value = attrs.pop("dp", None)
+    if dp_value is None:
+        raise ValueError("definition element missing dp attribute")
+
+    meta: Dict[str, Any] = {}
+    comment = attrs.pop("comment", None)
+    if comment is not None:
+        meta["comment"] = comment
+    units = attrs.pop("units_comment", None)
+    if units is not None:
+        meta["units_comment"] = units
+
+    pointmin_vec = None
+    pointmax_vec = None
+    children: List[Dict[str, Any]] = []
+
+    for child in definition_elem:
+        if isinstance(child, ET._Comment):
+            children.append(_generic_from_element(child))
+            continue
+        if child.tag == "pointmin":
+            pointmin_vec = _convert_attrib(child.attrib)
+            continue
+        if child.tag == "pointmax":
+            pointmax_vec = _convert_attrib(child.attrib)
+            continue
+        children.append(_generic_from_element(child))
+
+    if pointmin_vec is None or pointmax_vec is None:
+        raise ValueError("definition element requires pointmin and pointmax nodes")
+
+    definition_cfg: Dict[str, Any] = {
+        "dp": dp_value,
+        "pointmin": pointmin_vec,
+        "pointmax": pointmax_vec,
+    }
+    if meta:
+        definition_cfg["meta"] = meta
     if children:
         definition_cfg["children"] = children
     return definition_cfg
-
-
 def _parse_command(command_elem: ET.Element) -> Dict[str, Any]:
     spec = _generic_from_element(command_elem)
     command: Dict[str, Any] = {"type": spec.pop("tag")}

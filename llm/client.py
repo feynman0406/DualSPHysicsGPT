@@ -112,6 +112,8 @@ def llm_call(
     stop: Optional[List[str]] = None,
     file_search_vs_ids: Optional[List[str]] = None,
     metadata_filter: Optional[Dict[str, Any]] = None,
+    json_schema: Optional[Dict[str, Any]] = None,
+    strict: bool = False,
     ) -> str:
     """
     Calls an LLM API, supporting both 'openai' and 'openrouter'.
@@ -159,6 +161,60 @@ def llm_call(
         if not api_key:
             raise LLMCallError("OPENAI_API_KEY environment variable not set")
         client = OpenAI(api_key=api_key)
+        
+        # Handle Structured Outputs via json_schema parameter
+        if json_schema is not None:
+            if strict and not _supports_structured_outputs(target_model):
+                raise LLMCallError(
+                    f"Model '{target_model}' does not support Structured Outputs. "
+                    f"Either use a compatible model (gpt-4o, gpt-4o-mini, etc.) or set strict=False."
+                )
+            
+            debug_enabled = os.environ.get("DSPH_DEBUG") == "1"
+            if debug_enabled:
+                _debug_print("openai.json_schema", json_schema)
+            
+            # Use chat.completions with response_format for Structured Outputs
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "dualsphysics_config",
+                    "schema": json_schema,
+                    "strict": strict
+                }
+            }
+            
+            chat_kwargs = {
+                "model": target_model,
+                "messages": messages,
+                "response_format": response_format,
+            }
+            
+            token_key = "max_completion_tokens" if is_reasoning_model else "max_tokens"
+            chat_kwargs[token_key] = max_tokens
+            
+            if (temperature is not None) and (not is_reasoning_model):
+                chat_kwargs["temperature"] = float(temperature)
+            
+            if final_reasoning and is_reasoning_model:
+                chat_kwargs["reasoning"] = final_reasoning
+            
+            if stop:
+                chat_kwargs["stop"] = stop
+            
+            try:
+                resp = client.chat.completions.create(**chat_kwargs)
+                if debug_enabled:
+                    _debug_print("openai.structured_outputs.raw", _safe_to_dict(resp))
+                content = (resp.choices[0].message.content or "").strip()
+                if debug_enabled:
+                    _debug_print("openai.structured_outputs.content", content)
+                return content
+            except Exception as e:
+                if debug_enabled:
+                    _debug_print("openai.structured_outputs.exception", str(e))
+                raise LLMCallError(f"OpenAI Structured Outputs call failed: {e}") from e
+        
         input_items = _to_responses_input(messages)
 
         kwargs = dict(
@@ -166,24 +222,6 @@ def llm_call(
             input=input_items,
             max_output_tokens=max_tokens,
         )
-        # Enable OpenAI Structured Outputs when JSON mode is active
-        try:
-            if os.environ.get("GENERATOR_JSON_MODE", "0") == "1":
-                schema_path = os.environ.get("GENERATOR_JSON_SCHEMA_PATH", "docs/auto_xml_jsonschema.json")
-                with open(schema_path, "r", encoding="utf-8") as _sf:
-                    _schema = json.load(_sf)
-                kwargs["response_format"] = {
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "auto_xml_config",
-                        "schema": _schema,
-                        "strict": True
-                    }
-                }
-        except Exception as _e:
-            # Fall back silently if schema load fails
-            if os.environ.get("DSPH_DEBUG") == "1":
-                _debug_print("openai.responses.schema_load_error", str(_e))
         model_name = kwargs["model"]
         is_reasoning_model = _is_reasoning_model(model_name)
         debug_enabled = os.environ.get("DSPH_DEBUG") == "1"
@@ -324,6 +362,18 @@ def get_model_name() -> str:
     raise LLMCallError(f"Unsupported LLM_PROVIDER: {provider}")
 
 
+def get_openai_client():
+    """Get OpenAI client instance for direct API calls."""
+    try:
+        from openai import OpenAI
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise LLMCallError("OPENAI_API_KEY environment variable not set")
+        return OpenAI(api_key=api_key)
+    except ImportError as e:
+        raise LLMCallError(f"Failed to import OpenAI client: {e}") from e
+
+
 def get_reasoning_config() -> Optional[Dict[str, str]]:
     """Return reasoning config from env for the active provider, or None if unset."""
     provider = os.environ.get("LLM_PROVIDER", "openai").lower()
@@ -353,3 +403,16 @@ def _is_reasoning_model(name: str) -> bool:
     n = (name or "").lower()
     # Is this a reasoning/thinking model?
     return any(tag in n for tag in ("gpt-5", "thinking", "o1", "o3", "o4"))
+
+
+def _supports_structured_outputs(model: str) -> bool:
+    """Check if the model supports OpenAI Structured Outputs feature."""
+    n = (model or "").lower()
+    # Models that support Structured Outputs (as of 2024-2025)
+    supported = [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-mini-2024-07-18",
+    ]
+    return any(supported_model in n for supported_model in supported)

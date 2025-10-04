@@ -5,6 +5,7 @@ This document describes the JSON structures produced by `xml_to_json.py` and con
 ## Conventions
 - All attribute and text values are stored as strings; booleans remain booleans. Preserve original formatting (e.g., `"1.20"`).
 - Comments and element order are kept using generic node specs (`{"tag": "comment", "text": "…"}`) and explicit ordering lists.
+- Element names should remain XML-safe. Use the JSON dict key as the canonical tag name, and put human-readable descriptions or units in a `label` field rather than in `tag`.
 - Generic node spec fields:
   - `tag` / `type` / `name`: XML element name.
   - `attributes`: dict of attributes.
@@ -23,7 +24,7 @@ This document describes the JSON structures produced by `xml_to_json.py` and con
 | `execution` | Dict describing parameters, special sections, and extras.
 
 ## `<casedef>` Structure
-- `constants`: mapping name → value or generic spec.
+- `constants`: mapping `name` → scalar/vector/object. The JSON key becomes the XML element name. Optional `label` strings are split into `comment` (text before brackets) and `units_comment` (text inside brackets). You can provide `comment`, `units_comment`, or `auto` explicitly to override inferred values. Avoid supplying a `tag` override unless it already matches the XML naming pattern (`[A-Za-z_][A-Za-z0-9_.-]*`); otherwise it will be sanitized.
 - `mkconfig`: attributes plus `orientations` (each `{type, …}`) and optional `extra` list.
 - `patterns`: list of pattern dicts with vector children (`size`, `scale`, `gap`, `border`) and optional generic `children`.
 - `geometry`:
@@ -116,33 +117,3 @@ Example for a plain element with attributes and text:
 ## References
 - Official template: `AutoXml_script/GenCase_CaseTemplate.xml`
 - Detailed rules: `AutoXml_script/XML_GUIDE_v5.4.pdf`
-
-## JSON Mode Enforcement (Structured Outputs)
-
-To ensure the OpenAI generator produces JSON that this project can convert to valid DualSPHysics XML, we added a strict JSON Schema and a JSON-only generator mode.
-
-- Schema file (strict, S1): `docs/auto_xml_jsonschema.json`
-  - Enforces exact top-level keys: `constants`, `mkconfig`, `geometry`, `casedef_extra`, `execution`
-  - Requires full official constants set (e.g., `gravity`, `rhop0`, `gamma`, `_hdp`, `cflnumber`, etc.)
-  - Validates `geometry.definition` (`dp`, `pointmin`, `pointmax`)
-  - Validates command shapes via `oneOf` for: `runlist`, `setactive`, `setshapemode`, `setdrawmode`, `setmkfluid/setmkbound`, `layers`, `shapeout`, `resetdraw`, `drawbox`, `fillbox`
-
-- Enable JSON mode (OpenAI Responses API Structured Outputs):
-  - `GENERATOR_JSON_MODE=1`
-  - Optional overrides:
-    - `GENERATOR_PROMPT_PATH_JSON=prompts/auto_xml_contract.md`
-    - `GENERATOR_JSON_SCHEMA_PATH=docs/auto_xml_jsonschema.json`
-  - OpenAI provider required: `LLM_PROVIDER=openai`
-  - With JSON mode on, `llm/client.py` passes `response_format={"type":"json_schema","json_schema":...}` to the OpenAI Responses API.
-
-- Prompting:
-  - In JSON mode, `chains/generator.py` uses the JSON contract prompt and instructs “Return exactly one JSON object; no comments, no code fences”.
-
-- Normalization compatibility:
-  - `chains/json_normalizer.py` accepts `geometry.commands.lists[].items` (preferred) as alias to legacy `commands`, normalizing to `items`.
-
-- Generator robustness:
-  - `AutoXml_script/generate_xml.py` now always attempts `geometry.definition` fallback when only `dp` and `domain.min/max` are provided at `geometry` level.
-
-- Validation:
-  - After normalization, we call `generate_case_xml()` which validates domain and command sequencing (e.g., a fluid fill must follow `setmkfluid`). The test-suite roundtrips continue to pass.

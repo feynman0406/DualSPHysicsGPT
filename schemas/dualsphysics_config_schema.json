@@ -199,24 +199,36 @@
         "definition": {
           "type": "object",
           "required": [
-            "attributes",
-            "children"
+            "dp",
+            "pointmin",
+            "pointmax"
           ],
           "properties": {
-            "attributes": {
+            "dp": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "pointmin": {
+              "$ref": "#/definitions/vector"
+            },
+            "pointmax": {
+              "$ref": "#/definitions/vector"
+            }
+          },
+          "patternProperties": {
+            "^meta$": {
               "type": "object",
-              "required": [
-                "dp"
-              ],
-              "properties": {
-                "dp": {
-                  "type": "number",
-                  "exclusiveMinimum": 0
+              "patternProperties": {
+                "^comment$": {
+                  "type": "string"
+                },
+                "^units_comment$": {
+                  "type": "string"
                 }
               },
               "additionalProperties": false
             },
-            "children": {
+            "^children$": {
               "type": "array",
               "items": {
                 "$ref": "#/definitions/genericNode"

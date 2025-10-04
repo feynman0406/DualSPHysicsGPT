@@ -266,16 +266,8 @@ Reference example JSON (conforming)
   }
 }
 
-Status Update (Sept 2025)
-- JSON Mode added with OpenAI Structured Outputs (Responses API) using a strict schema at docs/auto_xml_jsonschema.json (Strictness S1; constants=require-full).
-- chains/generator.py switches to JSON-only prompting when GENERATOR_JSON_MODE=1 and uses prompts/auto_xml_contract.md.
-- llm/client.py passes response_format.type=json_schema so the model must return schema-valid JSON.
-- chains/json_normalizer.py accepts geometry.commands.lists[].items (alias for legacy commands) and normalizes to items.
-- prompts/auto_xml_contract.md clarified setshapemode example (no “actual | bound” ambiguity).
-- AutoXml_script/generate_xml.py now always attempts geometry.definition fallback when dp + domain.min/max are on the geometry object.
-- Test suite: 44 passed, 2 warnings.
-
 Next steps
-- Optional: extend the JSON Schema to cover more command types (drawcylinder, fillmesh, etc.) or relax constants “require-full” if desired.
-- Optional: add dedicated unit tests for schema strictness/error messaging and JSON-mode retries.
-- Documentation: see docs/json_mode_usage.md for activation and end-to-end behavior.
+- If you want, I can:
+  1) Implement the generator hardening above (runlist/mainlist fix, constantsdef alias, attribute/text fallbacks, normals normalization).
+  2) Provide a one-click smoke test that runs our generator on a sample JSON and, if available, invokes GenCase to validate.
+  3) Update your prompt file with the “Prompt Contract” text.

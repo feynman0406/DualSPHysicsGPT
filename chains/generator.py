@@ -1,6 +1,7 @@
 ﻿import json
 import os
 import re
+from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
 try:
@@ -55,9 +56,17 @@ except Exception:  # pragma: no cover - optional dependency for tests
     def get_last_run_info() -> Optional[Dict[str, Any]]:  # type: ignore[override]
         return None
 
-from llm.client import llm_call, get_model_name, get_reasoning_config
+from llm.client import llm_call, get_model_name, get_reasoning_config, get_openai_client
 
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "GPT-5-THINKING")
+
+# Two-stage RAG + Planning Agent flags
+def _use_two_stage_rag() -> bool:
+    """Check if two-stage RAG with Planning Agent is enabled."""
+    return (
+        os.environ.get("USE_TWO_STAGE_RAG_SCHEMA", "0") == "1" and
+        os.environ.get("USE_RAG_PLANNING_AGENT", "0") == "1"
+    )
 
 def _rag_flag_from_env() -> bool:
     return os.environ.get("USE_RAG", "0") == "1"
@@ -84,6 +93,25 @@ def reload_use_rag() -> bool:
 
 
 PROMPT_PATH = os.environ.get("GENERATOR_PROMPT_PATH", "prompts/generator_system_prompt.md")  # optional custom instructions
+
+# Schema loading and caching
+_SCHEMA_CACHE: Optional[Dict[str, Any]] = None
+SCHEMA_PATH = Path(__file__).parent.parent / "schemas" / "dualsphysics_config_schema.json"
+
+
+def _load_json_schema() -> Dict[str, Any]:
+    """Load and cache the GOS JSON schema."""
+    global _SCHEMA_CACHE
+    if _SCHEMA_CACHE is not None:
+        return _SCHEMA_CACHE
+    
+    if not SCHEMA_PATH.exists():
+        raise FileNotFoundError(f"Schema file not found: {SCHEMA_PATH}")
+    
+    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+        _SCHEMA_CACHE = json.load(f)
+    
+    return _SCHEMA_CACHE
 
 
 def _read(path: str) -> str:
@@ -248,6 +276,149 @@ def _count_chars_tokens(text: str, encoder):
     return chars, tokens
 
 
+def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
+    """
+    Execute two-stage RAG + Planning Agent workflow.
+    
+    Stage 1: Planning Agent - retrieves, scores, and curates examples
+    Stage 2: Schema Agent - generates config JSON with strict schema
+    
+    Args:
+        user_query: User's query
+        
+    Returns:
+        Dict with xml, config, sources, and metadata
+    """
+    debug_enabled = os.environ.get('DSPH_DEBUG') == '1'
+    if debug_enabled:
+        print("\n=== Two-Stage Workflow: START ===")
+    
+    # Import agents
+    try:
+        from agents.planning_agent import run_planning_agent
+        from agents.schema_agent import run_schema_agent
+        from rag.openai_file_search import response_with_file_search
+    except ImportError as e:
+        raise RuntimeError(f"Failed to import two-stage workflow components: {e}")
+    
+    # Get vector store ID
+    design_vs_id = os.environ.get("OPENAI_RAG_VS_DESIGN_ID")
+    if not design_vs_id:
+        raise RuntimeError("OPENAI_RAG_VS_DESIGN_ID required for two-stage workflow")
+    
+    # Build metadata filter
+    metadata_filter = build_metadata_filter(user_query)
+    
+    if debug_enabled:
+        print(f"Metadata filter: {metadata_filter}")
+    
+    # Stage 0: File search retrieval (required before Planning Agent)
+    model = get_model_name()
+    messages = [
+        {"role": "system", "content": "You are a DualSPHysics configuration expert."},
+        {"role": "user", "content": f"Find relevant examples for: {user_query}"},
+    ]
+    
+    try:
+        _ = response_with_file_search(
+            messages=messages,
+            model=model,
+            vector_store_ids=[design_vs_id],
+            metadata_filter=metadata_filter,
+            max_output_tokens=1024,
+            query_rewrite=True,
+            temperature=0.0,
+        )
+    except Exception as exc:
+        if debug_enabled:
+            print(f"File search failed: {exc}")
+        raise
+    
+    if debug_enabled:
+        print("=== Stage 1: Planning Agent ===")
+    
+    # Stage 1: Planning Agent
+    try:
+        plan_json = run_planning_agent(
+            user_query=user_query,
+            vector_store_ids=[design_vs_id],
+            metadata_filter=metadata_filter,
+            retry_context=None,
+        )
+    except Exception as exc:
+        if debug_enabled:
+            print(f"Planning Agent failed: {exc}")
+        raise RuntimeError(f"Planning Agent failed: {exc}") from exc
+    
+    if debug_enabled:
+        print(f"Plan JSON generated: {len(plan_json.get('curated_examples', []))} examples")
+    
+    # Stage 2: Schema Agent
+    if debug_enabled:
+        print("=== Stage 2: Schema Agent ===")
+    
+    try:
+        schema = _load_json_schema()
+        llm_client = get_openai_client()
+        
+        config_json = run_schema_agent(
+            plan_json=plan_json,
+            user_query=user_query,
+            schema=schema,
+            llm_client=llm_client,
+            model=model,
+            temperature=0.0,
+        )
+    except Exception as exc:
+        if debug_enabled:
+            print(f"Schema Agent failed: {exc}")
+        raise RuntimeError(f"Schema Agent failed: {exc}") from exc
+    
+    if debug_enabled:
+        print("Config JSON generated successfully")
+    
+    # Normalize and generate XML
+    try:
+        normalization = normalize_case_config(config_json)
+        xml = generate_case_xml(normalization.config)
+        config_json = normalization.config
+    except Exception as exc:
+        raise RuntimeError(f"Failed to generate XML from config: {exc}") from exc
+    
+    # Post-sanitize
+    xml = sanitize_newvarcte(xml)
+    
+    # Build sources from Plan JSON citations
+    docs = []
+    for citation in plan_json.get("citations", []):
+        docs.append(Document(
+            page_content=citation.get("quote", ""),
+            metadata={"source": citation.get("filename", "unknown")},
+        ))
+    
+    # Persist sources
+    persist_sources('generator')
+    
+    if debug_enabled:
+        print("=== Two-Stage Workflow: COMPLETE ===\n")
+    
+    result: Dict[str, Any] = {
+        "xml": xml,
+        "config": config_json,
+        "sources": docs,
+        "structured_meta": {
+            "workflow": "two_stage_rag_planning",
+            "plan_completion_rate": plan_json.get("_metadata", {}).get("plan_completion_rate", 0.0),
+            "curated_examples_count": len(plan_json.get("curated_examples", [])),
+        },
+    }
+    
+    if normalization.warnings:
+        result["warnings"] = normalization.warnings
+    
+    return result
+
+
 def _log_prompt_metrics(lc_messages: List, docs: List, ctx: str, model: str) -> None:
     if os.environ.get("DSPH_DEBUG") != "1":
         return
@@ -304,13 +475,17 @@ def _log_prompt_metrics(lc_messages: List, docs: List, ctx: str, model: str) -> 
     print("=== generator: prompt_metrics end ===\n")
 
 def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_docs: Optional[List[Document]] = None) -> Dict[str, Any]:
+    # Check if two-stage RAG + Planning Agent workflow is enabled
+    if _use_two_stage_rag() and not freeze_retrieval:
+        try:
+            return _two_stage_workflow(user_query)
+        except Exception as exc:
+            debug_enabled = os.environ.get('DSPH_DEBUG') == '1'
+            if debug_enabled:
+                print(f"Two-stage workflow failed: {exc}, falling back to single-stage")
+            # Fall through to single-stage workflow
+    
     sys_prompt = _read(PROMPT_PATH)
-    # Switch to JSON contract prompt when JSON mode is enabled
-    if os.environ.get("GENERATOR_JSON_MODE", "0") == "1":
-        json_prompt_path = os.environ.get("GENERATOR_PROMPT_PATH_JSON", "prompts/auto_xml_contract.md")
-        alt_prompt = _read(json_prompt_path)
-        if alt_prompt:
-            sys_prompt = alt_prompt
 
     design_vs_id = os.environ.get("OPENAI_RAG_VS_DESIGN_ID")
     use_file_search = bool(design_vs_id) and _should_use_file_search()
@@ -343,33 +518,18 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
 
     human_content = ""
     freeze_prefix = "FreezeRetrieval=true\n" if freeze_retrieval else ""
-    json_mode = os.environ.get("GENERATOR_JSON_MODE", "0") == "1"
-    if json_mode:
-        if is_detailed_prompt:
-            # Detailed prompts: keep content + references, enforce JSON-only output
-            human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n\n[Output]\nReturn exactly one JSON object following the system contract. No comments, no code fences."
-        else:
-            # Simple prompts: request JSON config strictly following the contract
-            human_content = (
-                f"{freeze_prefix}"
-                "[Task] Based on the user's requirements and available references, generate a DualSPHysics case configuration as JSON following the contract strictly.\n"
-                "[Constraints] Return exactly one JSON object. No commentary, no Markdown, no code fences.\n"
-                f"[User Requirements]\n{user_query}\n"
-                f"[References]\n{ctx}\n"
-            )
+    if is_detailed_prompt:
+        # For detailed prompts, append the references directly
+        human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
     else:
-        if is_detailed_prompt:
-            # For detailed prompts, append the references directly
-            human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
-        else:
-            # For simple queries, use the standard XML template
-            human_content = (
-                f"{freeze_prefix}"
-                "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
-                "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
-                f"[User Requirements]\n{user_query}\n"
-                f"[References]\n{ctx}\n"
-            )
+        # For simple queries, use the standard template
+        human_content = (
+            f"{freeze_prefix}"
+            "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
+            "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
+            f"[User Requirements]\n{user_query}\n"
+            f"[References]\n{ctx}\n"
+        )
 
     lc_messages = [
         SystemMessage(content=sys_prompt),
@@ -389,6 +549,24 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
             llm_kwargs['metadata_filter'] = filters
         if debug_enabled:
             print(f"generator: file_search filters={filters} vs_ids={[design_vs_id]}")
+    
+    # Add JSON schema enforcement if enabled
+    use_schema = os.environ.get("DSPH_USE_JSON_SCHEMA", "0") == "1"
+    strict_mode = os.environ.get("DSPH_STRICT_JSON_SCHEMA", "0") == "1"
+    forbid_xml_fallback = os.environ.get("DSPH_FORBID_XML_FALLBACK", "0") == "1"
+    
+    if use_schema:
+        try:
+            schema = _load_json_schema()
+            llm_kwargs['json_schema'] = schema
+            llm_kwargs['strict'] = strict_mode
+            if debug_enabled:
+                print(f"generator: using JSON schema with strict={strict_mode}")
+        except Exception as e:
+            if strict_mode:
+                raise RuntimeError(f"Failed to load JSON schema in strict mode: {e}") from e
+            elif debug_enabled:
+                print(f"generator: schema loading failed (non-strict): {e}")
 
     out = llm_call(messages, model=model, reasoning=reasoning, **llm_kwargs)
     if use_file_search:
@@ -425,8 +603,17 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
             if normalization.warnings:
                 structured_meta.setdefault("normalization_warnings", normalization.warnings)
 
+    # Handle XML fallback based on mode
     if xml is None:
-        xml = extract_xml(out) or out  # fallback when the model emits plain XML
+        if forbid_xml_fallback or (use_schema and strict_mode):
+            error_msg = "Generator did not produce valid JSON config"
+            if config_payload is None:
+                error_msg += " (no JSON payload found in output)"
+            else:
+                error_msg += f" (JSON found but XML generation failed: {generation_error})"
+            raise ValueError(error_msg)
+        # Fallback to extracting XML directly when not in strict mode
+        xml = extract_xml(out) or out
 
     if debug_enabled:
         print("\n=== generator: lc_messages ===")

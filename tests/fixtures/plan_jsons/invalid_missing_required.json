@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "curated_examples": [
+    {
+      "filename": "test.json",
+      "rank": 1,
+      "spans": [
+        {
+          "quote": "some quote"
+        }
+      ]
+    }
+  ]
+}

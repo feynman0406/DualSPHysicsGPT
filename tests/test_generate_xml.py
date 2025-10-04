@@ -16,10 +16,14 @@ def run_generator(tmp_path: Path, config: dict) -> Path:
     geometry = config.get("geometry") or {}
     if "commands" not in geometry and not geometry.get("objects"):
         geometry = dict(geometry)
-        geometry.setdefault("definition", {"attributes": {"dp": 0.02}, "children": [
-            {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-            {"tag": "pointmax", "vector": {"x": 0.1, "y": 0.1, "z": 0.1}},
-        ]})
+        geometry.setdefault(
+            "definition",
+            {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 0.1, "y": 0.1, "z": 0.1},
+            },
+        )
         geometry["commands"] = {
             "mainlist": [
                 {"type": "setmkfluid", "attributes": {"mk": 0}},
@@ -43,6 +47,7 @@ def run_generator(tmp_path: Path, config: dict) -> Path:
         [sys.executable, str(SCRIPT), "--config", str(config_path), "--output", str(output_path)],
         check=True,
     )
+    return output_path
     return output_path
 def test_geometry_fallback_support(tmp_path: Path) -> None:
     config = {
@@ -109,11 +114,9 @@ def test_mkconfig_patterns_and_timeout(tmp_path: Path) -> None:
         ],
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.02},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-                    {"tag": "pointmax", "vector": {"x": 1, "y": 1, "z": 1}},
-                ],
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 1, "z": 1},
             }
         },
         "execution": {
@@ -130,7 +133,7 @@ def test_mkconfig_patterns_and_timeout(tmp_path: Path) -> None:
     root = ET.parse(output_xml).getroot()
 
     mkconfig = root.find("casedef/mkconfig")
-    assert mkconfig.attrib == {"boundcount": "2", "fluidcount": "1"}
+    assert mkconfig.attrib == {"boundcount": "230", "fluidcount": "15"}
     orientations = [(elem.tag, elem.attrib["orient"]) for elem in mkconfig]
     assert orientations == [("mkorientbound", "YxZ"), ("mkorientfluid", "Xyz")]
 
@@ -150,11 +153,9 @@ def test_execution_parameters_and_gauges(tmp_path: Path) -> None:
     config = {
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.01},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-                    {"tag": "pointmax", "vector": {"x": 1, "y": 1, "z": 1}},
-                ],
+                "dp": 0.01,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 1, "z": 1},
             }
         },
         "execution": {
@@ -192,11 +193,9 @@ def test_initials_floatings_motion(tmp_path: Path) -> None:
     config = {
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.01},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-                    {"tag": "pointmax", "vector": {"x": 1, "y": 1, "z": 1}},
-                ],
+                "dp": 0.01,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 1, "z": 1},
             }
         },
         "initials": [
@@ -260,11 +259,9 @@ def test_execution_special_sections(tmp_path: Path) -> None:
     config = {
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.02},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-                    {"tag": "pointmax", "vector": {"x": 2, "y": 0, "z": 1}},
-                ],
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 2, "y": 0, "z": 1},
             }
         },
         "execution": {
@@ -333,11 +330,9 @@ def test_fillbox_infers_point_attributes(tmp_path: Path) -> None:
     config = {
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.05},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": -0.5}},
-                    {"tag": "pointmax", "vector": {"x": 2, "y": 0, "z": 0.5}},
-                ],
+                "dp": 0.05,
+                "pointmin": {"x": 0, "y": 0, "z": -0.5},
+                "pointmax": {"x": 2, "y": 0, "z": 0.5},
             },
             "commands": {
                 "mainlist": [
@@ -364,11 +359,9 @@ def test_fillbox_inserts_setactive(tmp_path: Path) -> None:
     config = {
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.02},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-                    {"tag": "pointmax", "vector": {"x": 1, "y": 0.02, "z": 0.5}},
-                ],
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0.02, "z": 0.5},
             },
             "commands": {
                 "mainlist": [
@@ -406,17 +399,100 @@ def test_fillbox_inserts_setactive(tmp_path: Path) -> None:
     assert tags[fill_index - 1] == "setactive"
     setactive_attrs = list(mainlist.findall("setactive"))[0].attrib
     assert setactive_attrs == {"drawpoints": "1", "drawshapes": "0"}
+def test_constants_label_preserved(tmp_path: Path) -> None:
+    config = {
+        "constants": {
+            "gravity": {"x": 0, "y": 0, "z": -9.81, "label": "Gravity [m/s^2]"},
+            "rhop0": {"value": 1000, "label": "Reference density"},
+            "hswl": {
+                "value": 0,
+                "auto": True,
+                "label": "Still water level [m]",
+                "comment": "Manual override comment",
+            },
+        }
+    }
+    output_xml = run_generator(tmp_path, config)
+    root = ET.parse(output_xml).getroot()
+
+    constants = root.find("casedef/constantsdef")
+    assert constants is not None
+
+    gravity = constants.find("gravity")
+    assert gravity is not None
+    assert gravity.attrib["comment"] == "Gravity"
+    assert gravity.attrib["units_comment"] == "m/s^2"
+    assert gravity.attrib["x"] == "0"
+    assert gravity.attrib["z"] == "-9.81"
+
+    rhop0 = constants.find("rhop0")
+    assert rhop0 is not None
+    assert rhop0.attrib["comment"] == "Reference density"
+    assert "units_comment" not in rhop0.attrib
+    assert rhop0.attrib["value"] == "1000"
+
+    hswl = constants.find("hswl")
+    assert hswl is not None
+    assert hswl.attrib["comment"] == "Manual override comment"
+    assert hswl.attrib["units_comment"] == "m"
+    assert hswl.attrib["auto"] == "true"
+    assert hswl.attrib["value"] == "0"
+
+
+def test_invalid_tag_names_are_sanitized(tmp_path: Path) -> None:
+    geometry = {
+        "definition": {
+            "dp": 0.02,
+            "pointmin": {"x": 0, "y": 0, "z": 0},
+            "pointmax": {"x": 0.1, "y": 0.1, "z": 0.1},
+            "children": [
+                {"tag": "Gravity [m/s^2]", "text": "labelled node"},
+            ],
+        },
+        "commands": {
+            "mainlist": [
+                {"type": "setmkfluid", "attributes": {"mk": 0}},
+                {
+                    "type": "fillbox",
+                    "children": [
+                        {"tag": "modefill", "text": "void"},
+                        {"tag": "point", "vector": {"x": 0, "y": 0, "z": 0}},
+                        {"tag": "size", "vector": {"x": 0.1, "y": 0.1, "z": 0.1}},
+                    ],
+                },
+            ]
+        },
+    }
+    config = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": geometry,
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+    }
+    output_xml = run_generator(tmp_path, config)
+    root = ET.parse(output_xml).getroot()
+
+    definition = root.find("casedef/geometry/definition")
+    assert definition is not None
+
+    sanitized = None
+    for child in definition:
+        if child.attrib.get("label") == "Gravity [m/s^2]":
+            sanitized = child
+            break
+    assert sanitized is not None
+    assert sanitized.tag.startswith("Gravity_m_s_2")
+    assert sanitized.text == "labelled node"
+
+
 def test_generate_case_requires_fluid_fill():
     config = {
         "constants": {"rhop0": 1000},
         "mkconfig": {"boundcount": 2, "fluidcount": 1},
         "geometry": {
             "definition": {
-                "attributes": {"dp": 0.02},
-                "children": [
-                    {"tag": "pointmin", "vector": {"x": 0, "y": 0, "z": 0}},
-                    {"tag": "pointmax", "vector": {"x": 1, "y": 0, "z": 1}},
-                ],
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
             },
             "commands": {
                 "mainlist": [
@@ -429,3 +505,4 @@ def test_generate_case_requires_fluid_fill():
     with pytest.raises(ValueError) as excinfo:
         generate_case_xml(config)
     assert "no fluid fill command" in str(excinfo.value)
+

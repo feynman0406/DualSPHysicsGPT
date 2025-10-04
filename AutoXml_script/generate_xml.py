@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -84,7 +84,8 @@ def sanitize_xml_tag(name: str) -> str:
         raise ValueError("XML tag name must not be empty")
     sanitized = re.sub(r"[^A-Za-z0-9_.-]", "_", text)
     sanitized = re.sub(r"_+", "_", sanitized)
-    sanitized = sanitized.strip("_")
+    if sanitized.strip("_") == "":
+        sanitized = "n"
     if not sanitized:
         sanitized = "n"
     if not re.match(r"[A-Za-z_]", sanitized[0]):
@@ -324,6 +325,9 @@ class CaseBuilder:
             if key not in {"orientations", "extra"}
             and not isinstance(value, list)
         }
+        # Force safe mk totals when emitting XML; agent configs may undershoot these counts.
+        attributes["boundcount"] = "230"
+        attributes["fluidcount"] = "15"
         node = element_with_attributes("mkconfig", attributes)
         for orientation in data.get("orientations", []):
             orient_type = orientation.get("type")
@@ -399,48 +403,132 @@ class CaseBuilder:
     def _build_geometry_definition(self, geometry_cfg: Dict[str, Any]) -> Optional[ET.Element]:
         definition_cfg = geometry_cfg.get("definition")
         if definition_cfg is None:
-            # Fallback for old structure where dp and domain are at the geometry level
             dp = geometry_cfg.get("dp")
             if dp is None:
-                 return None
+                return None
             domain = geometry_cfg.get("domain", {})
             definition_cfg = {
-                "attributes": {"dp": dp},
-                "children": []
+                "dp": dp,
+                "pointmin": domain.get("min"),
+                "pointmax": domain.get("max"),
             }
-            if "min" in domain:
-                definition_cfg["children"].append({"tag": "pointmin", "vector": domain["min"]})
-            if "max" in domain:
-                definition_cfg["children"].append({"tag": "pointmax", "vector": domain["max"]})
+            comment = geometry_cfg.get("comment")
+            units = geometry_cfg.get("units_comment")
+            if comment is not None or units is not None:
+                meta: Dict[str, Any] = {}
+                if comment is not None:
+                    meta["comment"] = comment
+                if units is not None:
+                    meta["units_comment"] = units
+                definition_cfg["meta"] = meta
 
         if isinstance(definition_cfg, dict) and (definition_cfg.get("tag") or definition_cfg.get("name")):
             definition_node = build_generic_node(definition_cfg)
-        else:
-            attributes = dict(definition_cfg.get("attributes", {})) if isinstance(definition_cfg, dict) else {}
-            children_specs: List[Dict[str, Any]] = []
-            if isinstance(definition_cfg, dict):
-                for key, value in definition_cfg.items():
-                    if key in {"attributes", "children"}:
-                        continue
-                    if looks_like_vector(value):
-                        children_specs.append({"tag": key, "vector": value})
-                    elif isinstance(value, dict) and (value.get("tag") or value.get("name")):
-                        children_specs.append(value)
-                    elif isinstance(value, list):
-                        for item in value:
-                            children_specs.append({"tag": key, "text": item})
-                    else:
-                        attributes[key] = value
-                children_specs.extend(definition_cfg.get("children", []))
-            else:
-                raise TypeError("geometry.definition must be a dict when provided")
-            definition_node = element_with_attributes("definition", attributes)
-            for child_spec in children_specs:
-                definition_node.append(build_generic_node(child_spec))
-        if "dp" not in definition_node.attrib:
-            raise ValueError("definition.dp attribute is required")
-        return definition_node
+            if "dp" not in definition_node.attrib:
+                raise ValueError("definition.dp attribute is required")
+            return definition_node
 
+        if not isinstance(definition_cfg, dict):
+            raise TypeError("geometry.definition must be a dict when provided")
+
+        def _vector_from_spec(source: Any, tag_name: str) -> Dict[str, Any]:
+            if source is None:
+                raise ValueError(f"geometry.definition requires {tag_name}")
+            if looks_like_vector(source):
+                return {axis: source[axis] for axis in ("x", "y", "z") if axis in source}
+            if isinstance(source, dict):
+                vector = source.get("vector")
+                if looks_like_vector(vector):
+                    return {axis: vector[axis] for axis in ("x", "y", "z") if axis in vector}
+                attributes = source.get("attributes")
+                if looks_like_vector(attributes):
+                    return {axis: attributes[axis] for axis in ("x", "y", "z") if axis in attributes}
+                if looks_like_vector(source):
+                    return {axis: source[axis] for axis in ("x", "y", "z") if axis in source}
+            raise TypeError(f"Unsupported {tag_name} specification: {source}")
+
+        if {"dp", "pointmin", "pointmax"}.issubset(definition_cfg.keys()) and not isinstance(definition_cfg.get("attributes"), dict):
+            dp_value = definition_cfg["dp"]
+            pointmin_vec = _vector_from_spec(definition_cfg["pointmin"], "pointmin")
+            pointmax_vec = _vector_from_spec(definition_cfg["pointmax"], "pointmax")
+            meta = definition_cfg.get("meta")
+            node_attrs: Dict[str, Any] = {"dp": dp_value}
+            if isinstance(meta, dict):
+                comment = meta.get("comment")
+                units = meta.get("units_comment")
+                if comment is not None:
+                    node_attrs["comment"] = comment
+                if units is not None:
+                    node_attrs["units_comment"] = units
+            node = element_with_attributes("definition", node_attrs)
+            child_specs = definition_cfg.get("children", [])
+            pointref_specs: List[Any] = []
+            other_specs: List[Any] = []
+            for child_spec in child_specs:
+                tag_name = ""
+                if isinstance(child_spec, dict):
+                    tag_name = str(child_spec.get("tag") or child_spec.get("name") or child_spec.get("type") or "").lower()
+                if tag_name == "pointref":
+                    pointref_specs.append(child_spec)
+                else:
+                    other_specs.append(child_spec)
+            for child_spec in pointref_specs:
+                node.append(build_generic_node(child_spec))
+            node.append(vector_element("pointmin", pointmin_vec))
+            node.append(vector_element("pointmax", pointmax_vec))
+            for child_spec in other_specs:
+                node.append(build_generic_node(child_spec))
+            return node
+
+        attributes = dict(definition_cfg.get("attributes", {}))
+        if definition_cfg.get("dp") is not None and "dp" not in attributes:
+            attributes["dp"] = definition_cfg["dp"]
+        if "dp" not in attributes:
+            raise ValueError("geometry.definition requires dp value")
+
+        node = element_with_attributes("definition", attributes)
+
+        children_specs = definition_cfg.get("children")
+        if children_specs is None:
+            remaining_children: List[Dict[str, Any]] = []
+        elif isinstance(children_specs, list):
+            remaining_children = [dict(child) if isinstance(child, dict) else child for child in children_specs]
+        else:
+            raise TypeError("geometry.definition.children must be an array when provided")
+
+        def _pop_child(tag_name: str) -> Optional[Dict[str, Any]]:
+            for idx, child in enumerate(list(remaining_children)):
+                child_tag = child.get("tag") or child.get("name") or child.get("type")
+                if child_tag == tag_name:
+                    return remaining_children.pop(idx)
+            return None
+
+        pointref_specs: List[Dict[str, Any]] = []
+        other_specs: List[Any] = []
+        for child_spec in remaining_children:
+            tag_name = ""
+            if isinstance(child_spec, dict):
+                tag_name = str(child_spec.get("tag") or child_spec.get("name") or child_spec.get("type") or "").lower()
+            if tag_name == "pointref":
+                pointref_specs.append(child_spec)
+            else:
+                other_specs.append(child_spec)
+        for child_spec in pointref_specs:
+            node.append(build_generic_node(child_spec))
+
+        for tag_name in ("pointmin", "pointmax"):
+            vector_source = definition_cfg.get(tag_name)
+            if vector_source is None:
+                popped = _pop_child(tag_name)
+                if popped is not None:
+                    vector_source = popped
+            vector = _vector_from_spec(vector_source, tag_name)
+            node.append(vector_element(tag_name, vector))
+
+        for child_spec in other_specs:
+            node.append(build_generic_node(child_spec))
+
+        return node
     def _build_geometry_commands(self, geometry_cfg: Dict[str, Any]):
         commands_cfg = geometry_cfg.get("commands")
         objects_cfg = geometry_cfg.get("objects")

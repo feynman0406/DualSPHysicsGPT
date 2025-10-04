@@ -1,0 +1,221 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dualsphysicsgpt.local/schemas/planning_agent_schema_v1.0.json",
+  "title": "Planning Agent Plan JSON Schema",
+  "description": "Schema for the Plan JSON output from Agent 1 (RAG + Planning) to Agent 2 (Schema)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["query", "curated_examples", "schema_guidance"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Version of this schema contract",
+      "default": "1.0",
+      "enum": ["1.0"]
+    },
+    "query": {
+      "type": "string",
+      "description": "Original user query or search query used",
+      "maxLength": 4000
+    },
+    "metadata_filter": {
+      "type": ["object", "null"],
+      "description": "Metadata filter actually applied during retrieval",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "curated_examples": {
+      "type": "array",
+      "description": "Selected examples from retrieval with citations and rationale",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["filename", "rank", "spans"],
+        "properties": {
+          "file_id": {
+            "type": ["string", "null"],
+            "description": "OpenAI file ID if available"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Source filename or path"
+          },
+          "rank": {
+            "type": "integer",
+            "description": "Rank order of this example (1-based)",
+            "minimum": 1
+          },
+          "score": {
+            "type": ["number", "null"],
+            "description": "Retrieval or relevance score"
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Reasoning for including this example and required adjustments",
+            "maxLength": 1000
+          },
+          "spans": {
+            "type": "array",
+            "description": "Specific quoted segments from this file",
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["quote"],
+              "properties": {
+                "start": {
+                  "type": ["integer", "null"],
+                  "description": "Character start index (optional)"
+                },
+                "end": {
+                  "type": ["integer", "null"],
+                  "description": "Character end index (optional)"
+                },
+                "quote": {
+                  "type": "string",
+                  "description": "Quoted text segment",
+                  "maxLength": 600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "description": "Coverage analysis of retrieved examples",
+      "additionalProperties": false,
+      "properties": {
+        "case_type": {
+          "type": ["string", "null"],
+          "description": "Detected case type from examples"
+        },
+        "dim": {
+          "type": ["string", "null"],
+          "description": "Dimension (2D or 3D)",
+          "enum": ["2D", "3D", null]
+        },
+        "features": {
+          "type": "array",
+          "description": "Detected features (e.g., mDBC, Chrono)",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16
+        }
+      }
+    },
+    "extracted_params": {
+      "type": "array",
+      "description": "Parameters extracted from examples",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value", "source"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name (e.g., 'StepAlgorithm')"
+          },
+          "value": {
+            "type": ["string", "number", "boolean"],
+            "description": "Parameter value"
+          },
+          "unit": {
+            "type": ["string", "null"],
+            "description": "Unit if applicable (e.g., 'm', 's')"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source filename or reference"
+          }
+        }
+      }
+    },
+    "missing_params": {
+      "type": "array",
+      "description": "List of required parameters that are missing",
+      "maxItems": 64,
+      "items": {
+        "type": "string"
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "List of conflicts or inconsistencies detected",
+      "maxItems": 32,
+      "items": {
+        "type": "string"
+      }
+    },
+    "schema_guidance": {
+      "type": "string",
+      "description": "Guidance for Schema Agent with placeholders for TODO items",
+      "maxLength": 4000
+    },
+    "citations": {
+      "type": "array",
+      "description": "Detailed citations for all referenced materials",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["filename", "span_index", "quote"],
+        "properties": {
+          "file_id": {
+            "type": ["string", "null"],
+            "description": "OpenAI file ID if available"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Source filename"
+          },
+          "span_index": {
+            "type": "integer",
+            "description": "Index of span within the example",
+            "minimum": 0
+          },
+          "quote": {
+            "type": "string",
+            "description": "Quoted text",
+            "maxLength": 600
+          }
+        }
+      }
+    },
+    "tool_calls": {
+      "type": "array",
+      "description": "Tool calls made during planning (for single-request mode)",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "status": {
+      "type": "string",
+      "description": "Status of planning completion",
+      "enum": ["completed", "no_results", "retrying"],
+      "default": "completed"
+    },
+    "attempt": {
+      "type": "integer",
+      "description": "Planning attempt number (for retries)",
+      "minimum": 1,
+      "default": 1
+    },
+    "plan_completion_rate": {
+      "type": ["number", "null"],
+      "description": "Fraction of required fields covered (0.0 to 1.0)",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "stage2_feedback": {
+      "type": ["string", "null"],
+      "description": "Feedback from Stage 2 Schema Agent if failed"
+    }
+  }
+}

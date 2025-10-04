@@ -39,8 +39,8 @@ Schema contract
      { "type": "runlist", "name": "ListName" }  // becomes <runlist name="ListName"/>
    - Activate point/shape drawing:
      { "type": "setactive", "drawpoints": 0|1, "drawshapes": 0|1 }
-   - Set shape mode (text content preferred; allowed values: "actual" or "bound"):
-     { "type": "setshapemode", "text": "actual" }
+   - Set shape mode (text content preferred):
+     { "type": "setshapemode", "text": "actual | bound" }
    - Set draw mode:
      { "type": "setdrawmode", "mode": "full" }  // use "mode", not "value"
    - Marker selection:
@@ -142,7 +142,7 @@ Reference example JSON
           "name": "GeometryForNormals",
           "items": [
             { "type": "setactive", "drawpoints": 0, "drawshapes": 1 },
-            { "type": "setshapemode", "text": "actual" },
+            { "type": "setshapemode", "text": "actual | bound" },
             { "type": "setmkbound", "mk": 0 },
             {
               "type": "drawbox",
