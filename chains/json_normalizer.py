@@ -313,6 +313,15 @@ def _normalize_geometry_commands(entry: Any) -> Dict[str, Any]:
     if not isinstance(entry, dict):
         raise ValueError("geometry.commands must be an object")
 
+    # Already normalized (children array) ? coerce child nodes and return.
+    if "children" in entry:
+        children = [
+            _normalize_vector_in_node(child)
+            for child in entry.get("children", [])
+            if child is not None
+        ]
+        return {"children": children} if children else {}
+
     # ICS format: commands.children is an ordered array of generic nodes
     children: List[Dict[str, Any]] = []
 

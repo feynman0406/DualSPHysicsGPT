@@ -45,3 +45,10 @@
 - The current workflow lacks an automated retry path for poor Agent 1 retrievals; a light feedback loop (for example, alternative rerank strategies) would improve recall.
 - Metrics and telemetry are still manual, so wiring the MVP into metrics/plan_runs.csv would surface coverage and failure modes over time.
 - Future work: integrate the MVP guardrails into the production planner chain, add automated GenCase smoke tests, and broaden schema allowances for motion and floating blocks.
+
+## Latest Updates
+- Semi-strict schema now enumerates all known execution parameters and keeps TimeMax/TimeOut required while permitting new flexible sections. See schemas/dualsphysics_config_schema.json and the mirrored guardrails in scripts/mvp_direct_file_search.py.
+- Normalizer and XML generator stay aligned: _normalize_geometry_commands now preserves ICS-style commands.children, and _build_gauges uses normalized fingerprints to avoid duplicating generic nodes (resolves repeated <pointdp> in SWL gauges).
+- mvp_direct_file_search.py defers schema enforcement to the new diff checker but still retries Agent 2 when locked sections drift. Prompt updates instruct Agent 2 to reconcile user intent and Agent 1 guidance before editing.
+- When debugging, compare Agent 2 output under logs/mvp/agent2_config.json with the generated XML—logs/mvp/generated_case_from_test.xml reflects the canonical form after normalization.
+

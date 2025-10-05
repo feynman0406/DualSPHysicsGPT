@@ -117,3 +117,8 @@ Example for a plain element with attributes and text:
 ## References
 - Official template: `AutoXml_script/GenCase_CaseTemplate.xml`
 - Detailed rules: `AutoXml_script/XML_GUIDE_v5.4.pdf`
+
+## Extending Flexible Sections
+- Update `schemas/dualsphysics_config_schema.json` to mark the section as flexible (set `additionalProperties` to `true` or remove the flag) while keeping `constants`, `mkconfig`, and `geometry.definition` locked.
+- Extend the synonym maps in `scripts/mvp_direct_file_search.py` so the post-generation diff guard can treat explicitly mentioned keys as allowable changes.
+- If the new section should bypass the locked-section diff, add an entry to `_extract_allowed_fixed_section_changes` describing how to detect explicit requests for that area.

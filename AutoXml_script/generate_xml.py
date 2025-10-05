@@ -4,7 +4,7 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 from lxml import etree as ET
 
 VectorDict = Dict[str, Any]
@@ -923,6 +923,17 @@ class CaseBuilder:
             plan = gauge.get("children_plan")
             processed_keys = set()
             planned_generic_ids = set()
+            planned_generic_fingerprints: Set[str] = set()
+
+            def _fingerprint_spec(spec: Dict[str, Any]) -> str:
+                def _normalize(value: Any):
+                    if isinstance(value, dict):
+                        return {k: _normalize(value[k]) for k in sorted(value.keys())}
+                    if isinstance(value, list):
+                        return [_normalize(item) for item in value]
+                    return value
+                return json.dumps(_normalize(spec), sort_keys=True, ensure_ascii=False)
+
             if plan:
                 for entry in plan:
                     entry_type = entry.get("type")
@@ -946,6 +957,8 @@ class CaseBuilder:
                     elif entry_type == "generic":
                         spec = entry["spec"]
                         planned_generic_ids.add(id(spec))
+                        fingerprint = _fingerprint_spec(spec)
+                        planned_generic_fingerprints.add(fingerprint)
                         gauge_element.append(build_generic_node(spec))
                 for key, default_tag in (("start", "point0"), ("mid", "point1"), ("end", "point2")):
                     if key in gauge and key not in processed_keys:
@@ -961,8 +974,12 @@ class CaseBuilder:
                 if "end" in gauge:
                     gauge_element.append(build_generic_node({"tag": "point2", "vector": gauge["end"]}))
             for child_spec in gauge.get("children", []):
-                if plan and id(child_spec) in planned_generic_ids:
-                    continue
+                if plan:
+                    if id(child_spec) in planned_generic_ids:
+                        continue
+                    fingerprint = _fingerprint_spec(child_spec)
+                    if fingerprint in planned_generic_fingerprints:
+                        continue
                 gauge_element.append(build_generic_node(child_spec))
             gauges_node.append(gauge_element)
         return gauges_node

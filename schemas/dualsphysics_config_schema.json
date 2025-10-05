@@ -250,10 +250,10 @@
               }
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "execution": {
       "type": "object",
@@ -264,42 +264,252 @@
         "parameters": {
           "type": "object",
           "required": [
+            "Boundary",
+            "CoefDtMin",
+            "DensityDT",
+            "DensityDTvalue",
+            "DtAllParticles",
+            "DtFixed",
+            "DtFixedFile",
+            "DtIni",
+            "DtMin",
+            "FtIgnoreRadius",
+            "FtPause",
+            "Kernel",
+            "MinFluidStop",
+            "NoPenetration",
+            "PartsOutMax",
+            "RhopOutMax",
+            "RhopOutMin",
+            "RigidAlgorithm",
+            "SavePosDouble",
+            "ShiftCoef",
+            "ShiftTFS",
+            "Shifting",
+            "SlipMode",
+            "StepAlgorithm",
             "TimeMax",
-            "TimeOut"
+            "TimeOut",
+            "VerletSteps",
+            "Visco",
+            "ViscoBoundFactor",
+            "ViscoTreatment",
+            "WrnPartsOut",
+            "XPeriodicIncZ"
           ],
           "properties": {
             "TimeMax": {
-              "type": "object",
-              "required": [
-                "value"
-              ],
-              "properties": {
-                "value": {
-                  "type": "number"
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/definitions/parameterEntry"
             },
             "TimeOut": {
-              "type": "object",
-              "required": [
-                "value"
-              ],
-              "properties": {
-                "value": {
-                  "type": "number"
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "SavePosDouble": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "StepAlgorithm": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "VerletSteps": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "Kernel": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "ViscoTreatment": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "Visco": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "ViscoBoundFactor": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DensityDT": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DensityDTvalue": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "Shifting": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "ShiftCoef": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "ShiftTFS": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "RigidAlgorithm": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "FtPause": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "CoefDtMin": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DtIni": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DtMin": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DtFixed": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DtFixedFile": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "DtAllParticles": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "RhopOutMin": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "RhopOutMax": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "Boundary": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "WrnPartsOut": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "MinFluidStop": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "SlipMode": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "PartsOutMax": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "NoPenetration": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "FtIgnoreRadius": {
+              "$ref": "#/definitions/parameterEntry"
+            },
+            "XPeriodicIncZ": {
+              "$ref": "#/definitions/parameterEntry"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": true
+        },
+        "children_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameters_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameters_children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/parameterChildPlan"
+          }
+        },
+        "special_children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/specialChildPlan"
+          }
+        },
+        "special": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        },
+        "wavepaddles": {
+          "type": "object",
+          "properties": {
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "timeout": {
+          "type": "object",
+          "properties": {
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "relaxation_zones": {
+          "type": "object",
+          "properties": {
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "particle_filters": {
+          "type": "object",
+          "properties": {
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/genericNode"
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "gauges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gaugeEntry"
+          }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   },
-  "additionalProperties": false,
+  "additionalProperties": true,
   "definitions": {
     "vector": {
       "type": "object",
@@ -324,10 +534,7 @@
     "genericNode": {
       "type": "object",
       "required": [
-        "tag",
-        "vector",
-        "children",
-        "text"
+        "tag"
       ],
       "properties": {
         "tag": {
@@ -344,16 +551,21 @@
         },
         "text": {
           "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "comment": {
+          "type": "string"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "commandNode": {
       "type": "object",
       "required": [
-        "type",
-        "children",
-        "text"
+        "type"
       ],
       "properties": {
         "type": {
@@ -376,9 +588,136 @@
         },
         "text": {
           "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
+    },
+    "parameterEntry": {
+      "type": "object",
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "comment": {
+          "type": "string"
+        },
+        "units_comment": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "auto": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "parameterChildPlan": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "parameter",
+            "generic"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/definitions/genericNode"
+        }
+      },
+      "additionalProperties": true
+    },
+    "specialChildPlan": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "known",
+            "generic"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/definitions/genericNode"
+        }
+      },
+      "additionalProperties": true
+    },
+    "gaugeEntry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/definitions/vector"
+        },
+        "mid": {
+          "$ref": "#/definitions/vector"
+        },
+        "end": {
+          "$ref": "#/definitions/vector"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        },
+        "children_plan": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
     }
   }
 }

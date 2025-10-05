@@ -18,7 +18,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, Set
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -91,7 +91,7 @@ def _prepare_reference_documents(
     }
 
     documents: List[Dict[str, Any]] = []
-    for rank, ref in enumerate(references[:max_files]):
+    for rank, ref in enumerate(references):
         attrs = ref.get("attributes") or {}
         source_path = attrs.get("source_path") or ref.get("filename")
         resolved = _resolve_reference_path(str(source_path) if source_path is not None else "")
@@ -105,11 +105,11 @@ def _prepare_reference_documents(
             print(f"Warning: failed to read reference file {resolved}: {exc}")
             continue
 
+        if rank >= 1:
+            break
+
         prompt_excerpt = full_text
         truncated = False
-        if len(prompt_excerpt) > max_chars:
-            prompt_excerpt = prompt_excerpt[:max_chars]
-            truncated = True
 
         original_index = detail_by_rank.get(rank, {}).get("original_index", rank)
 
@@ -125,6 +125,191 @@ def _prepare_reference_documents(
         )
 
     return documents
+
+
+# Synonym maps below drive the semi-strict diff allowance; extend them when new flexible sections are introduced.
+CONSTANT_SYNONYMS: Dict[str, Set[str]] = {
+    "gravity": {"gravity", "gravitational"},
+    "rhop0": {"rhop0", "reference density"},
+    "rhopgradient": {"rhopgradient", "density gradient"},
+    "hswl": {"hswl", "still water level"},
+    "gamma": {"gamma"},
+    "speedsystem": {"speedsystem", "system speed"},
+    "coefsound": {"coefsound", "sound coefficient"},
+    "speedsound": {"speedsound", "speed of sound", "c0"},
+    "coefh": {"coefh", "smoothing length coefficient"},
+    "_hdp": {"_hdp", "hdp"},
+    "cflnumber": {"cflnumber", "cfl"},
+}
+
+MKCONFIG_SYNONYMS: Dict[str, Set[str]] = {
+    "boundcount": {"boundcount", "boundary count"},
+    "fluidcount": {"fluidcount", "fluid count"},
+}
+
+GEOMETRY_ATTRIBUTE_SYNONYMS: Dict[str, Set[str]] = {
+    "dp": {"dp", "spacing", "resolution"},
+    "units_comment": {"units", "units comment"},
+}
+
+GEOMETRY_CHILD_SYNONYMS: Dict[str, Set[str]] = {
+    "pointref": {"pointref", "reference point"},
+    "pointmin": {"pointmin", "point min", "domain min", "minimum point"},
+    "pointmax": {"pointmax", "point max", "domain max", "maximum point"},
+}
+
+
+def _normalize_context_text(*parts: str) -> str:
+    tokens = [part.lower() for part in parts if part]
+    return " ".join(tokens)
+
+
+def _token_in_text(context_text: str, token: str, synonyms: Optional[Set[str]] = None) -> bool:
+    if not context_text or not token:
+        return False
+    variants = {token.lower(), token.lower().replace('_', ' ')}
+    if synonyms:
+        variants.update(s.lower() for s in synonyms if s)
+    return any(variant in context_text for variant in variants)
+
+
+def _make_allowed_changes() -> Dict[str, Any]:
+    return {
+        "constants": set(),
+        "mkconfig": set(),
+        "geometry.definition": {
+            "attributes": set(),
+            "children": set(),
+        },
+    }
+
+
+def _extract_allowed_fixed_section_changes(context_text: str, primary_reference: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = _make_allowed_changes()
+
+    constants = primary_reference.get('constants')
+    if isinstance(constants, dict):
+        for key in constants.keys():
+            if _token_in_text(context_text, key, CONSTANT_SYNONYMS.get(key, set())):
+                allowed['constants'].add(key)
+
+    mkconfig = primary_reference.get('mkconfig')
+    if isinstance(mkconfig, dict):
+        for key in mkconfig.keys():
+            if _token_in_text(context_text, key, MKCONFIG_SYNONYMS.get(key, set())):
+                allowed['mkconfig'].add(key)
+
+    geometry = primary_reference.get('geometry', {}) or {}
+    definition = geometry.get('definition')
+    if isinstance(definition, dict):
+        attributes = definition.get('attributes')
+        if isinstance(attributes, dict):
+            for key in attributes.keys():
+                if _token_in_text(context_text, key, GEOMETRY_ATTRIBUTE_SYNONYMS.get(key, set())):
+                    allowed['geometry.definition']['attributes'].add(key)
+        children = definition.get('children')
+        if isinstance(children, list):
+            for child in children:
+                if isinstance(child, dict):
+                    tag = child.get('tag')
+                    if isinstance(tag, str) and _token_in_text(context_text, tag, GEOMETRY_CHILD_SYNONYMS.get(tag, set())):
+                        allowed['geometry.definition']['children'].add(tag)
+
+    return allowed
+
+
+def _serialize_allowed_changes(allowed: Dict[str, Any]) -> Dict[str, Any]:
+    geometry_allowed = allowed.get('geometry.definition', {}) or {}
+    return {
+        'constants': sorted(allowed.get('constants', [])),
+        'mkconfig': sorted(allowed.get('mkconfig', [])),
+        'geometry.definition': {
+            'attributes': sorted(geometry_allowed.get('attributes', [])),
+            'children': sorted(geometry_allowed.get('children', [])),
+        },
+    }
+
+
+def _compare_fixed_sections(primary_config: Dict[str, Any], candidate_config: Dict[str, Any], allowed_changes: Dict[str, Any]) -> Tuple[bool, List[Dict[str, Any]]]:
+    diffs: List[Dict[str, Any]] = []
+
+    def _add_diff(section: str, path: str, reference_value: Any, candidate_value: Any) -> None:
+        diffs.append({
+            'section': section,
+            'path': path,
+            'reference': reference_value,
+            'candidate': candidate_value,
+        })
+
+    allowed_constants = set(allowed_changes.get('constants', set()))
+    primary_constants = primary_config.get('constants')
+    candidate_constants = candidate_config.get('constants')
+    if isinstance(primary_constants, dict) and isinstance(candidate_constants, dict):
+        keys = set(primary_constants.keys()) | set(candidate_constants.keys())
+        for key in keys:
+            ref_val = primary_constants.get(key)
+            cand_val = candidate_constants.get(key)
+            if ref_val != cand_val and key not in allowed_constants:
+                _add_diff('constants', f"constants.{key}", ref_val, cand_val)
+    elif primary_constants != candidate_constants:
+        _add_diff('constants', 'constants', primary_constants, candidate_constants)
+
+    allowed_mkconfig = set(allowed_changes.get('mkconfig', set()))
+    primary_mkconfig = primary_config.get('mkconfig')
+    candidate_mkconfig = candidate_config.get('mkconfig')
+    if isinstance(primary_mkconfig, dict) and isinstance(candidate_mkconfig, dict):
+        keys = set(primary_mkconfig.keys()) | set(candidate_mkconfig.keys())
+        for key in keys:
+            ref_val = primary_mkconfig.get(key)
+            cand_val = candidate_mkconfig.get(key)
+            if ref_val != cand_val and key not in allowed_mkconfig:
+                _add_diff('mkconfig', f"mkconfig.{key}", ref_val, cand_val)
+    elif primary_mkconfig != candidate_mkconfig:
+        _add_diff('mkconfig', 'mkconfig', primary_mkconfig, candidate_mkconfig)
+
+    geometry_allowed = allowed_changes.get('geometry.definition', {}) or {}
+    allowed_attributes = set(geometry_allowed.get('attributes', set()))
+    allowed_children = set(geometry_allowed.get('children', set()))
+
+    primary_geometry = primary_config.get('geometry') or {}
+    candidate_geometry = candidate_config.get('geometry') or {}
+    primary_definition = primary_geometry.get('definition')
+    candidate_definition = candidate_geometry.get('definition')
+
+    if isinstance(primary_definition, dict) and isinstance(candidate_definition, dict):
+        primary_attributes = primary_definition.get('attributes') or {}
+        candidate_attributes = candidate_definition.get('attributes') or {}
+        attr_keys = set(primary_attributes.keys()) | set(candidate_attributes.keys())
+        for key in attr_keys:
+            ref_val = primary_attributes.get(key)
+            cand_val = candidate_attributes.get(key)
+            if ref_val != cand_val and key not in allowed_attributes:
+                _add_diff('geometry.definition', f"geometry.definition.attributes.{key}", ref_val, cand_val)
+
+        primary_children = primary_definition.get('children') or []
+        candidate_children = candidate_definition.get('children') or []
+
+        def _children_map(children: List[Any]) -> Dict[str, Any]:
+            mapping: Dict[str, Any] = {}
+            for child in children:
+                if isinstance(child, dict):
+                    tag = child.get('tag')
+                    if isinstance(tag, str) and tag not in mapping:
+                        mapping[tag] = child
+            return mapping
+
+        ref_children = _children_map(primary_children)
+        cand_children = _children_map(candidate_children)
+        child_tags = set(ref_children.keys()) | set(cand_children.keys())
+        for tag in child_tags:
+            ref_val = ref_children.get(tag)
+            cand_val = cand_children.get(tag)
+            if ref_val != cand_val and tag not in allowed_children:
+                _add_diff('geometry.definition', f"geometry.definition.children[{tag}]", ref_val, cand_val)
+    elif primary_definition != candidate_definition:
+        _add_diff('geometry.definition', 'geometry.definition', primary_definition, candidate_definition)
+
+    return len(diffs) == 0, diffs
 
 
 def _format_reference_documents(documents: List[Dict[str, Any]]) -> str:
@@ -349,67 +534,100 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) ->
     print_step(1, 3, "Loading DualSPHysics JSON schema...")
     with open(schema_path, encoding="utf-8") as f:
         schema = json.load(f)
-
-    def add_additional_properties(obj: Any):
-        if isinstance(obj, dict):
-            if obj.get("type") == "object" or "properties" in obj:
-                if "additionalProperties" not in obj:
-                    obj["additionalProperties"] = False
-            for value in obj.values():
-                add_additional_properties(value)
-        elif isinstance(obj, list):
-            for item in obj:
-                add_additional_properties(item)
-
-    add_additional_properties(schema)
     print(f"Schema loaded: {schema_path.name}")
 
     print_step(2, 3, "Building prompt from Agent 1 references...")
 
-    references_text = agent1_output.get("analysis", "")
-    instructions = agent1_output.get("instructions_for_agent2", "")
-    reference_docs_section = _format_reference_documents(reference_documents)
+    references_text = (agent1_output.get("analysis", "") or "").strip()
+    instructions = (agent1_output.get("instructions_for_agent2", "") or "").strip()
 
-    prompt = f"""Generate a complete DualSPHysics configuration JSON based on the following:
+    primary_doc: Optional[Dict[str, Any]] = reference_documents[0] if reference_documents else None
+    additional_docs = reference_documents[1:] if reference_documents and len(reference_documents) > 1 else []
 
-USER REQUEST:
-{agent1_output['query']}
+    primary_section = ""
+    if primary_doc is not None:
+        primary_body = primary_doc.get("full_text") or primary_doc.get("prompt_excerpt") or ""
+        primary_name = primary_doc.get("filename") or primary_doc.get("path") or "primary_reference.json"
+        primary_section = f"""## Primary Reference ({primary_name}):\n<primary_reference>\n{primary_body}\n</primary_reference>"""
+    else:
+        primary_section = "## Primary Reference:\\n(no reference document was resolved)"
 
-REFERENCE ANALYSIS (from Agent 1):
-{references_text}
+    additional_section = ""
+    if additional_docs:
+        additional_lines = ["## Additional Reference Excerpts:"]
+        for doc in additional_docs:
+            name = doc.get("filename") or doc.get("path") or "unknown_reference.json"
+            idx = doc.get("reference_index")
+            header = f"### {name}"
+            if idx is not None:
+                header += f" (reference index {idx})"
+            additional_lines.append(header)
+            excerpt = doc.get("prompt_excerpt") or ""
+            additional_lines.append(excerpt)
+            additional_lines.append("")
+        additional_section = "\\n".join(additional_lines).rstrip()
 
-{reference_docs_section}
+    primary_reference_json: Optional[Dict[str, Any]] = None
+    if primary_doc is not None:
+        reference_text = primary_doc.get('full_text') or primary_doc.get('prompt_excerpt') or ''
+        try:
+            primary_reference_json = json.loads(reference_text)
+        except json.JSONDecodeError as exc:
+            print(f"Warning: failed to parse primary reference JSON ({primary_doc.get('filename') or primary_doc.get('path')}): {exc}")
+            primary_reference_json = None
 
-INSTRUCTIONS:
-{instructions}
+    prompt_parts = [
+        "# Task",
+        "Regenerate the DualSPHysics configuration by editing the primary reference JSON and applying only the requested adjustments.",
+        "## User Request",
+        agent1_output['query'],
+        "## Agent 1 Guidance (analysis)",
+        references_text or "(none provided)",
+        "## Agent 1 Instructions",
+        instructions or "(none provided)",
+        primary_section,
+        additional_section,
+        "## Operating Rules",
+        "1. Read the user request and Agent 1 guidance first. Silently list the adjustments you intend to apply and confirm they align before editing the JSON.",
+        "2. Start from the primary reference as the template. Preserve every key, nesting level, ordering, comment, and units_comment unless an explicit adjustment targets it.",
+        "3. Keep constants, mkconfig, and geometry.definition identical to the reference except for explicitly requested value changes.",
+        "4. For geometry.commands and execution, make the minimum diff needed to satisfy the request. Do not reformat or reorder unrelated content.",
+        "5. Preserve numeric types and vector shapes, and leave unspecified values unchanged.",
+        "## Checklist Before Responding",
+        "a. constants, mkconfig, and geometry.definition match the reference except for explicitly requested values.",
+        "b. Only the requested adjustments were applied.",
+        "c. The JSON parses with json.loads.",
+        "## Output Format",
+        "Return the JSON object only. No commentary, no markdown fences.",
+    ]
 
-REQUIREMENTS:
-1. Output ONLY valid JSON matching the provided schema
-2. Use the reference files as structural templates
-3. Adapt parameters to match the user's specific request
-4. Ensure all required fields are present
-5. Maintain consistency in units and dimensions
+    prompt = "\\n\\n".join(part for part in prompt_parts if part)
 
-Generate the configuration JSON now:"""
+    context_text = _normalize_context_text(agent1_output.get("query", ""), references_text, instructions)
+    allowed_changes = _make_allowed_changes()
+    if primary_reference_json is not None:
+        allowed_changes = _extract_allowed_fixed_section_changes(context_text, primary_reference_json)
 
     print(f"Prompt built ({len(prompt)} chars)\n")
 
-    print_step(3, 3, "Generating config with strict schema enforcement...")
+    print_step(3, 3, "Generating config with semi-strict schema guidance...")
+
+    base_messages = [
+        {
+            "role": "system",
+            "content": "You are DualSPHysics Agent 2. Regenerate a Case_Def JSON by editing the provided primary reference.\n\n        Follow these priorities:\n        1. Review the user request and Agent 1 guidance first. Silently list the adjustments you will apply and confirm they are consistent before editing.\n        2. Use the primary reference as the starting template. Preserve keys, ordering, comments, units_comment fields, and structure unless an explicit adjustment targets them.\n        3. constants, mkconfig, and geometry.definition are fixed sections. Only change their values when the request explicitly requires it.\n        4. For geometry.commands and execution, apply the minimum necessary diff to satisfy the request and avoid unrelated edits or reordering.\n        5. Output exactly one JSON object parseable by json.loads with no markdown fences or commentary.\n        6. Double-check that only the requested adjustments were made.",
+        },
+        {"role": "user", "content": prompt},
+    ]
 
     api_params: Dict[str, Any] = {
         "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a DualSPHysics configuration generator. Output only valid JSON that strictly conforms to the provided schema.",
-            },
-            {"role": "user", "content": prompt},
-        ],
+        "messages": base_messages,
         "response_format": {
             "type": "json_schema",
             "json_schema": {
                 "name": "dualsphysics_config",
-                "strict": True,
+                "strict": False,
                 "schema": schema,
             },
         },
@@ -417,8 +635,59 @@ Generate the configuration JSON now:"""
     if not any(x in model.lower() for x in ["gpt-5", "o1", "o3"]):
         api_params["temperature"] = 0.0
 
-    response = client.chat.completions.create(**api_params)
-    config_json = json.loads(response.choices[0].message.content)
+    max_attempts = 3
+    diff_log_path = output_dir / "agent2_fixed_section_diff.json"
+    config_json: Optional[Dict[str, Any]] = None
+    last_diff_report: Optional[List[Dict[str, Any]]] = None
+
+    for attempt in range(1, max_attempts + 1):
+        messages = list(base_messages)
+        if attempt > 1 and last_diff_report:
+            summary_lines = [f"- {item['path']}" for item in last_diff_report]
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "Retry notice: The previous attempt modified locked sections. "
+                        "Revert these paths to match the primary reference unless explicitly requested:\n"
+                        + "\n".join(summary_lines)
+                    ),
+                }
+            )
+        api_params["messages"] = messages
+
+        response = client.chat.completions.create(**api_params)
+        try:
+            config_json = json.loads(response.choices[0].message.content)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Agent 2 returned invalid JSON: {exc}") from exc
+
+        if primary_reference_json is None:
+            break
+
+        is_valid, diff_report = _compare_fixed_sections(primary_reference_json, config_json, allowed_changes)
+        if is_valid:
+            last_diff_report = None
+            if diff_log_path.exists():
+                diff_log_path.unlink()
+            break
+
+        last_diff_report = diff_report
+        diff_payload = {
+            "attempt": attempt,
+            "differences": diff_report,
+            "allowed_changes": _serialize_allowed_changes(allowed_changes),
+        }
+        with open(diff_log_path, "w", encoding="utf-8") as diff_file:
+            json.dump(diff_payload, diff_file, indent=2, ensure_ascii=False)
+
+        print("Fixed-section diff check failed; see logs/mvp/agent2_fixed_section_diff.json for details.")
+        if attempt == max_attempts:
+            raise ValueError("Agent 2 modified locked sections in constants, mkconfig, or geometry.definition.")
+        print("Retrying Agent 2 with additional guidance...")
+
+    if config_json is None:
+        raise RuntimeError("Agent 2 did not produce a configuration after retries.")
 
     print(f"Config generated ({len(config_json)} top-level keys)")
 
