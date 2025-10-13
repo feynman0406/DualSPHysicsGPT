@@ -3,17 +3,22 @@ expected by AutoXml_script.generate_xml."""
 
 from __future__ import annotations
 
+import copy
+
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
+from chains.mdbc_normals import normalize_geometryfile_target
+from typing import Any, Dict, List, Optional, Tuple
 
 
 CANONICAL_CONFIG_KEYS = {
     "case_attributes",
     "casedef_attributes",
+    "casedef_children",
     "constants",
     "mkconfig",
     "patterns",
     "geometry",
+    "normals",
     "initials",
     "floatings",
     "motion",
@@ -37,6 +42,23 @@ class ParameterNormalizationResult:
     warnings: List[str] = field(default_factory=list)
     extra_nodes: List[Dict[str, Any]] = field(default_factory=list)
 
+def _ensure_normals_geometryfile_placeholder(normals: Dict[str, Any]) -> None:
+    """Force normals.norgeometry.geometryfile to use the placeholder name."""
+    if not isinstance(normals, dict):
+        return
+    norgeometry = normals.get("norgeometry")
+    if not isinstance(norgeometry, dict):
+        return
+    geometryfile = norgeometry.get("geometryfile")
+    if isinstance(geometryfile, dict):
+        placeholder = normalize_geometryfile_target(geometryfile.get("file"))
+        if geometryfile.get("file") != placeholder:
+            geometryfile["file"] = placeholder
+    elif geometryfile is not None:
+        norgeometry["geometryfile"] = {"file": normalize_geometryfile_target(geometryfile)}
+
+
+
 
 def normalize_case_config(raw: Dict[str, Any]) -> NormalizationResult:
     """Normalize a generator JSON payload into the canonical schema."""
@@ -54,6 +76,10 @@ def normalize_case_config(raw: Dict[str, Any]) -> NormalizationResult:
                 config[key] = _normalize_constants(raw[key])
             elif key == "geometry":
                 config[key] = _normalize_geometry(raw[key])
+            elif key == "normals":
+                normalized_normals = _normalize_normals(raw[key])
+                _ensure_normals_geometryfile_placeholder(normalized_normals)
+                config[key] = normalized_normals
             elif key == "execution":
                 exec_norm = _normalize_execution(raw[key])
                 config[key] = exec_norm.config
@@ -81,6 +107,19 @@ def normalize_case_config(raw: Dict[str, Any]) -> NormalizationResult:
         raise ValueError("constants section is required")
     if "geometry" not in config:
         raise ValueError("geometry section is required")
+
+    _promote_normals_from_execution(config, warnings)
+
+    _ensure_normals_geometryfile_placeholder(config.get("normals"))
+    if isinstance(config.get("geometry"), dict):
+        geom_normals = config["geometry"].get("normals")
+        _ensure_normals_geometryfile_placeholder(geom_normals)
+
+    geometry_cfg = config.get("geometry")
+    normals_cfg = config.get("normals")
+    if isinstance(geometry_cfg, dict) and isinstance(normals_cfg, dict) and "normals" not in geometry_cfg:
+        geometry_cfg["normals"] = copy.deepcopy(normals_cfg)
+        _ensure_normals_geometryfile_placeholder(geometry_cfg["normals"])
 
     # Normalize notes-like metadata into config extras.
     for meta_key in ("notes", "files", "checks", "domain_report", "citations"):
@@ -154,6 +193,152 @@ def _normalize_geometry(block: Any) -> Dict[str, Any]:
     return geometry
 
 
+
+
+def _is_normals_spec(entry: Any) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    tag = entry.get("tag") or entry.get("type") or entry.get("name")
+    return isinstance(tag, str) and tag.strip().lower() == "normals"
+
+def _coerce_bool_like(value: Any) -> Any:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    return value
+
+def _normalize_normals(entry: Any) -> Dict[str, Any]:
+    if entry is None:
+        return {}
+    if isinstance(entry, dict):
+        if _is_normals_spec(entry):
+            return _convert_normals_generic(entry)
+        normalized = dict(entry)
+        normalized.pop("tag", None)
+        normalized.pop("type", None)
+        normalized.pop("name", None)
+        if "norgeometry" in normalized:
+            normalized["norgeometry"] = _normalize_norgeometry_structured(normalized["norgeometry"])
+        _ensure_normals_geometryfile_placeholder(normalized)
+        return normalized
+    raise ValueError("normals section must be an object")
+
+def _normalize_norgeometry_structured(entry: Any) -> Dict[str, Any]:
+    if entry is None:
+        return {}
+    if isinstance(entry, dict):
+        if _is_normals_spec(entry) or entry.get("tag") or entry.get("type") or entry.get("name"):
+            return _convert_norgeometry_generic(entry)
+        normalized: Dict[str, Any] = {}
+        for key, value in entry.items():
+            if key in {"geometryfile", "distanceh", "svshapes"} and isinstance(value, dict) and (value.get("tag") or value.get("type") or value.get("name")):
+                normalized[key] = _convert_normals_child_generic(key, value)
+            else:
+                normalized[key] = value
+        return normalized
+    raise ValueError("normals.norgeometry must be an object")
+
+def _convert_normals_generic(spec: Dict[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    attributes = spec.get("attributes")
+    if isinstance(attributes, dict):
+        if "active" in attributes:
+            normalized["active"] = _coerce_bool_like(attributes["active"])
+        if "comment" in attributes:
+            normalized["comment"] = attributes["comment"]
+    if spec.get("active") is not None:
+        normalized["active"] = _coerce_bool_like(spec["active"])
+    if spec.get("comment") is not None:
+        normalized["comment"] = spec["comment"]
+
+    norgeometry_spec: Optional[Dict[str, Any]] = None
+    extras: List[Dict[str, Any]] = []
+    for child in spec.get("children", []):
+        if not isinstance(child, dict):
+            continue
+        if _is_normals_spec(child):
+            continue
+        tag = child.get("tag") or child.get("type") or child.get("name")
+        if isinstance(tag, str) and tag.lower() == "norgeometry":
+            norgeometry_spec = child
+        else:
+            extras.append(child)
+    if norgeometry_spec is not None:
+        normalized["norgeometry"] = _convert_norgeometry_generic(norgeometry_spec)
+    if extras:
+        normalized["extra"] = extras
+    return normalized
+
+def _convert_norgeometry_generic(spec: Dict[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    attributes = spec.get("attributes")
+    if isinstance(attributes, dict) and attributes.get("comment") is not None:
+        normalized["comment"] = attributes["comment"]
+    if spec.get("comment") is not None:
+        normalized["comment"] = spec["comment"]
+
+    extras: List[Dict[str, Any]] = []
+    for child in spec.get("children", []):
+        if not isinstance(child, dict):
+            continue
+        tag = child.get("tag") or child.get("type") or child.get("name")
+        if not isinstance(tag, str):
+            extras.append(child)
+            continue
+        tag_lower = tag.lower()
+        if tag_lower in {"geometryfile", "distanceh", "svshapes"}:
+            normalized[tag_lower] = _convert_normals_child_generic(tag_lower, child)
+        else:
+            extras.append(child)
+    if extras:
+        normalized["extra"] = extras
+    return normalized
+
+def _convert_normals_child_generic(tag: str, child: Dict[str, Any]) -> Dict[str, Any]:
+    result: Dict[str, Any] = {}
+    attributes = child.get("attributes")
+    comment_value = child.get("comment")
+    if isinstance(attributes, dict) and comment_value is None:
+        comment_value = attributes.get("comment")
+    if tag == "geometryfile":
+        file_value = child.get("file")
+        if file_value is None and isinstance(attributes, dict):
+            file_value = attributes.get("file")
+        if file_value is not None:
+            result["file"] = file_value
+    elif tag == "distanceh":
+        value = child.get("v")
+        if value is None and isinstance(attributes, dict):
+            value = attributes.get("v")
+        if value is not None:
+            result["v"] = _coerce_scalar(value)
+    elif tag == "svshapes":
+        value = child.get("v")
+        if value is None and isinstance(attributes, dict):
+            value = attributes.get("v")
+        if value is not None:
+            result["v"] = _coerce_bool_like(value)
+    else:
+        if isinstance(attributes, dict):
+            result.update(attributes)
+    for key in ("file", "v"):
+        if key in child and key not in result and child[key] is not None:
+            result[key] = child[key]
+    if comment_value is not None:
+        result["comment"] = comment_value
+    remaining = {
+        k: v
+        for k, v in child.items()
+        if k not in {"tag", "type", "name", "attributes", "children", "comment", "file", "v"}
+    }
+    if remaining:
+        result.update(remaining)
+    return result
 def _normalize_geometry_definition(entry: Any) -> Dict[str, Any]:
     if not isinstance(entry, dict):
         raise ValueError("geometry.definition must be an object")
@@ -517,6 +702,163 @@ def _normalize_parameters(entry: Any) -> ParameterNormalizationResult:
     return ParameterNormalizationResult(parameters=parameters, warnings=warnings, extra_nodes=extra_nodes)
 
 
+
+
+def _extract_normals_specs_from_list(entries: List[Any]) -> Tuple[List[Dict[str, Any]], List[Any]]:
+    normals: List[Dict[str, Any]] = []
+    remaining: List[Any] = []
+    for entry in entries:
+        if _is_normals_spec(entry):
+            normals.append(entry)
+        else:
+            remaining.append(entry)
+    return normals, remaining
+
+def _merge_normals(existing: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
+    merged = copy.deepcopy(existing)
+    for key, value in incoming.items():
+        if key == "extra":
+            if not value:
+                continue
+            extras = merged.setdefault("extra", [])
+            if isinstance(value, list):
+                extras.extend(value)
+            else:
+                extras.append(value)
+        elif key == "norgeometry":
+            if not isinstance(value, dict):
+                continue
+            current_geo = merged.get("norgeometry")
+            if not isinstance(current_geo, dict):
+                merged["norgeometry"] = copy.deepcopy(value)
+                continue
+            for sub_key, sub_value in value.items():
+                if sub_key == "extra":
+                    if not sub_value:
+                        continue
+                    geo_extras = current_geo.setdefault("extra", [])
+                    if isinstance(sub_value, list):
+                        geo_extras.extend(sub_value)
+                    else:
+                        geo_extras.append(sub_value)
+                elif sub_key not in current_geo or current_geo[sub_key] in (None, "", []):
+                    current_geo[sub_key] = copy.deepcopy(sub_value)
+        else:
+            if key not in merged or merged[key] in (None, "", []):
+                merged[key] = copy.deepcopy(value)
+    return merged
+
+def _promote_normals_from_execution(config: Dict[str, Any], warnings: List[str]) -> None:
+    execution = config.get("execution")
+    normals_specs: List[Dict[str, Any]] = []
+    moved = False
+
+    if isinstance(execution, dict):
+        special = execution.get("special")
+        if isinstance(special, list):
+            filtered_special: List[Any] = []
+            for entry in special:
+                if _is_normals_spec(entry):
+                    normals_specs.append(entry)
+                    moved = True
+                else:
+                    filtered_special.append(entry)
+            if filtered_special:
+                execution["special"] = filtered_special
+            else:
+                execution.pop("special", None)
+        elif _is_normals_spec(special):
+            if isinstance(special, dict):
+                normals_specs.append(special)
+            moved = True
+            execution.pop("special", None)
+
+        children_order = execution.get("children_order")
+        if isinstance(children_order, list):
+            filtered_order = [item for item in children_order if item != "special"]
+            if filtered_order:
+                execution["children_order"] = filtered_order
+            else:
+                execution.pop("children_order", None)
+
+        special_children = execution.get("special_children")
+        if isinstance(special_children, list):
+            filtered_children: List[Dict[str, Any]] = []
+            for child in special_children:
+                if child.get("type") == "generic" and _is_normals_spec(child.get("spec")):
+                    spec = child.get("spec")
+                    if isinstance(spec, dict):
+                        normals_specs.append(spec)
+                        moved = True
+                    continue
+                if child.get("type") == "section" and str(child.get("key", "")).lower() == "normals":
+                    moved = True
+                    continue
+                filtered_children.append(child)
+            if filtered_children:
+                execution["special_children"] = filtered_children
+            else:
+                execution.pop("special_children", None)
+
+    extras_raw = config.get("casedef_extra")
+    extras_list: List[Any] = []
+    if isinstance(extras_raw, list):
+        extras_list = list(extras_raw)
+    elif isinstance(extras_raw, (tuple, set)):
+        extras_list = list(extras_raw)
+    elif extras_raw is not None:
+        extras_list = [extras_raw]
+
+    if extras_list:
+        extra_normals, filtered_extras = _extract_normals_specs_from_list(extras_list)
+        if extra_normals:
+            normals_specs.extend(extra_normals)
+            moved = True
+        if filtered_extras:
+            config["casedef_extra"] = filtered_extras
+        else:
+            config.pop("casedef_extra", None)
+
+    existing_normals = config.get("normals")
+    if normals_specs:
+        normalized_normals = _normalize_normals(normals_specs[0])
+        if isinstance(existing_normals, dict):
+            normalized_normals = _merge_normals(existing_normals, normalized_normals)
+        config["normals"] = normalized_normals
+        if len(normals_specs) > 1:
+            extras_bucket = config["normals"].setdefault("extra", [])
+            for extra_spec in normals_specs[1:]:
+                extras_bucket.append(extra_spec)
+    elif existing_normals is not None:
+        config["normals"] = _normalize_normals(existing_normals)
+
+    if "normals" in config:
+        config["normals"] = _normalize_normals(config["normals"])
+        _ensure_normals_section_plan(config)
+    if moved and config.get("normals"):
+        warnings.append("Moved normals block from execution.special to top-level normals")
+def _ensure_normals_section_plan(config: Dict[str, Any]) -> None:
+    """Insert a normals section entry after geometry in casedef_children when needed."""
+    children_plan = config.get("casedef_children")
+    if not isinstance(children_plan, list):
+        return
+
+    for entry in children_plan:
+        if isinstance(entry, dict) and entry.get("type") == "section":
+            key = entry.get("key")
+            if isinstance(key, str) and key.lower() == "normals":
+                return
+
+    insertion_index = len(children_plan)
+    for idx, entry in enumerate(children_plan):
+        if isinstance(entry, dict) and entry.get("type") == "section":
+            key = entry.get("key")
+            if isinstance(key, str) and key.lower() == "geometry":
+                insertion_index = idx + 1
+                break
+
+    children_plan.insert(insertion_index, {"type": "section", "key": "normals"})
+
 def _normalize_simulation_domain(entry: Any) -> Dict[str, Any] | None:
     if not isinstance(entry, dict):
         return None
@@ -623,3 +965,18 @@ def _normalize_gauge(gauge: Dict[str, Any]) -> Dict[str, Any]:
             normalized["children_plan"] = plan
     
     return normalized
+
+
+
+
+
+
+
+def promote_normals_from_execution(config: Dict[str, Any]) -> bool:
+    """Public helper to relocate normals nodes from execution.special."""
+    if not isinstance(config, dict):
+        return False
+
+    collector: List[str] = []
+    _promote_normals_from_execution(config, collector)
+    return any(msg.startswith("Moved normals block from execution.special") for msg in collector)
