@@ -80,6 +80,8 @@ def normalize_case_config(raw: Dict[str, Any]) -> NormalizationResult:
                 normalized_normals = _normalize_normals(raw[key])
                 _ensure_normals_geometryfile_placeholder(normalized_normals)
                 config[key] = normalized_normals
+            elif key == "floatings":
+                config[key] = _normalize_floatings(raw[key], warnings)
             elif key == "execution":
                 exec_norm = _normalize_execution(raw[key])
                 config[key] = exec_norm.config
@@ -835,6 +837,8 @@ def _promote_normals_from_execution(config: Dict[str, Any], warnings: List[str])
     if "normals" in config:
         config["normals"] = _normalize_normals(config["normals"])
         _ensure_normals_section_plan(config)
+    _ensure_floatings_section_plan(config)
+    _ensure_floatings_have_descriptor(config, warnings)
     if moved and config.get("normals"):
         warnings.append("Moved normals block from execution.special to top-level normals")
 def _ensure_normals_section_plan(config: Dict[str, Any]) -> None:
@@ -858,6 +862,224 @@ def _ensure_normals_section_plan(config: Dict[str, Any]) -> None:
                 break
 
     children_plan.insert(insertion_index, {"type": "section", "key": "normals"})
+
+def _normalize_floatings(raw_floatings: Any, warnings: List[str]) -> Any:
+    data = copy.deepcopy(raw_floatings)
+    _sanitize_floatings_nodes(data, warnings)
+    return data
+
+
+def _sanitize_floatings_nodes(node: Any, warnings: List[str]) -> None:
+    if isinstance(node, dict):
+        if node.get("type") == "floating":
+            _strip_bodyfloating_child(node, warnings)
+            _prune_unsupported_floating_children(node, warnings)
+        for value in node.values():
+            if isinstance(value, (dict, list)):
+                _sanitize_floatings_nodes(value, warnings)
+    elif isinstance(node, list):
+        for item in node:
+            _sanitize_floatings_nodes(item, warnings)
+
+
+def _strip_bodyfloating_child(floating: Dict[str, Any], warnings: List[str]) -> None:
+    children = floating.get("children")
+    if not isinstance(children, list):
+        return
+    kept_children: List[Dict[str, Any]] = []
+    bodyfloating_removed = False
+    for child in children:
+        if isinstance(child, dict) and str(child.get("tag", "")).lower() == "bodyfloating":
+            _merge_bodyfloating_into_attributes(floating, child, warnings)
+            bodyfloating_removed = True
+        else:
+            kept_children.append(child)
+    if bodyfloating_removed:
+        if kept_children:
+            floating["children"] = kept_children
+        else:
+            floating.pop("children", None)
+        warnings.append("Dropped unsupported bodyfloating child from floatings and merged its attributes")
+
+
+def _merge_bodyfloating_into_attributes(floating: Dict[str, Any], child: Dict[str, Any], warnings: List[str]) -> None:
+    target_attrs = floating.setdefault("attributes", {})
+    merged_attrs: Dict[str, Any] = {}
+    child_attrs = child.get("attributes")
+    if isinstance(child_attrs, dict):
+        merged_attrs.update(child_attrs)
+    for key, value in child.items():
+        if key in {"tag", "attributes", "children", "extra", "text", "vector"}:
+            continue
+        merged_attrs[key] = value
+    if child.get("children"):
+        warnings.append("Ignoring nested children on bodyfloating entry under floatings")
+    if "vector" in child:
+        warnings.append("Ignoring vector on bodyfloating entry under floatings")
+    for key, value in merged_attrs.items():
+        if key not in target_attrs:
+            target_attrs[key] = value
+        elif target_attrs[key] != value:
+            warnings.append(f"bodyfloating attribute '{key}' already present on floating; keeping existing value")
+
+
+ALLOWED_FLOATING_CHILD_TAGS = {
+    "massbody",
+    "masspart",
+    "center",
+    "inertia",
+    "inertiafull",
+    "inertiatensor",
+    "tensor",
+    "hydroforce",
+    "force",
+    "torque",
+    "linearvel",
+    "angularvel",
+}
+
+
+def _prune_unsupported_floating_children(floating: Dict[str, Any], warnings: List[str]) -> None:
+    children = floating.get("children")
+    if not isinstance(children, list):
+        return
+    kept: List[Dict[str, Any]] = []
+    removed_any = False
+    for child in children:
+        tag = None
+        if isinstance(child, dict):
+            tag = child.get("tag") or child.get("type")
+        if tag is None:
+            kept.append(child)
+            continue
+        tag_lower = str(tag).lower()
+        if tag_lower in ALLOWED_FLOATING_CHILD_TAGS:
+            kept.append(child)
+        else:
+            removed_any = True
+            warnings.append(f"Ignoring unsupported floating child '{tag}'")
+    if removed_any:
+        if kept:
+            floating["children"] = kept
+        else:
+            floating.pop("children", None)
+
+
+def _ensure_floatings_have_descriptor(config: Dict[str, Any], warnings: List[str]) -> None:
+    floatings = config.get("floatings")
+    if not isinstance(floatings, list):
+        return
+    default_rhop = _extract_default_rhop_value(config)
+    for floating in floatings:
+        if not isinstance(floating, dict):
+            continue
+        attrs = floating.get("attributes")
+        attrs = attrs if isinstance(attrs, dict) else {}
+        has_rhop = any(key in attrs for key in ("rhopbody", "relativeweight"))
+        children = floating.get("children")
+        has_massbody = False
+        if isinstance(children, list):
+            for child in children:
+                if not isinstance(child, dict):
+                    continue
+                tag = child.get("tag") or child.get("type")
+                if isinstance(tag, str) and tag.lower() == "massbody":
+                    has_massbody = True
+                    break
+        if has_rhop or has_massbody:
+            continue
+        if default_rhop is not None:
+            floating.setdefault("attributes", {})["rhopbody"] = default_rhop
+            warnings.append("Added rhopbody to floating because no massbody or relativeweight was provided")
+        else:
+            warnings.append("Floating entry missing massbody, relativeweight, or rhopbody")
+
+
+def _extract_default_rhop_value(config: Dict[str, Any]) -> Optional[float]:
+    constants = config.get("constants")
+    if not isinstance(constants, dict):
+        return None
+    candidate = None
+    for key in ("rhopbody", "rhop0", "rho0"):
+        entry = constants.get(key)
+        if entry is None:
+            continue
+        candidate = entry
+        break
+    if candidate is None:
+        entry = constants.get("rhop0")
+        if entry is not None:
+            candidate = entry
+    if candidate is None:
+        return None
+    value = None
+    if isinstance(candidate, dict):
+        attrs = candidate.get("attributes")
+        if isinstance(attrs, dict) and "value" in attrs:
+            value = attrs["value"]
+        elif "value" in candidate:
+            value = candidate["value"]
+    else:
+        value = candidate
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _ensure_floatings_section_plan(config: Dict[str, Any]) -> None:
+    """Ensure casedef_children carries a floatings plan entry when floatings exist."""
+    children_plan = config.get("casedef_children")
+    if not isinstance(children_plan, list):
+        return
+
+    floatings_block = config.get("floatings")
+    if not _has_floatings_content(floatings_block):
+        return
+
+    if _find_last_section_index(children_plan, {"floatings"}) is not None:
+        return
+
+    insertion_index = _find_last_section_index(children_plan, {"initials"})
+    if insertion_index is not None:
+        insertion_index += 1
+    else:
+        fallback = _find_last_section_index(children_plan, {"normals", "geometry"})
+        if fallback is not None:
+            insertion_index = fallback + 1
+        else:
+            fallback = _find_last_section_index(children_plan, {"mkconfig", "constants"})
+            if fallback is not None:
+                insertion_index = fallback + 1
+            else:
+                insertion_index = len(children_plan)
+
+    children_plan.insert(insertion_index, {"type": "section", "key": "floatings"})
+
+def _find_last_section_index(children_plan: List[Any], targets: set[str]) -> Optional[int]:
+    for idx in range(len(children_plan) - 1, -1, -1):
+        entry = children_plan[idx]
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("type") != "section":
+            continue
+        key = entry.get("key")
+        if isinstance(key, str) and key.lower() in targets:
+            return idx
+    return None
+
+def _has_floatings_content(block: Any) -> bool:
+    if block is None:
+        return False
+    if isinstance(block, list):
+        return len(block) > 0
+    if isinstance(block, dict):
+        return bool(block)
+    return bool(block)
 
 def _normalize_simulation_domain(entry: Any) -> Dict[str, Any] | None:
     if not isinstance(entry, dict):
@@ -980,3 +1202,4 @@ def promote_normals_from_execution(config: Dict[str, Any]) -> bool:
     collector: List[str] = []
     _promote_normals_from_execution(config, collector)
     return any(msg.startswith("Moved normals block from execution.special") for msg in collector)
+

@@ -1,10 +1,10 @@
 # AutoXML JSON Schema Notes
 
-This document describes the JSON structures produced by `xml_to_json.py` and consumed by `generate_xml.py`. The goal is a lossless XML → JSON → XML roundtrip for DualSPHysics case files.
+This document describes the JSON structures produced by `xml_to_json.py` and consumed by `generate_xml.py`. The goal is a lossless XML ??JSON ??XML roundtrip for DualSPHysics case files.
 
 ## Conventions
 - All attribute and text values are stored as strings; booleans remain booleans. Preserve original formatting (e.g., `"1.20"`).
-- Comments and element order are kept using generic node specs (`{"tag": "comment", "text": "…"}`) and explicit ordering lists.
+- Comments and element order are kept using generic node specs (`{"tag": "comment", "text": "??}`) and explicit ordering lists.
 - Element names should remain XML-safe. Use the JSON dict key as the canonical tag name, and put human-readable descriptions or units in a `label` field rather than in `tag`.
 - Generic node spec fields:
   - `tag` / `type` / `name`: XML element name.
@@ -19,23 +19,24 @@ This document describes the JSON structures produced by `xml_to_json.py` and con
 | --- | --- |
 | `case_attributes` | Attributes from `<case>`.
 | `casedef_attributes` | Attributes from `<casedef>`.
-| `casedef_children` | Ordered list describing sections/comments inside `<casedef>`.
+| `casedef_children` | Ordered list describing sections/comments inside `<casedef>`; include a {"type": "section", "key": "..."} entry for every emitted section and add {"type": "section", "key": "floatings"} whenever the floatings block is present (after initials or immediately after geometry/normals when initials are absent).
+| `floatings` | Optional `<floatings>` section containing floating-body nodes (each JSON entry must set `type`: `floating`). When present, add {"type": "section", "key": "floatings"} to `casedef_children`.
 | `execution_attributes` | Attributes from `<execution>`.
 | `execution` | Dict describing parameters, special sections, and extras.
 
 ## `<casedef>` Structure
-- `constants`: mapping `name` → scalar/vector/object. The JSON key becomes the XML element name. Optional `label` strings are split into `comment` (text before brackets) and `units_comment` (text inside brackets). You can provide `comment`, `units_comment`, or `auto` explicitly to override inferred values. Avoid supplying a `tag` override unless it already matches the XML naming pattern (`[A-Za-z_][A-Za-z0-9_.-]*`); otherwise it will be sanitized.
-- `mkconfig`: attributes plus `orientations` (each `{type, …}`) and optional `extra` list.
+- `constants`: mapping `name` ??scalar/vector/object. The JSON key becomes the XML element name. Optional `label` strings are split into `comment` (text before brackets) and `units_comment` (text inside brackets). You can provide `comment`, `units_comment`, or `auto` explicitly to override inferred values. Avoid supplying a `tag` override unless it already matches the XML naming pattern (`[A-Za-z_][A-Za-z0-9_.-]*`); otherwise it will be sanitized.
+- `mkconfig`: attributes plus `orientations` (each `{type, ?�}`) and optional `extra` list.
 - `patterns`: list of pattern dicts with vector children (`size`, `scale`, `gap`, `border`) and optional generic `children`.
 - `geometry`:
   - `predefinition`: list of generic specs or a dict with `entries`.
   - `definition`: dict with `attributes`, optional vector children (`pointmin`, etc.), and `children` list.
   - `commands`: `{"children": [ ... ]}` where each child is a generic node; comments and order preserved.
   - `extra`: additional nodes under `<geometry>`.
-- `initials`, `floatings`, `motion`: list (or dict with `entries` / `children`) of generic specs.
+- `initials`, `floatings`, `motion`: list (or dict with `entries` / `children`) of generic specs. Floatings should stay as simple `<floating>` nodes, carrying exactly one primary descriptor (`rhopbody`, `relativeweight`, or a single `massbody` child). Do not embed Chrono helpers such as `bodyfloating` or `schemescale`, nor geometry-building children like `shape`/`init`, under this section.
 - `casedef_extra`: generic specs for unexpected nodes or top-level comments.
 - `casedef_children`: list preserving original order. Entries:
-  - `{"type": "section", "key": "constants" | "mkconfig" | … }`
+  - `{"type": "section", "key": "..."}` for every emitted top-level block (constants, mkconfig, geometry, normals, initials, floatings, motion, casedef_extra, execution). Ensure the floatings entry is included; the normalizer will position it after initials or geometry/normals when needed.
   - `{"type": "generic", "spec": <generic node>}`
 
 ## `<execution>` Structure
@@ -71,10 +72,10 @@ execution = {
   - `{"type": "known", "key": "gauges", "tag": "gauges"}`
   - `{"type": "generic", "spec": <generic>}`
 - Known keys map normalized names to XML tags:
-  - `active_absorption` ↔ `<activeabsorption>`
-  - `passive_absorption` ↔ `<passiveabsorption>`
-  - `relaxation_zones` ↔ `<relaxationzones>`
-  - `particle_filters` ↔ `<particlefilter>`
+  - `active_absorption` ??`<activeabsorption>`
+  - `passive_absorption` ??`<passiveabsorption>`
+  - `relaxation_zones` ??`<relaxationzones>`
+  - `particle_filters` ??`<particlefilter>`
 - If `special_children` is absent, generator falls back to the legacy ordering list.
 
 ### Gauges
@@ -87,7 +88,7 @@ execution = {
   - `children_plan`: ordered plan mixing mapped points and generic nodes:
     - `{"type": "mapped", "key": "start", "tag": "point0"}`
     - `{"type": "generic", "spec": <generic>}`
-- Generator uses `children_plan` to emit points/comments in the original order and still ensures optional `mid`→`point1` support.
+- Generator uses `children_plan` to emit points/comments in the original order and still ensures optional `mid`?�`point1` support.
 
 ### Timeout and Other Sections
 - `timeout`: `{"attributes": {...}, "entries": [{...}, ...], "children": [generic...]}`
@@ -122,3 +123,6 @@ Example for a plain element with attributes and text:
 - Update `schemas/dualsphysics_config_schema.json` to mark the section as flexible (set `additionalProperties` to `true` or remove the flag) while keeping `constants`, `mkconfig`, and `geometry.definition` locked.
 - Extend the synonym maps in `scripts/mvp_direct_file_search.py` so the post-generation diff guard can treat explicitly mentioned keys as allowable changes.
 - If the new section should bypass the locked-section diff, add an entry to `_extract_allowed_fixed_section_changes` describing how to detect explicit requests for that area.
+
+
+

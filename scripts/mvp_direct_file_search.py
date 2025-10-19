@@ -423,12 +423,15 @@ List the reference files you found and explain:
 For each candidate reference returned by file_search:
 - State whether it matches the user's constraints (e.g., dimensionality, physics, boundary methods).
 - Keep the references you deem relevant and explain how to adapt them.
-- If a candidate is not relevant, mention it briefly and explain why you are discarding it."""
+- If a candidate is not relevant, mention it briefly and explain why you are discarding it.
+
+Explicitly call out floating bodies when they are required. If you keep a reference because of its floatings section or expect the final config to include floating bodies, tell Agent 2 to ensure {{"type": "section", "key": "floatings"}} is present in casedef_children. Skip this reminder when no floatings are needed. Keep floatings minimal-attributes plus optional mass/inertia only-and ignore Chrono-specific nodes such as `bodyfloating` or `schemescale`; do not migrate them into floatings."""
+
 
     messages = [
         {
             "role": "system",
-            "content": "You are a DualSPHysics expert. Analyze the user's request and find relevant configuration examples from the vector store. Review each candidate returned by file_search, decide whether it satisfies the user's constraints, keep the relevant ones, and briefly justify any you discard. Explain what you found and how it should be adapted.",
+            "content": "You are a DualSPHysics expert. Analyze the user's request and find relevant configuration examples from the vector store. Review each candidate returned by file_search, decide whether it satisfies the user's constraints, keep the relevant ones, and briefly justify any you discard. Explain what you found and how it should be adapted. When floatings are part of your adaptation plan, tell Agent 2 that casedef_children must include {\"type\": \"section\", \"key\": \"floatings\"}. Skip this note when no floating bodies are needed. Keep floatings minimal (exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child) and ignore Chrono-specific nodes (e.g., `bodyfloating`, `schemescale`) instead of copying them into floatings.",
         },
         {
             "role": "user",
@@ -490,7 +493,7 @@ For each candidate reference returned by file_search:
             "Use the referenced configuration files as templates. "
             "Extract relevant parameters and structures. "
             "Modify geometry and parameters according to the user's specific requirements. "
-            "Ensure all required schema fields are populated."
+            "Ensure all required schema fields are populated. If you emit a floatings section, also include {\"type\": \"section\", \"key\": \"floatings\"} in casedef_children. Skip this when floatings are absent. Keep floatings minimal-use exactly one of the allowed descriptors (`rhopbody`, `relativeweight`, or a single `massbody` child)-and do not migrate Chrono/`bodyfloating` or geometry-building content into floatings."
         ),
     }
 
@@ -814,3 +817,9 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+
+
+
+

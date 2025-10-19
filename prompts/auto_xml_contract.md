@@ -2,7 +2,7 @@ System prompt: Produce JSON that our generator converts into valid DualSPHysics 
 
 Output format requirements
 - Return exactly one JSON object. No comments. No trailing commas.
-- Top-level keys must be exactly: constants, mkconfig, geometry, casedef_extra, execution.
+- Top-level keys must include: constants, mkconfig, geometry, execution. Use optional sections like floatings, initials, motion, and casedef_extra only when you have data to populate them, and mirror every emitted section in casedef_children using {"type": "section", "key": "<section>"}.
 - All numbers should be numbers (not strings). Vectors use objects with x,y,z.
 
 Schema contract
@@ -70,7 +70,41 @@ Schema contract
        ]
      }
 
-4) casedef_extra
+4) floatings
+   - Optional list of floating-body definitions emitted under <casedef><floatings>.
+   - Each entry must set "type": "floating" and can include inline attributes (e.g., mkbound) or nested children for mass/inertia nodes.
+   - Never embed Chrono/`bodyfloating` nodes here; omit Chrono couplings entirely.
+   Example:
+   "floatings": [
+     {
+       "type": "floating",
+       "attributes": {"mkbound": 1},
+       "children": [
+         {"type": "massbody", "attributes": {"value": 1.3}}
+       ]
+     }
+   ]
+
+5) casedef_children
+   - Ordered list describing <casedef> sections and inline comments.
+   - Provide a {"type": "section", "key": "<section>"} entry for every top-level section you emit.
+   - Typical order: constants, mkconfig, geometry, normals (when present), initials, floatings, motion, casedef_extra, execution.
+   - When you emit floatings, ensure {"type": "section", "key": "floatings"} appears in the list. The normalizer will position it after initials or geometry as needed.
+   - Use {"type": "generic", "spec": <node>} entries for inline comments or bespoke content.
+   Example:
+   "casedef_children": [
+     {"type": "section", "key": "constants"},
+     {"type": "section", "key": "mkconfig"},
+     {"type": "section", "key": "geometry"},
+     {"type": "section", "key": "normals"},
+     {"type": "section", "key": "initials"},
+     {"type": "section", "key": "floatings"},
+     {"type": "section", "key": "motion"},
+     {"type": "section", "key": "casedef_extra"},
+     {"type": "section", "key": "execution"}
+   ]
+
+6) casedef_extra
    - Array of generic nodes appended inside <casedef>.
    - For normals, use official nested structure:
      {
@@ -84,9 +118,7 @@ Schema contract
            ]
          }
        ]
-     }
-
-5) execution
+7) execution
    - parameters: an object map.
      - Scalar becomes <parameter key="K" value="V"/>.
      - Vector becomes <parameter key="K" x="..." y="..." z="..."/>.
@@ -106,7 +138,9 @@ Schema contract
    }
 
 Validation checklist (must all be satisfied before returning JSON)
-- [ ] Top-level keys are exactly: constants, mkconfig, geometry, casedef_extra, execution.
+- [ ] Top-level keys include constants, mkconfig, geometry, execution, and only add optional sections like floatings, initials, motion, or casedef_extra when requested.
+- [ ] casedef_children lists every emitted section in order; whenever a floatings block exists, ensure {"type": "section", "key": "floatings"} is included.
+- [ ] Floatings entries omit Chrono-specific children such as `bodyfloating`, `schemescale`, or `chrono`.
 - [ ] No comments; valid JSON only.
 - [ ] geometry.definition has dp, pointmin (x,y,z), pointmax (x,y,z).
 - [ ] commands.lists is an array of { name, items[] } and items[] are command objects (not strings).
@@ -211,3 +245,7 @@ Reference example JSON
     }
   }
 }
+
+
+
+
