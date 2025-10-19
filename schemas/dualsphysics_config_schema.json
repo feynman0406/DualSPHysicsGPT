@@ -255,6 +255,9 @@
       },
       "additionalProperties": true
     },
+    "normals": {
+      "$ref": "#/definitions/normalsNode"
+    },
     "execution": {
       "type": "object",
       "required": [
@@ -718,6 +721,103 @@
         }
       },
       "additionalProperties": true
+    },
+    "normalsNode": {
+      "type": "object",
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "norgeometry": {
+          "$ref": "#/definitions/norgeometryNode"
+        },
+        "extra": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        },
+        "structured_meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "norgeometry"
+      ],
+      "additionalProperties": true
+    },
+    "norgeometryNode": {
+      "type": "object",
+      "properties": {
+        "comment": {
+          "type": "string"
+        },
+        "geometryfile": {
+          "$ref": "#/definitions/normalsGeometryFileNode"
+        },
+        "distanceh": {
+          "$ref": "#/definitions/normalsDistanceNode"
+        },
+        "svshapes": {
+          "$ref": "#/definitions/normalsSvshapesNode"
+        },
+        "extra": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "normalsGeometryFileNode": {
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "normalsDistanceNode": {
+      "type": "object",
+      "required": [
+        "v"
+      ],
+      "properties": {
+        "v": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "normalsSvshapesNode": {
+      "type": "object",
+      "required": [
+        "v"
+      ],
+      "properties": {
+        "v": {
+          "type": "boolean"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

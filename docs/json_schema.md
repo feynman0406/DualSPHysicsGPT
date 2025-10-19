@@ -12,8 +12,9 @@ This guide documents the JSON structure accepted by AutoXml_script/generate_xml.
 | mkconfig | object | Optional. Accepts oundcount, luidcount, and an orientations list such as {"type": "bound", "mk": 0, "orient": "YxZ"} (see Guide p. 18). |
 | patterns | array<object> | Optional <patterns> catalogue including optional size, scale, gap, and order vectors. |
 | geometry | object | Required. Builds <geometry> including predefinition, definition, commands, objects (legacy), and extra. |
+| normals | object | Optional. Mirrors geometry.normals; emit it whenever normals are needed (for example Boundary=2/mDBC) so XML includes a <normals> block matching the normalizer output. structured_meta captures generator hints such as auto-added flags. |
 | initials, floatings, motion | list or dict | Optional <initials>, <floatings>, <motion> blocks. Express floatings as simple `<floating>` entries with exactly one primary descriptor (`rhopbody`, `relativeweight`, or a single `massbody` child)¡Xdo not embed Chrono helpers like `bodyfloating` or geometry-building nodes (`shape`, `init`). |
-| casedef_extra | list | Appended verbatim under <casedef> for advanced features (e.g. <normals>). |
+| casedef_extra | list | Appended verbatim under <casedef> for advanced features that lack first-class schema support. |
 | execution | object | Optional <execution> configuration (parameters, gauges, timeout, special features). |
 | execution_attributes | object | Optional attributes applied to <execution ...>. |
 | execution.extra_nodes | list | Additional nodes appended after <execution>¡¦s special block. |

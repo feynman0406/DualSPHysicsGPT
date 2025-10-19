@@ -595,7 +595,8 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) ->
         "2. Start from the primary reference as the template. Preserve every key, nesting level, ordering, comment, and units_comment unless an explicit adjustment targets it.",
         "3. Keep constants, mkconfig, and geometry.definition identical to the reference except for explicitly requested value changes.",
         "4. For geometry.commands and execution, make the minimum diff needed to satisfy the request. Do not reformat or reorder unrelated content.",
-        "5. Preserve numeric types and vector shapes, and leave unspecified values unchanged.",
+        "5. When normals are required (for example Boundary=2 or a normals block exists in geometry), emit a top-level normals section that mirrors geometry.normals and keep them synchronized.",
+        "6. Preserve numeric types and vector shapes, and leave unspecified values unchanged.",
         "## Checklist Before Responding",
         "a. constants, mkconfig, and geometry.definition match the reference except for explicitly requested values.",
         "b. Only the requested adjustments were applied.",
@@ -618,7 +619,7 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) ->
     base_messages = [
         {
             "role": "system",
-            "content": "You are DualSPHysics Agent 2. Regenerate a Case_Def JSON by editing the provided primary reference.\n\n        Follow these priorities:\n        1. Review the user request and Agent 1 guidance first. Silently list the adjustments you will apply and confirm they are consistent before editing.\n        2. Use the primary reference as the starting template. Preserve keys, ordering, comments, units_comment fields, and structure unless an explicit adjustment targets them.\n        3. constants, mkconfig, and geometry.definition are fixed sections. Only change their values when the request explicitly requires it.\n        4. For geometry.commands and execution, apply the minimum necessary diff to satisfy the request and avoid unrelated edits or reordering.\n        5. Output exactly one JSON object parseable by json.loads with no markdown fences or commentary.\n        6. Double-check that only the requested adjustments were made.",
+            "content": "You are DualSPHysics Agent 2. Regenerate a Case_Def JSON by editing the provided primary reference.\n\n        Follow these priorities:\n        1. Review the user request and Agent 1 guidance first. Silently list the adjustments you will apply and confirm they are consistent before editing.\n        2. Use the primary reference as the starting template. Preserve keys, ordering, comments, units_comment fields, and structure unless an explicit adjustment targets them.\n        3. constants, mkconfig, and geometry.definition are fixed sections. Only change their values when the request explicitly requires it.\n        4. For geometry.commands and execution, apply the minimum necessary diff to satisfy the request and avoid unrelated edits or reordering.\n        5. When normals are required (for example Boundary=2 or geometry.normals exists), ensure the top-level normals section is present and mirrors geometry.normals before returning.\n        6. Output exactly one JSON object parseable by json.loads with no markdown fences or commentary.\n        7. Double-check that only the requested adjustments were made.",
         },
         {"role": "user", "content": prompt},
     ]
