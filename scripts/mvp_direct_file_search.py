@@ -17,6 +17,8 @@ import argparse
 import json
 import os
 import sys
+import time
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional, Set
 
@@ -44,6 +46,33 @@ def print_step(step_num: int, total: int, description: str):
     """Print a step indicator."""
     print(f"\n[Step {step_num}/{total}] {description}")
     print('-' * 80)
+
+class PipelineTimer:
+    """Track elapsed time for MVP pipeline stages."""
+
+    def __init__(self) -> None:
+        self._start = time.perf_counter()
+        self._records: List[Tuple[str, float]] = []
+
+    @contextmanager
+    def track(self, label: str):
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            elapsed = time.perf_counter() - start
+            self._records.append((label, elapsed))
+
+    def total_elapsed(self) -> float:
+        return time.perf_counter() - self._start
+
+    def print_summary(self) -> None:
+        print_header("TIMING SUMMARY")
+        if not self._records:
+            print("No pipeline stages were recorded.")
+        for label, seconds in self._records:
+            print(f"{label:<35} {seconds:>8.2f}s")
+        print(f"{'Total elapsed':<35} {self.total_elapsed():>8.2f}s")
 
 
 def _resolve_reference_path(source_path: str) -> Optional[Path]:
@@ -704,7 +733,11 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) ->
     return config_json
 
 
-def generate_xml_and_execute(config_json: Dict[str, Any], execute: bool = False):
+def generate_xml_and_execute(
+    config_json: Dict[str, Any],
+    execute: bool = False,
+    timer: Optional["PipelineTimer"] = None,
+):
     """Generate XML from config and optionally execute GenCase."""
     from AutoXml_script.generate_xml import generate_case_xml
     from chains.json_normalizer import normalize_case_config
@@ -712,7 +745,9 @@ def generate_xml_and_execute(config_json: Dict[str, Any], execute: bool = False)
     print_header("XML GENERATION & EXECUTION")
 
     print_step(1, 3 if execute else 2, "Normalizing config...")
-    normalization = normalize_case_config(config_json)
+    normalize_ctx = timer.track("XML: Config normalization") if timer else nullcontext()
+    with normalize_ctx:
+        normalization = normalize_case_config(config_json)
     config = normalization.config
 
     if normalization.warnings:
@@ -723,7 +758,9 @@ def generate_xml_and_execute(config_json: Dict[str, Any], execute: bool = False)
         print("No normalization warnings")
 
     print_step(2, 3 if execute else 2, "Generating XML...")
-    xml = generate_case_xml(config)
+    generation_ctx = timer.track("XML: Case generation") if timer else nullcontext()
+    with generation_ctx:
+        xml = generate_case_xml(config)
 
     output_dir = Path("logs/mvp")
     xml_path = output_dir / "generated_case.xml"
@@ -735,15 +772,18 @@ def generate_xml_and_execute(config_json: Dict[str, Any], execute: bool = False)
 
     if execute:
         print_step(3, 3, "Executing GenCase...")
-        try:
-            from tools.exec import run_gencase
-            run_gencase(str(xml_path), output_dir="logs/mvp/case_out")
-            print("GenCase execution complete")
-            print("  - Output directory: logs/mvp/case_out")
-        except Exception as exc:
-            print(f"GenCase execution failed: {exc}")
+        exec_ctx = timer.track("Execution: GenCase") if timer else nullcontext()
+        with exec_ctx:
+            try:
+                from tools.exec import run_gencase
+                run_gencase(str(xml_path), output_dir="logs/mvp/case_out")
+                print("GenCase execution complete")
+                print("  - Output directory: logs/mvp/case_out")
+            except Exception as exc:
+                print(f"GenCase execution failed: {exc}")
 
     return xml
+
 
 
 def main():
@@ -781,8 +821,12 @@ def main():
     print(f"OPENAI_RAG_VS_DESIGN_ID: {vector_store_id[:20]}...")
     print(f"OPENAI_MODEL: {os.environ.get('OPENAI_MODEL', 'gpt-4o')}")
 
+    timer = PipelineTimer()
+    exit_code = 0
+
     try:
-        agent1_output = agent_1_file_search(args.query, vector_store_id)
+        with timer.track("Agent 1: Reference Finder"):
+            agent1_output = agent_1_file_search(args.query, vector_store_id)
 
         if args.pause_after_agent1:
             print_header("PAUSED AFTER AGENT 1")
@@ -791,9 +835,10 @@ def main():
             input()
 
         schema_path = Path("schemas/dualsphysics_config_schema.json")
-        config_json = agent_2_generate_config(agent1_output, schema_path)
+        with timer.track("Agent 2: Config Generator"):
+            config_json = agent_2_generate_config(agent1_output, schema_path)
 
-        generate_xml_and_execute(config_json, execute=args.execute)
+        generate_xml_and_execute(config_json, execute=args.execute, timer=timer)
 
         print_header("SUCCESS!")
         print("Generated files:")
@@ -804,16 +849,19 @@ def main():
             print("  4. logs/mvp/case_out/              - GenCase execution results")
 
         print("\nWorkflow complete!")
-        return 0
-
     except KeyboardInterrupt:
         print("\n\nInterrupted by user")
-        return 1
+        exit_code = 1
     except Exception as exc:
         print(f"\n\n ERROR: {exc}")
         import traceback
         traceback.print_exc()
-        return 1
+        exit_code = 1
+    finally:
+        timer.print_summary()
+
+    return exit_code
+
 
 
 if __name__ == "__main__":
