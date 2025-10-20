@@ -1,8 +1,10 @@
 import json
 import copy
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from chains.json_normalizer import normalize_case_config
+from AutoXml_script.generate_xml import generate_case_xml
 
 
 def test_normalize_nested_casedef_payload():
@@ -77,6 +79,106 @@ def test_normalize_nested_casedef_payload():
     # Check simulationdomain is also in the plan
     assert any(entry["type"] == "generic" and entry["spec"]["tag"] == "simulationdomain" for entry in param_plan)
 
+def test_execution_special_sections_preserved_and_ordered():
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"setmkfluid": {"mk": 0}},
+                    {
+                        "drawbox": {
+                            "boxfill": "solid",
+                            "point": {"x": 0, "y": 0, "z": 0},
+                            "size": {"x": 1, "y": 1, "z": 1},
+                        }
+                    },
+                ]
+            },
+        },
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+        "execution": {
+            "childrenOrder": ["parameters", "Special", "extraNodes"],
+            "parameters": {"TimeMax": 1.5, "TimeOut": 0.1},
+            "parametersOrder": ["TimeMax", "TimeOut"],
+            "specialChildren": [
+                {"type": "known", "key": "Gauges", "tag": "gauges"},
+                {"type": "known", "key": "timeout"},
+                {"type": "known", "key": "wavePaddles"},
+                {"type": "known", "key": "ActiveAbsorption", "tag": "activeabsorption"},
+                {"type": "known", "key": "passiveAbsorption", "tag": "passiveabsorption"},
+                {"type": "generic", "spec": {"tag": "custom", "text": "value"}},
+                {"type": "known", "key": "relaxationZones", "tag": "relaxationzones"},
+                {"type": "known", "key": "particleFilter", "tag": "particlefilter"},
+            ],
+            "gauges": [
+                {"type": "gauge", "attributes": {"name": "g1"}, "start": {"x": 0.0, "y": 0.0, "z": 0.0}},
+            ],
+            "timeout": {"entries": [{"value": 1.0}]},
+            "wavepaddles": {"entries": [{"tag": "paddle", "attributes": {"id": "p1"}}]},
+            "activeAbsorption": {"attributes": {"enabled": "true"}},
+            "passive_absorption": {"entries": [{"tag": "passive", "attributes": {"id": "pa"}}]},
+            "relaxationzones": {"entries": [{"tag": "zone", "attributes": {"id": "rz"}}]},
+            "particle_filters": {"entries": [{"tag": "filter", "attributes": {"id": "pf"}}]},
+            "special": [{"tag": "legacy", "text": "legacy"}],
+            "extraNodes": [{"tag": "note", "text": "keep me"}],
+            "unknownBlock": {"foo": "bar"},
+        },
+    }
+
+    normalized = normalize_case_config(payload)
+    execution = normalized.config["execution"]
+
+    assert execution["children_order"] == ["parameters", "special", "extra_nodes"]
+    assert execution["parameters_order"] == ["TimeMax", "TimeOut"]
+    assert execution["wavepaddles"]["entries"][0]["attributes"]["id"] == "p1"
+    assert execution["gauges"][0]["type"] == "gauge"
+    assert execution["active_absorption"]["attributes"]["enabled"] == "true"
+    assert execution["special"] == [{"tag": "legacy", "text": "legacy"}]
+    assert execution["extra_nodes"][0]["tag"] == "note"
+
+    known_keys = [entry["key"] for entry in execution["special_children"] if entry.get("type") == "known"]
+    assert known_keys == [
+        "gauges",
+        "timeout",
+        "wavepaddles",
+        "active_absorption",
+        "passive_absorption",
+        "relaxation_zones",
+        "particle_filters",
+    ]
+    assert any(
+        entry.get("type") == "generic" and entry.get("spec", {}).get("tag") == "custom"
+        for entry in execution["special_children"]
+    )
+    assert "unknownBlock" in execution
+    assert any("unknownBlock" in warning for warning in normalized.warnings)
+
+    xml_text = generate_case_xml(normalized.config)
+    root = ET.fromstring(xml_text)
+    special_node = root.find("execution/special")
+    assert special_node is not None
+    tags = [child.tag for child in list(special_node)]
+    assert tags == [
+        "gauges",
+        "timeout",
+        "wavepaddles",
+        "activeabsorption",
+        "passiveabsorption",
+        "custom",
+        "relaxationzones",
+        "particlefilter",
+    ]
+    assert special_node.find("wavepaddles/paddle[@id='p1']") is not None
+    active_absorption = special_node.find("activeabsorption")
+    assert active_absorption is not None and active_absorption.attrib.get("enabled") == "true"
+    custom_node = special_node.find("custom")
+    assert custom_node is not None and (custom_node.text or "").strip() == "value"
 def test_floatings_preserved_top_level():
     floatings_input = [
         {
@@ -329,3 +431,6 @@ def test_floatings_missing_descriptor_without_rhop_warns():
     attrs = result.config["floatings"][0].get("attributes", {})
     assert "rhopbody" not in attrs
     assert any("missing massbody" in warning for warning in result.warnings)
+
+
+

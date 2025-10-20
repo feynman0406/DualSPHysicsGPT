@@ -29,6 +29,46 @@ CANONICAL_CONFIG_KEYS = {
 
 VECTOR_KEYS = {"x", "y", "z"}
 
+EXECUTION_KEY_ALIASES = {
+    "childrenorder": "children_order",
+    "parameters": "parameters",
+    "parametersorder": "parameters_order",
+    "parameterschildren": "parameters_children",
+    "gauges": "gauges",
+    "timeout": "timeout",
+    "wavepaddles": "wavepaddles",
+    "wavepaddle": "wavepaddles",
+    "activeabsorption": "active_absorption",
+    "passiveabsorption": "passive_absorption",
+    "relaxationzones": "relaxation_zones",
+    "relaxationzone": "relaxation_zones",
+    "particlefilters": "particle_filters",
+    "particlefilter": "particle_filters",
+    "special": "special",
+    "specialchildren": "special_children",
+    "extranodes": "extra_nodes",
+    "simulationdomain": "simulationdomain",
+}
+
+EXECUTION_SPECIAL_SECTION_KEYS = (
+    "wavepaddles",
+    "active_absorption",
+    "passive_absorption",
+    "relaxation_zones",
+    "particle_filters",
+)
+
+EXECUTION_SPECIAL_CHILD_KEYS = {
+    "gauges",
+    "timeout",
+    "wavepaddles",
+    "active_absorption",
+    "passive_absorption",
+    "relaxation_zones",
+    "particle_filters",
+    "special",
+}
+
 
 @dataclass
 class NormalizationResult:
@@ -621,6 +661,67 @@ def _normalize_command(entry: Any) -> Dict[str, Any]:
     return command_spec
 
 
+def _canonicalize_execution_key(name: Any) -> Tuple[str, bool]:
+    if not isinstance(name, str):
+        return str(name), False
+    normalized = name.strip().lower()
+    simplified = "".join(ch for ch in normalized if ch not in {"_", "-"})
+    canonical = EXECUTION_KEY_ALIASES.get(simplified)
+    if canonical:
+        return canonical, True
+    return name, False
+
+
+def _normalize_execution_children_order(order: Any, warnings: List[str]) -> Optional[List[Any]]:
+    if order is None:
+        return None
+    if not isinstance(order, list):
+        warnings.append("children_order ignored: expected list")
+        return None
+    normalized: List[Any] = []
+    for item in order:
+        if isinstance(item, str):
+            canonical, recognized = _canonicalize_execution_key(item)
+            normalized.append(canonical if recognized else item)
+        else:
+            normalized.append(item)
+    return normalized
+
+
+def _normalize_special_children_plan(plan: Any, warnings: List[str]) -> Optional[List[Dict[str, Any]]]:
+    if plan is None:
+        return None
+    if not isinstance(plan, list):
+        warnings.append("special_children ignored: expected list")
+        return None
+    normalized_plan: List[Dict[str, Any]] = []
+    for entry in plan:
+        if not isinstance(entry, dict):
+            normalized_plan.append(entry)
+            continue
+        normalized_entry = copy.deepcopy(entry)
+        if normalized_entry.get("type") == "known":
+            key_value = normalized_entry.get("key")
+            if isinstance(key_value, str):
+                canonical, recognized = _canonicalize_execution_key(key_value)
+                if recognized and canonical in EXECUTION_SPECIAL_CHILD_KEYS:
+                    normalized_entry["key"] = canonical
+        normalized_plan.append(normalized_entry)
+    return normalized_plan
+
+
+def _merge_extra_nodes(exec_cfg: Dict[str, Any], nodes: List[Dict[str, Any]], warnings: List[str]) -> None:
+    if not nodes:
+        return
+    existing = exec_cfg.get("extra_nodes")
+    if existing is None:
+        exec_cfg["extra_nodes"] = list(nodes)
+    elif isinstance(existing, list):
+        existing.extend(nodes)
+    else:
+        warnings.append("extra_nodes preserved but could not merge additional nodes")
+
+
 def _normalize_execution(entry: Any) -> NormalizationResult:
     if not isinstance(entry, dict):
         raise ValueError("execution section must be an object")
@@ -628,38 +729,126 @@ def _normalize_execution(entry: Any) -> NormalizationResult:
     exec_cfg: Dict[str, Any] = {}
     warnings: List[str] = []
 
-    if "parameters" in entry:
-        params_entry = entry["parameters"]
-        param_result = _normalize_parameters(params_entry)
+    canonical_entries: Dict[str, Any] = {}
+    source_keys: Dict[str, str] = {}
+    recognized_flags: Dict[str, bool] = {}
+
+    for raw_key, value in entry.items():
+        canonical_key, recognized = _canonicalize_execution_key(raw_key)
+        str_key = str(raw_key)
+        if canonical_key in canonical_entries:
+            prev_source = source_keys[canonical_key]
+            if prev_source != str_key:
+                if canonical_key == str_key:
+                    warnings.append(
+                        f"execution key '{prev_source}' duplicates '{canonical_key}'; kept '{canonical_key}'"
+                    )
+                    canonical_entries[canonical_key] = value
+                    source_keys[canonical_key] = str_key
+                else:
+                    warnings.append(
+                        f"execution key '{str_key}' duplicates '{prev_source}'; kept '{prev_source}'"
+                    )
+            else:
+                canonical_entries[canonical_key] = value
+        else:
+            canonical_entries[canonical_key] = value
+            source_keys[canonical_key] = str_key
+        recognized_flags[canonical_key] = recognized_flags.get(canonical_key, False) or recognized
+
+    extra_nodes_entry = canonical_entries.pop("extra_nodes", None)
+    parameters_entry = canonical_entries.pop("parameters", None)
+
+    parameters_children_present = "parameters_children" in canonical_entries
+    parameters_children_entry = (
+        canonical_entries.pop("parameters_children", None) if parameters_children_present else None
+    )
+    parameters_order_present = "parameters_order" in canonical_entries
+    parameters_order_entry = (
+        canonical_entries.pop("parameters_order", None) if parameters_order_present else None
+    )
+    children_order_present = "children_order" in canonical_entries
+    children_order_entry = (
+        canonical_entries.pop("children_order", None) if children_order_present else None
+    )
+    special_children_present = "special_children" in canonical_entries
+    special_children_entry = (
+        canonical_entries.pop("special_children", None) if special_children_present else None
+    )
+
+    gauges_entry = canonical_entries.pop("gauges", None)
+    timeout_entry = canonical_entries.pop("timeout", None)
+    special_entry = canonical_entries.pop("special", None)
+    simulationdomain_entry = canonical_entries.pop("simulationdomain", None)
+
+    special_sections: Dict[str, Any] = {}
+    for section_key in EXECUTION_SPECIAL_SECTION_KEYS:
+        if section_key in canonical_entries:
+            special_sections[section_key] = canonical_entries.pop(section_key)
+
+    if extra_nodes_entry is not None:
+        if isinstance(extra_nodes_entry, list):
+            exec_cfg["extra_nodes"] = list(extra_nodes_entry)
+        else:
+            exec_cfg["extra_nodes"] = extra_nodes_entry
+
+    if parameters_entry is not None:
+        param_result = _normalize_parameters(parameters_entry)
         exec_cfg["parameters"] = param_result.parameters
         warnings.extend(param_result.warnings)
-        if param_result.extra_nodes:
-            exec_cfg.setdefault("extra_nodes", []).extend(param_result.extra_nodes)
-        # Synthesize parameters_children plan if not already present
-        if "parameters_children" not in entry and param_result.parameters:
+
+        if parameters_order_present:
+            exec_cfg["parameters_order"] = parameters_order_entry
+        if parameters_children_present:
+            exec_cfg["parameters_children"] = parameters_children_entry
+        elif param_result.parameters:
             exec_cfg["parameters_children"] = _synthesize_parameters_children_plan(
                 param_result.parameters, param_result.extra_nodes
             )
 
-    # Normalize gauges and synthesize children_plan
-    if "gauges" in entry:
-        gauges_entry = entry["gauges"]
+        _merge_extra_nodes(exec_cfg, param_result.extra_nodes, warnings)
+    else:
+        if parameters_order_present:
+            exec_cfg["parameters_order"] = parameters_order_entry
+        if parameters_children_present:
+            exec_cfg["parameters_children"] = parameters_children_entry
+
+    if gauges_entry is not None:
         if isinstance(gauges_entry, list):
             exec_cfg["gauges"] = [_normalize_gauge(g) for g in gauges_entry]
         else:
             exec_cfg["gauges"] = gauges_entry
 
-    for key in ("timeout", "special", "extra_nodes"):
-        if key in entry:
-            exec_cfg[key] = entry[key]
+    if timeout_entry is not None:
+        exec_cfg["timeout"] = timeout_entry
 
-    if "simulationdomain" in entry:
-        extra = _normalize_simulation_domain(entry["simulationdomain"])
-        if extra:
-            exec_cfg.setdefault("extra_nodes", []).append(extra)
+    for section_key, section_value in special_sections.items():
+        exec_cfg[section_key] = section_value
+
+    if special_entry is not None:
+        exec_cfg["special"] = special_entry
+
+    if children_order_present:
+        normalized_children_order = _normalize_execution_children_order(children_order_entry, warnings)
+        if normalized_children_order is not None:
+            exec_cfg["children_order"] = normalized_children_order
+
+    if special_children_present:
+        normalized_special_children = _normalize_special_children_plan(special_children_entry, warnings)
+        if normalized_special_children is not None:
+            exec_cfg["special_children"] = normalized_special_children
+
+    if simulationdomain_entry is not None:
+        extra_node = _normalize_simulation_domain(simulationdomain_entry)
+        if extra_node:
+            _merge_extra_nodes(exec_cfg, [extra_node], warnings)
+
+    for key, value in canonical_entries.items():
+        exec_cfg[key] = value
+        if not recognized_flags.get(key, False):
+            warnings.append(f"execution key '{source_keys.get(key, key)}' preserved without normalization")
 
     return NormalizationResult(exec_cfg, warnings)
-
 
 def _normalize_parameters(entry: Any) -> ParameterNormalizationResult:
     warnings: List[str] = []
@@ -777,11 +966,24 @@ def _promote_normals_from_execution(config: Dict[str, Any], warnings: List[str])
 
         children_order = execution.get("children_order")
         if isinstance(children_order, list):
-            filtered_order = [item for item in children_order if item != "special"]
-            if filtered_order:
-                execution["children_order"] = filtered_order
-            else:
-                execution.pop("children_order", None)
+            special_content_keys = {"special", "special_children", "gauges", "timeout"} | set(EXECUTION_SPECIAL_SECTION_KEYS)
+            has_special_content = False
+            for key in special_content_keys:
+                if key == "special_children":
+                    value = execution.get(key)
+                    if isinstance(value, list) and value:
+                        has_special_content = True
+                        break
+                else:
+                    if execution.get(key):
+                        has_special_content = True
+                        break
+            if not has_special_content:
+                filtered_order = [item for item in children_order if item != "special"]
+                if filtered_order:
+                    execution["children_order"] = filtered_order
+                else:
+                    execution.pop("children_order", None)
 
         special_children = execution.get("special_children")
         if isinstance(special_children, list):
@@ -1202,4 +1404,10 @@ def promote_normals_from_execution(config: Dict[str, Any]) -> bool:
     collector: List[str] = []
     _promote_normals_from_execution(config, collector)
     return any(msg.startswith("Moved normals block from execution.special") for msg in collector)
+
+
+
+
+
+
 

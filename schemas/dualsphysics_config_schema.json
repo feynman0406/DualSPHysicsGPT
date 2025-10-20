@@ -258,6 +258,13 @@
     "normals": {
       "$ref": "#/definitions/normalsNode"
     },
+    "floatings": {
+      "type": "array",
+      "description": "Floating body definitions to include under <casedef><floatings>.",
+      "items": {
+        "$ref": "#/definitions/floatingNode"
+      }
+    },
     "execution": {
       "type": "object",
       "required": [
@@ -533,6 +540,37 @@
         }
       },
       "additionalProperties": false
+    },
+    "floatingNode": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "floating"
+          ]
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "vector": {
+          "$ref": "#/definitions/vector"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/genericNode"
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
     },
     "genericNode": {
       "type": "object",
@@ -821,3 +859,5 @@
     }
   }
 }
+
+
