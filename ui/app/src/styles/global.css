@@ -1,0 +1,101 @@
+:root {
+  color-scheme: light;
+  accent-color: #2563eb;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #f6f8fb;
+  color: #1f2933;
+}
+
+code {
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+}
+
+button {
+  font: inherit;
+}
+
+button.primary {
+  background: #2563eb;
+  border: none;
+  color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+button.primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.2);
+}
+
+button.primary:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+button.ghost,
+a.ghost {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #1f2937;
+  border-radius: 0.75rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.ghost:hover,
+a.ghost:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+button.danger {
+  background: #dc2626;
+  border: none;
+  color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+button.danger:hover {
+  background: #b91c1c;
+  box-shadow: 0 10px 18px rgba(220, 38, 38, 0.2);
+}
+
+button.danger:disabled {
+  background: #f87171;
+  cursor: not-allowed;
+  box-shadow: none;
+}
