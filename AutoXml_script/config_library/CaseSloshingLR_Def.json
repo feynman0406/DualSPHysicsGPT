@@ -65,28 +65,20 @@
   },
   "geometry": {
     "definition": {
-      "attributes": {
-        "dp": "0.004",
-        "units_comment": "metres (m)"
+      "dp": "0.004",
+      "pointmin": {
+        "x": "-0.85",
+        "y": "0",
+        "z": "-0.4"
       },
-      "children": [
-        {
-          "tag": "pointmin",
-          "vector": {
-            "x": "-0.85",
-            "y": "0",
-            "z": "-0.4"
-          }
-        },
-        {
-          "tag": "pointmax",
-          "vector": {
-            "x": "1",
-            "y": "0",
-            "z": "1"
-          }
-        }
-      ]
+      "pointmax": {
+        "x": "1",
+        "y": "0",
+        "z": "1"
+      },
+      "meta": {
+        "units_comment": "metres (m)"
+      }
     },
     "commands": {
       "children": [
@@ -266,32 +258,26 @@
           ]
         }
       ]
+    },
+    "normals": {
+      "active": true,
+      "norgeometry": {
+        "comment": "Define initial configuration of normals before applying other configurations",
+        "geometryfile": {
+          "file": "[CaseName]_hdp_Actual.vtk",
+          "comment": "File with boundary geometry (VTK format)"
+        },
+        "distanceh": {
+          "v": 2.0,
+          "comment": "Maximum orthogonal distance (H*value) to compute normals data (default=2)"
+        },
+        "svshapes": {
+          "v": true,
+          "comment": "Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"
+        }
+      }
     }
   },
-  "casedef_extra": [
-    {
-      "tag": "normals",
-      "active": true,
-      "children": [
-        {
-          "tag": "norgeometry",
-          "comment": "Define initial configuration of normals before applying other configurations",
-          "children": [
-            {
-              "tag": "geometryfile",
-              "file": "[CaseName]_hdp_Actual.vtk",
-              "comment": "File with boundary geometry (VTK format)"
-            },
-            {
-              "tag": "distanceh",
-              "v": "2.0",
-              "comment": "Maximum orthogonal distance (H*value) to compute normals data (default=2)"
-            }
-          ]
-        }
-      ]
-    }
-  ],
   "motion": [
     {
       "ref": "0",
@@ -348,29 +334,8 @@
       "key": "geometry"
     },
     {
-      "type": "generic",
-      "spec": {
-        "tag": "normals",
-        "active": true,
-        "children": [
-          {
-            "tag": "norgeometry",
-            "comment": "Define initial configuration of normals before applying other configurations",
-            "children": [
-              {
-                "tag": "geometryfile",
-                "file": "[CaseName]_hdp_Actual.vtk",
-                "comment": "File with boundary geometry (VTK format)"
-              },
-              {
-                "tag": "distanceh",
-                "v": "2.0",
-                "comment": "Maximum orthogonal distance (H*value) to compute normals data (default=2)"
-              }
-            ]
-          }
-        ]
-      }
+      "type": "section",
+      "key": "normals"
     },
     {
       "type": "section",

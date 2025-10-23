@@ -17,7 +17,8 @@ Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts
 
 ## Constraints and principles
 - Strict schema: no extra keys, types must match (numbers, booleans as specified).
-- Place floating bodies under the top-level `floatings` list using simple `<floating>` nodes and mirror them in `casedef_children` by ensuring {"type": "section", "key": "floatings"} is present. Do not use `execution.special` for floaters; other floating-body mechanisms are out of scope. When references include Chrono couplings (`bodyfloating`, `schemescale`, etc.), omit them instead of copying them. Keep floatings minimal¡Xemit exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child; no extra geometry or chrono helpers.
+- In 2D layouts the geometry definition uses `pointmin.y = pointmax.y = 0` to trigger 2D mode, but every `fillbox` or `modefill` block must retain a non-zero `size.y` (for example `#Dp*2`) so particles are generated; never collapse the Y thickness to zero.
+- Place floating bodies under the top-level `floatings` list using simple `<floating>` nodes and mirror them in `casedef_children` by ensuring {"type": "section", "key": "floatings"} is present. Do not use `execution.special` for floaters; other floating-body mechanisms are out of scope. When references include Chrono couplings (`bodyfloating`, `schemescale`, etc.), omit them instead of copying them. Keep floatings minimal-emit exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child; no extra geometry or chrono helpers.
 - Keep `casedef_children` aligned with every emitted top-level section so the generator plan stays synchronized.
 - Maintain ordering and structure mirroring references (e.g., geometry command order) unless geometry edits necessitate targeted replacements.
 - Avoid inventing unsupported physics features; follow Agent 1's instructions or state missing data.
@@ -61,7 +62,7 @@ Please deliver:
 Specification:
 - Minimal-change principle, but geometry shape and water-body definition from the user or Agent 1 are mandatory changes.
 - Strict adherence to `schemas/dualsphysics_config_schema.json` (no extra keys; correct types).
-- Mirror every emitted section in `casedef_children`; insert {"type": "section", "key": "floatings"} when floatings are present (after initials when available, otherwise immediately after geometry/normals). Skip any Chrono/`bodyfloating` nodes altogether and prefer the minimal floating format¡Xmk attribute plus exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child.
+- Mirror every emitted section in `casedef_children`; insert {"type": "section", "key": "floatings"} when floatings are present (after initials when available, otherwise immediately after geometry/normals). Skip any Chrono/`bodyfloating` nodes altogether and prefer the minimal floating format-mk attribute plus exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child.
 - Use Agent 1's `required_changes` to drive edits; keep other sections exactly as instructed.
 - Emit warnings or TODO notes only in designated schema fields (or explain how to handle if none exist).
 - Style: engineering-focused, concise, reproducible.

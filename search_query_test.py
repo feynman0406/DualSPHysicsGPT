@@ -21,6 +21,7 @@ def main() -> None:
             vector_store_ids=[vector_store_id],
             max_output_tokens=64,
             query_rewrite=True,
+            raw_query="generate 2D dambreak xml file",
         )
     except Exception as exc:
         print(f"response_with_file_search raised: {exc}")

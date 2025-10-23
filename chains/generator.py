@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import re
 from pathlib import Path
@@ -28,8 +28,9 @@ except ImportError:  # pragma: no cover - lightweight stubs for test environment
             super().__init__()
             self.page_content = page_content
             self.metadata = metadata or {}
-from AutoXml_script.generate_xml import generate_case_xml
+from AutoXml_script.generate_xml import generate_case_xml, validate_case_tree
 from chains.json_normalizer import normalize_case_config, NormalizationResult
+from chains.mdbc_normals import enforce_mdbc_normals
 try:
     from rag.retrievers import design_retriever
 except Exception:  # pragma: no cover - optional dependency for tests
@@ -220,6 +221,18 @@ def sanitize_newvarcte(xml: str) -> str:
     return pattern.sub(repl, xml or "")
 
 
+def _validate_xml_or_raise(xml: str) -> None:
+    import xml.etree.ElementTree as ET
+
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError as exc:
+        raise ValueError(f"Fallback XML is not well-formed: {exc}") from exc
+
+    errors = validate_case_tree(root)
+    if errors:
+        raise ValueError("Fallback XML failed validation: " + '; '.join(errors))
+
 def _assemble_context(docs) -> str:
     parts = []
     for doc in docs:
@@ -325,7 +338,7 @@ def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
             model=model,
             vector_store_ids=[design_vs_id],
             metadata_filter=metadata_filter,
-            max_output_tokens=1024,
+            max_output_tokens=14000,
             query_rewrite=True,
             temperature=0.0,
         )
@@ -377,11 +390,12 @@ def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
     if debug_enabled:
         print("Config JSON generated successfully")
     
-    # Normalize and generate XML
+    # Normalize, enforce mDBC normals, and generate XML
     try:
         normalization = normalize_case_config(config_json)
-        xml = generate_case_xml(normalization.config)
-        config_json = normalization.config
+        config_normalized = enforce_mdbc_normals(normalization.config)
+        xml = generate_case_xml(config_normalized)
+        config_json = config_normalized
     except Exception as exc:
         raise RuntimeError(f"Failed to generate XML from config: {exc}") from exc
     
@@ -587,17 +601,17 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
             print("\n=== generator: post_file_search_metrics ===")
             _log_prompt_metrics(lc_messages, docs, ctx, model)
     config_payload, structured_meta = _parse_generator_config(out)
-    generation_error: Optional[str] = None
     xml: Optional[str] = None
     if config_payload is not None:
         normalization: Optional[NormalizationResult] = None
         try:
             normalization = normalize_case_config(config_payload)
-            xml = generate_case_xml(normalization.config)
+            config_normalized = enforce_mdbc_normals(normalization.config)
+            xml = generate_case_xml(config_normalized)
         except Exception as exc:
-            generation_error = f"Failed to build XML from JSON config: {exc}"
+            raise ValueError(f"Generator JSON contract violated: {exc}") from exc
         else:
-            config_payload = normalization.config
+            config_payload = config_normalized
             if structured_meta is None:
                 structured_meta = {}
             if normalization.warnings:
@@ -610,10 +624,11 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
             if config_payload is None:
                 error_msg += " (no JSON payload found in output)"
             else:
-                error_msg += f" (JSON found but XML generation failed: {generation_error})"
+                error_msg += " (JSON found but XML generation failed)"
             raise ValueError(error_msg)
         # Fallback to extracting XML directly when not in strict mode
         xml = extract_xml(out) or out
+        _validate_xml_or_raise(xml)
 
     if debug_enabled:
         print("\n=== generator: lc_messages ===")
@@ -642,6 +657,4 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
         result["config"] = config_payload
     if structured_meta is not None:
         result["structured_meta"] = structured_meta
-    if generation_error:
-        result["warnings"] = [generation_error]
     return result

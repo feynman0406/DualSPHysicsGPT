@@ -1,9 +1,9 @@
-# DualSPHysicsGPT Fix Plan (MVP) — Minimal, Gated, Test-Driven
+# DualSPHysicsGPT Fix Plan (MVP) ??Minimal, Gated, Test-Driven
 
 Purpose
 - Deliver a minimal viable prototype that:
   1) Forces generator to output JSON strictly conforming to our target schema (GOS).
-  2) Converts GOS → ICS (internal canonical, order/comment-preserving) reliably.
+  2) Converts GOS ??ICS (internal canonical, order/comment-preserving) reliably.
   3) Generates valid XML that roundtrips from official XMLs without structural loss.
   4) Fixes the critical roundtrip failures (list vs dict) and the gauges pointdp bug.
 
@@ -30,7 +30,7 @@ Prerequisites (run once)
 
 --------------------------------------------------------------------------------
 
-Step 0 — Sanity & Baseline Checks
+Step 0 ??Sanity & Baseline Checks
 - [x] Tasks:
   - Verify pytest can run and basic tests execute.
   - Confirm DualSPHysics binaries path is known or tests are skipping heavy runs.
@@ -47,7 +47,7 @@ Step 0 — Sanity & Baseline Checks
 
 --------------------------------------------------------------------------------
 
-Step 1 — Enforce Generator JSON Schema (GOS) and Forbid XML Fallback
+Step 1 ??Enforce Generator JSON Schema (GOS) and Forbid XML Fallback
 - [x] Tasks:
   - Create schema file for GOS at schemas/dualsphysics_config_schema.json capturing:
     - Top-level keys: constants, mkconfig, geometry(definition(dp, pointmin, pointmax), commands{lists, mainlist}), casedef_extra[], execution.parameters
@@ -62,10 +62,10 @@ Step 1 — Enforce Generator JSON Schema (GOS) and Forbid XML Fallback
     - Load the schema from schemas/... (cache it).
     - Pass json_schema and strict into llm_call based on environment flags.
     - Remove/disable XML fallback in strict mode:
-      - If parsed JSON is missing or schema-invalid → error out with actionable message; do not extract raw XML.
+      - If parsed JSON is missing or schema-invalid ??error out with actionable message; do not extract raw XML.
     - Keep a non-strict mode path for development (strict=0 uses JSON mode + post-validation).
 - [x] Tests:
-  - pytest -q tests/test_generator_json_pipeline.py ✅ 5 passed
+  - pytest -q tests/test_generator_json_pipeline.py ??5 passed
 - [x] Gate:
   - generator_json_pipeline tests pass.
   - In strict mode, generator refuses to proceed on schema violations and surfaces a structured error.
@@ -78,42 +78,42 @@ Step 1 — Enforce Generator JSON Schema (GOS) and Forbid XML Fallback
 
 --------------------------------------------------------------------------------
 
-Step 2 — Normalize GOS → ICS in chains/json_normalizer.py
+Step 2 ??Normalize GOS ??ICS in chains/json_normalizer.py
 - [x] Tasks:
   - Implement a deterministic converter:
-    - Map geometry.commands.lists/mainlist (GOS) → ICS commands.children + correct node shapes (runlist, setmk*, drawbox/fillbox children, etc.).
+    - Map geometry.commands.lists/mainlist (GOS) ??ICS commands.children + correct node shapes (runlist, setmk*, drawbox/fillbox children, etc.).
     - Ensure vectors only carry x,y,z keys; coerce/validate types as needed.
     - Preserve or synthesize ordering plans where ICS requires it (parameters_children, special_children, gauges.children_plan).
     - Keep numeric scalars as numbers in GOS, but produce ICS values suitable for stable XML emission later (string formatting policy will be in generator).
   - Emit structured warnings when fields are auto-fixed; errors for missing required blocks.
 - [x] Tests:
-  - pytest -q tests/test_json_normalizer.py ✅ 1 passed
-  - pytest -q tests/test_predefinition_sanitizer.py ✅ 4 passed
+  - pytest -q tests/test_json_normalizer.py ??1 passed
+  - pytest -q tests/test_predefinition_sanitizer.py ??4 passed
 - [x] Gate:
-  - All normalizer tests pass; new cases covering lists→children mapping included.
+  - All normalizer tests pass; new cases covering lists?�children mapping included.
 - Notes/Status: COMPLETED 2025-10-01 00:19 JST
-  - Implemented GOS→ICS normalization for geometry.commands (lists/mainlist → children array)
+  - Implemented GOS?�ICS normalization for geometry.commands (lists/mainlist ??children array)
   - Added vector normalization ensuring only x,y,z keys are present
   - Synthesized parameters_children plan for execution.parameters
-  - Synthesized children_plan for gauges (mapping start→point0, mid→point1, end→point2)
+  - Synthesized children_plan for gauges (mapping start?�point0, mid?�point1, end?�point2)
   - Updated test to verify ICS structure
   - All tests passing (1 json_normalizer + 4 predefinition_sanitizer)
 
 --------------------------------------------------------------------------------
 
-Step 3 — Fix generate_xml to consume ICS lists and plans
+Step 3 ??Fix generate_xml to consume ICS lists and plans
 - [x] Tasks:
   - Update AutoXml_script/generate_xml.py builders to fully support ICS:
     - _build_geometry_commands: accept commands.children (ordered), support generic nodes and comments; fix runlist emission (<runlist name="..."/>).
     - _build_execution: honor parameters_children mixed plan (parameter + generic), avoid duplicate parameters.
-    - _build_special: honor special_children order and normalized known-section tags (active_absorption → <activeabsorption>, etc.); fallback only if plan absent.
-    - Gauges: map start→point0, mid→point1 (optional), end→point2; keep additional generic children (e.g., <pointdp>) in original order via children_plan.
+    - _build_special: honor special_children order and normalized known-section tags (active_absorption ??<activeabsorption>, etc.); fallback only if plan absent.
+    - Gauges: map start?�point0, mid?�point1 (optional), end?�point2; keep additional generic children (e.g., <pointdp>) in original order via children_plan.
   - Serialization hygiene:
     - Deterministic attribute ordering (alphabetical).
     - Stable formatting; if needed, ensure numeric serialization consistent and GenCase-acceptable.
 - [x] Tests:
-  - pytest -q tests/test_generate_xml.py ✅ 7/8 passed (1 expected failure for deprecated format)
-  - pytest -q -k "xml_roundtrip and not slow" ✅ 1 passed
+  - pytest -q tests/test_generate_xml.py ??7/8 passed (1 expected failure for deprecated format)
+  - pytest -q -k "xml_roundtrip and not slow" ??1 passed
 - [x] Gate:
   - generate_xml tests pass; partial roundtrip tests no longer crash on 'list' object has no attribute 'get'.
 - Notes/Status: COMPLETED 2025-10-01 00:23 JST (No changes needed)
@@ -122,18 +122,18 @@ Step 3 — Fix generate_xml to consume ICS lists and plans
     - _build_parameters already honors parameters_children plan
     - _build_gauges already uses children_plan for point mapping
     - Deterministic attribute ordering already implemented (alphabetical)
-  - Verified full GOS→ICS→XML pipeline works correctly
+  - Verified full GOS?�ICS?�XML pipeline works correctly
   - All tests passing except deprecated geometry format (expected)
 
 --------------------------------------------------------------------------------
 
-Step 4 — Fix xml_to_json gauges pointdp parsing
+Step 4 ??Fix xml_to_json gauges pointdp parsing
 - [x] Tasks:
   - Update AutoXml_script/xml_to_json.py _parse_gauges to correctly parse and place <pointdp> (and similar generic nodes) into gauges.children + children_plan.
   - Ensure tags point0/1/2 vs pointdp are not confused; maintain order.
 - [x] Tests:
-  - pytest -q tests/test_xml_roundtrip.py ✅ 1 passed
-  - Verified CaseDambreakVal2D_Def.xml gauge with pointdp ✅ Order preserved
+  - pytest -q tests/test_xml_roundtrip.py ??1 passed
+  - Verified CaseDambreakVal2D_Def.xml gauge with pointdp ??Order preserved
 - [x] Gate:
   - No tag mismatch errors (pointdp vs point0) in roundtrip suite for gauges.
 - Notes/Status: COMPLETED 2025-10-01 00:28 JST (No changes needed)
@@ -146,9 +146,9 @@ Step 4 — Fix xml_to_json gauges pointdp parsing
 
 --------------------------------------------------------------------------------
 
-Step 5 — Roundtrip Acceptance on Official Cases (lossless target)
+Step 5 ??Roundtrip Acceptance on Official Cases (lossless target)
 - [x] Tasks:
-  - Run the full XML → JSON → XML structural comparison for official cases.
+  - Run the full XML ??JSON ??XML structural comparison for official cases.
 - [x] Commands:
   - pytest -q tests/test_xml_roundtrip.py
 - [x] Gate:
@@ -158,7 +158,7 @@ Step 5 — Roundtrip Acceptance on Official Cases (lossless target)
   - 0 failures achieved (100% lossless roundtrip)
   - Files tested: case.xml, CaseDambreak_Def.xml, CaseDamBreak3D_Def.xml, CaseDamBreak3D_NS_Def.xml, CaseDambreakVal2D_Def.xml, CaseDampingAngle_Def.xml, CaseDampingBox_Def.xml, CaseDampingCylinder_Def.xml, CaseDampingPlane_mDBC_Def.xml, CaseDampingPlaneNot_mDBC_Def.xml, CaseFloating_Def.xml, CaseFloatingSphereVal2D_Def.xml, CaseFloatingWaves_Def.xml, CaseFloatingWavesVal2_Ren_Def.xml, CaseSloshingHR_Def.xml, CaseSloshingHR_NS_Def.xml, CaseSloshingHR_NSNP_Def.xml, CaseSloshingLR_Def.xml, CaseSloshingLR_NS_Def.xml, CaseSloshingLR_NSNP_Def.xml, CaseWaveTank_Def.xml
   - All critical issues fixed:
-    * GOS→ICS conversion handles lists/mainlist correctly
+    * GOS?�ICS conversion handles lists/mainlist correctly
     * Gauges pointdp parsing maintains correct order
     * No tag mismatch errors
     * No attribute ordering issues
@@ -166,12 +166,12 @@ Step 5 — Roundtrip Acceptance on Official Cases (lossless target)
 
 --------------------------------------------------------------------------------
 
-Step 6 — Fluid Geometry Completeness Validator
+Step 6 ??Fluid Geometry Completeness Validator
 - [x] Tasks:
   - Implement generate_xml.validate_case_tree enforcement:
     - If commands include setmkfluid, ensure a subsequent fill* command exists unless the case is in a boundary-only allowlist.
     - Validate dp + domain (pointmin/pointmax) present.
-  - Integrate validator into controller loop with DSPH_ROUNDTRIP_STRICT=1 → block run; structured error surfaced to fixer.
+  - Integrate validator into controller loop with DSPH_ROUNDTRIP_STRICT=1 ??block run; structured error surfaced to fixer.
 - [x] Tests:
   - pytest -q tests/test_official_xml_cases.py -k "not slow" (structure-only when binaries missing)
   - pytest -q tests/test_generate_xml.py -k fluid
@@ -195,19 +195,19 @@ Step 6 — Fluid Geometry Completeness Validator
 
 --------------------------------------------------------------------------------
 
-Step 7 — Output Path Discipline for Regeneration (optional for MVP if smoke only)
+Step 7 ??Output Path Discipline for Regeneration (optional for MVP if smoke only)
 - [ ] Tasks:
   - Ensure regenerated XML is written to AutoXml_script/generated_cases_direct/, align with scripts/smoke_test_configs.py expectations.
   - Verify tools/exec.py copies required .dat (e.g., SloshingMotionData.dat) when present; respect DSPH_COPY_DATA modes.
 - [ ] Tests:
   - python scripts/smoke_test_configs.py --config-dir AutoXml_script/config_library --output-dir AutoXml_script/generated_cases_direct --results AutoXml_script/generated_cases_direct/results.json
 - [ ] Gate:
-  - “XML file was not found” no longer occurs in gen_case_test_report scenarios; results.json present with metadata.
+  - ?�XML file was not found??no longer occurs in gen_case_test_report scenarios; results.json present with metadata.
 - Notes/Status:
 
 --------------------------------------------------------------------------------
 
-Step 8 — Documentation & Prompt Contract Sync (wrap-up)
+Step 8 ??Documentation & Prompt Contract Sync (wrap-up)
 - [ ] Tasks:
   - Update prompts/auto_xml_contract.md to clearly reference GOS; ensure examples match schema.
   - Update docs/auto_xml_schema.md to clarify ICS vs GOS and conversion flow.
@@ -219,14 +219,14 @@ Step 8 — Documentation & Prompt Contract Sync (wrap-up)
 
 --------------------------------------------------------------------------------
 
-Appendix — Gating Cheatsheet
+Appendix ??Gating Cheatsheet
 - Minimal test cycles per step:
   - Unit scope: pytest -q tests/test_json_normalizer.py
   - Builder scope: pytest -q tests/test_generate_xml.py
   - Roundtrip scope: pytest -q tests/test_xml_roundtrip.py
   - Smoke regen: python scripts/smoke_test_configs.py ...
 
-Appendix — Environment Flags (suggested defaults for dev)
+Appendix ??Environment Flags (suggested defaults for dev)
 - DSPH_STRICT_JSON_SCHEMA=1
 - DSPH_FORBID_XML_FALLBACK=1
 - DSPH_ROUNDTRIP_STRICT=1
@@ -236,10 +236,14 @@ Appendix — Environment Flags (suggested defaults for dev)
 Change Log (fill during execution)
 - [x] 2025-10-01 00:08 JST Step 0 completed - Baseline: 23 passed, 1 expected failure
 - [x] 2025-10-01 00:12 JST Step 1 completed - JSON Schema + Structured Outputs implemented
-- [x] 2025-10-01 00:19 JST Step 2 completed - GOS→ICS normalization implemented and tested
+- [x] 2025-10-01 00:19 JST Step 2 completed - GOS?�ICS normalization implemented and tested
 - [x] 2025-10-01 00:23 JST Step 3 completed - Verified generate_xml.py already supports ICS
 - [x] 2025-10-01 00:28 JST Step 4 completed - Verified xml_to_json.py correctly handles gauges/pointdp
 - [x] 2025-10-01 00:30 JST Step 5 completed - 100% lossless roundtrip achieved for all 21 official XML files
 - [x] 2025-10-01 00:34 JST Step 6 completed - Validator already fully implemented and functional
+- [x] 2025-10-20 Step 9 update - Floatings scoped to `<casedef><floatings>` only; prompts/docs/tests updated to require the casedef_children entry, drop Chrono/bodyfloating usage, and normalize legacy inputs.
 - [ ] 2025-__-__ Step 7 completed by: ...
 - [ ] 2025-__-__ Step 8 completed by: ...
+
+
+

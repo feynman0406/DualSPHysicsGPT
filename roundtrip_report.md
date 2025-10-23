@@ -46,3 +46,11 @@ The path forward is clear, but requires careful and precise implementation.
 3.  **Final Verification:** After these fixes are implemented, the `tests/test_xml_roundtrip.py` suite must be run again. The goal is to have all 21 tests pass, confirming that the roundtrip conversion is finally lossless.
 
 This task has proven to be more complex than initially anticipated due to the intricacies of XML parsing and my own repeated errors in editing the files. The current state, however, provides a solid foundation for a final, successful resolution.
+
+## 5. Normals Schema Update (2025-05-07)
+
+- Normals blocks are now normalized into `geometry.normals` during parsing and generation.
+- Legacy configs with `<normals>` stored in `casedef_extra` are automatically migrated; output XML still places `<normals>` after `<geometry>`.
+- Schema, prompts, and config library examples were refreshed to require attribute-form `<geometryfile file=.../>`, `<distanceh v=.../>`, and `<svshapes v=.../>`.
+- Regenerated JSON fixtures to drop redundant normals entries from `casedef_extra` and keep ordering consistent.
+

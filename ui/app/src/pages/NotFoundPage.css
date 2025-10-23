@@ -1,0 +1,20 @@
+﻿.not-found {
+  text-align: center;
+  padding: 3rem 1rem;
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  color: #1f2933;
+}
+
+.primary-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.primary-link:hover {
+  text-decoration: underline;
+}

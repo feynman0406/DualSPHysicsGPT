@@ -1,7 +1,8 @@
-﻿import json
+import json
 from pathlib import Path
 
 from chains.generator import _parse_generator_config
+from chains.json_normalizer import normalize_case_config
 from sessions import store
 from AutoXml_script.generate_xml import generate_case_xml
 from AutoXml_script.xml_to_json import parse_case_xml
@@ -142,3 +143,67 @@ def test_gpt_style_payload_roundtrip():
 
 
 
+
+def test_pipeline_emits_floatings_section():
+    raw_payload = {
+        "constants": {
+            "gravity": {"x": 0, "y": 0, "z": -9.81},
+            "rhop0": {"value": 1000},
+        },
+        "mkconfig": {"boundcount": 2, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"setmkfluid": {"mk": 0}},
+                    {"fillbox": {"modefill": "void", "point": {"x": 0, "y": 0, "z": 0}, "size": {"x": 1, "y": 1, "z": 1}}},
+                ]
+            },
+        },
+        "floatings": [
+            {
+                "type": "floating",
+                "attributes": {"mkbound": 3},
+                "children": [
+                    {"type": "massbody", "attributes": {"value": 1.1}},
+                ],
+            }
+        ],
+        "execution": {
+            "parameters": {
+                "TimeMax": 1.0,
+                "TimeOut": 0.1,
+                "Boundary": 2,
+            }
+        },
+    }
+
+    normalized = normalize_case_config(raw_payload)
+    xml_text = generate_case_xml(normalized.config)
+    root = ET.fromstring(xml_text)
+
+    floating = root.find("casedef/floatings/floating[@mkbound='3']")
+    assert floating is not None
+    mass_node = floating.find("massbody")
+    assert mass_node is not None and mass_node.attrib.get("value") == "1.1"
+    assert root.find("execution/special/floating") is None
+
+    parsed = parse_case_xml(xml_text)
+    assert "floatings" in parsed
+    assert parsed["floatings"][0]["type"] == "floating"
+
+    parsed_plan = [
+        entry["key"]
+        for entry in parsed.get("casedef_children", [])
+        if isinstance(entry, dict) and entry.get("type") == "section"
+    ]
+    assert "floatings" in parsed_plan
+    assert parsed_plan.count("floatings") == 1
+    if "geometry" in parsed_plan:
+        assert parsed_plan.index("floatings") > parsed_plan.index("geometry")
+    if "initials" in parsed_plan:
+        assert parsed_plan.index("floatings") > parsed_plan.index("initials")

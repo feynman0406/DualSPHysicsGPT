@@ -72,8 +72,18 @@
   },
   "geometry": {
     "definition": {
-      "attributes": {
-        "dp": "0.025",
+      "dp": "0.025",
+      "pointmin": {
+        "x": "-5.05",
+        "y": "5.0",
+        "z": "-0.05"
+      },
+      "pointmax": {
+        "x": "5.05",
+        "y": "5.0",
+        "z": "15.05"
+      },
+      "meta": {
         "units_comment": "metres (m)"
       },
       "children": [
@@ -83,22 +93,6 @@
             "x": "0",
             "y": "0",
             "z": "0"
-          }
-        },
-        {
-          "tag": "pointmin",
-          "vector": {
-            "x": "-5.05",
-            "y": "5.0",
-            "z": "-0.05"
-          }
-        },
-        {
-          "tag": "pointmax",
-          "vector": {
-            "x": "5.05",
-            "y": "5.0",
-            "z": "15.05"
           }
         }
       ]
@@ -207,8 +201,8 @@
             {
               "type": "drawcylinder",
               "attributes": {
-                "radius": "1.0",
-                "mask": "0"
+                "mask": "0",
+                "radius": "1.0"
               },
               "children": [
                 {

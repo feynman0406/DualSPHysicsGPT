@@ -70,28 +70,20 @@
   },
   "geometry": {
     "definition": {
-      "attributes": {
-        "dp": "0.0085",
-        "units_comment": "metres (m)"
+      "dp": "0.0085",
+      "pointmin": {
+        "x": "-0.05",
+        "y": "-0.05",
+        "z": "-0.05"
       },
-      "children": [
-        {
-          "tag": "pointmin",
-          "vector": {
-            "x": "-0.05",
-            "y": "-0.05",
-            "z": "-0.05"
-          }
-        },
-        {
-          "tag": "pointmax",
-          "vector": {
-            "x": "2",
-            "y": "1",
-            "z": "1"
-          }
-        }
-      ]
+      "pointmax": {
+        "x": "2",
+        "y": "1",
+        "z": "1"
+      },
+      "meta": {
+        "units_comment": "metres (m)"
+      }
     },
     "commands": {
       "children": [

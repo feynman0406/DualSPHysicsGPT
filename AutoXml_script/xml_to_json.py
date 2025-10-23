@@ -27,6 +27,33 @@ def _convert_attrib(attributes: Dict[str, str]) -> Dict[str, Any]:
     return {key: _convert_value(value) for key, value in attributes.items()}
 
 
+def _coerce_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_bool(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    return None
+
+
 def _is_vector_attributes(attributes: Dict[str, Any]) -> bool:
     return bool(attributes) and set(attributes.keys()) <= VECTOR_KEYS
 
@@ -210,6 +237,83 @@ def _parse_commands(commands_elem: ET.Element) -> List[Dict[str, Any]]:
     return parsed
 
 
+def _parse_norgeometry(norgeometry_elem: ET.Element) -> Dict[str, Any]:
+    cfg: Dict[str, Any] = {}
+    attributes = _convert_attrib(norgeometry_elem.attrib)
+    comment = attributes.get("comment")
+    if comment is not None:
+        cfg["comment"] = comment
+
+    extras: List[Dict[str, Any]] = []
+    for child in norgeometry_elem:
+        if isinstance(child, ET._Comment):
+            extras.append(_generic_from_element(child))
+            continue
+        tag = child.tag
+        if tag == "geometryfile":
+            entry = _convert_attrib(child.attrib)
+            file_value = entry.get("file")
+            if file_value is None:
+                file_value = _get_text(child)
+            if file_value is not None:
+                geometryfile_cfg: Dict[str, Any] = {"file": file_value}
+                if entry.get("comment") is not None:
+                    geometryfile_cfg["comment"] = entry.get("comment")
+                cfg["geometryfile"] = geometryfile_cfg
+        elif tag == "distanceh":
+            entry = _convert_attrib(child.attrib)
+            raw_v = entry.get("v")
+            value = _coerce_float(raw_v)
+            distance_cfg: Dict[str, Any] = {}
+            if value is not None:
+                distance_cfg["v"] = value
+            elif raw_v is not None:
+                distance_cfg["v"] = raw_v
+            if entry.get("comment") is not None:
+                distance_cfg["comment"] = entry.get("comment")
+            cfg["distanceh"] = distance_cfg
+        elif tag == "svshapes":
+            entry = _convert_attrib(child.attrib)
+            raw_v = entry.get("v")
+            value = _coerce_bool(raw_v)
+            sv_cfg: Dict[str, Any] = {}
+            if value is not None:
+                sv_cfg["v"] = value
+            elif raw_v is not None:
+                sv_cfg["v"] = raw_v
+            if entry.get("comment") is not None:
+                sv_cfg["comment"] = entry.get("comment")
+            cfg["svshapes"] = sv_cfg
+        else:
+            extras.append(_generic_from_element(child))
+    if extras:
+        cfg["extra"] = extras
+    return cfg
+
+
+def _parse_normals(normals_elem: ET.Element) -> Dict[str, Any]:
+    normals_cfg: Dict[str, Any] = {}
+    attributes = _convert_attrib(normals_elem.attrib)
+    active = _coerce_bool(attributes.get("active"))
+    if active is not None:
+        normals_cfg["active"] = active
+    if attributes.get("comment") is not None:
+        normals_cfg["comment"] = attributes.get("comment")
+
+    extras: List[Dict[str, Any]] = []
+    for child in normals_elem:
+        if isinstance(child, ET._Comment):
+            extras.append(_generic_from_element(child))
+            continue
+        if child.tag == "norgeometry":
+            normals_cfg["norgeometry"] = _parse_norgeometry(child)
+        else:
+            extras.append(_generic_from_element(child))
+    if extras:
+        normals_cfg["extra"] = extras
+    return normals_cfg
+
+
 def _parse_section_list(section_elem: ET.Element) -> List[Dict[str, Any]]:
     entries = []
     for child in section_elem:
@@ -385,6 +489,10 @@ def parse_case_xml(xml_text: str) -> Dict[str, Any]:
                         commands_children = _parse_commands(geo_child)
                         if commands_children:
                             geometry_cfg["commands"] = {"children": commands_children}
+                    elif geo_child.tag == "normals":
+                        normals_cfg = _parse_normals(geo_child)
+                        if normals_cfg:
+                            geometry_cfg["normals"] = normals_cfg
                     else:
                         geometry_cfg.setdefault("extra", []).append(_generic_from_element(geo_child))
                 if geometry_cfg:
@@ -394,6 +502,12 @@ def parse_case_xml(xml_text: str) -> Dict[str, Any]:
                 if list(child): 
                     config[child.tag] = _parse_section_list(child)
                 casedef_children_order.append({"type": "section", "key": child.tag})
+            elif child.tag == "normals":
+                normals_cfg = _parse_normals(child)
+                if normals_cfg:
+                    geometry_cfg = config.setdefault("geometry", {})
+                    geometry_cfg["normals"] = normals_cfg
+                casedef_children_order.append({"type": "section", "key": "normals"})
             elif isinstance(child, ET._Comment):
                  spec = _generic_from_element(child)
                  config.setdefault("casedef_extra", []).append(spec)

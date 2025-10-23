@@ -30,7 +30,7 @@ from openai.types.responses.response_output_text import (
 LOGGER = logging.getLogger(__name__)
 
 _LAST_RUN_INFO: Dict[str, Any] | None = None
-_DEFAULT_SEARCH_LIMIT = 12
+_DEFAULT_SEARCH_LIMIT = 20
 
 # Based on OpenAI API documentation and observed errors
 _SUPPORTED_OPENAI_EXTS = {
@@ -348,6 +348,9 @@ def _structured_query(text: str) -> Dict[str, List[str]]:
         must.add("dambreak")
         should.update({"dam break", "dam-break", "溃坝", "破堤"})
         must_not.update({"wavemaker", "piston", "flap"})
+    if has("mdbc", "m-dbc", "modified dynamic boundary", "modified dynamic boundary condition"):
+        must.add("mdbc")
+        should.update({"modified dynamic boundary", "m-dbc", "modified dynamic boundary condition"})
     if has("wavemaker", "wave maker", "wave-maker", "造波机", "造浪机"):
         must.add("wavemaker")
         should.update({"wave maker", "wave-maker", "piston wavemaker"})
@@ -388,7 +391,7 @@ def _structured_query(text: str) -> Dict[str, List[str]]:
     }
 
 
-def _compose_query_text(spec: Dict[str, List[str]]) -> str:
+def _compose_query_text(spec: Dict[str, List[str]], raw_query: str) -> str:
     parts: List[str] = []
     if spec["must"]:
         parts.append("MUST: " + ", ".join(spec["must"]))
@@ -396,12 +399,22 @@ def _compose_query_text(spec: Dict[str, List[str]]) -> str:
         parts.append("SHOULD: " + ", ".join(spec["should"]))
     if spec["must_not"]:
         parts.append("AVOID: " + ", ".join(spec["must_not"]))
+
+    raw_clean = re.sub(r"\s+", " ", raw_query).strip() if raw_query else ""
+    if raw_clean:
+        base_text = " | ".join(parts) if parts else ""
+        separator = " | " if base_text else ""
+        available = 512 - len(base_text) - len(separator) - len("RAW: ")
+        if available > 0:
+            parts.append(f"RAW: {raw_clean[:available]}")
     return " | ".join(parts)
 
 
-def _inject_query_hint(messages: Sequence[Dict[str, Any]], spec: Dict[str, List[str]]) -> List[Dict[str, Any]]:
-    if not any(spec.values()):
+def _inject_query_hint(messages: Sequence[Dict[str, Any]], spec: Dict[str, List[str]], raw_query: str) -> List[Dict[str, Any]]:
+    raw_clean = re.sub(r"\s+", " ", raw_query).strip() if raw_query else ""
+    if not any(spec.values()) and not raw_clean:
         return list(messages)
+
     hint_lines: List[str] = []
     if spec["must"]:
         hint_lines.append(f"MUST: {', '.join(spec['must'])}")
@@ -409,6 +422,9 @@ def _inject_query_hint(messages: Sequence[Dict[str, Any]], spec: Dict[str, List[
         hint_lines.append(f"SHOULD: {', '.join(spec['should'])}")
     if spec["must_not"]:
         hint_lines.append(f"MUST_NOT: {', '.join(spec['must_not'])}")
+    if raw_clean:
+        hint_lines.append(f"RAW: {raw_clean[:256]}")
+
     hint_text = (
         "Use the OpenAI File Search tool with the following retrieval directives.\n"
         + "\n".join(hint_lines)
@@ -579,10 +595,11 @@ def response_with_file_search(
     model: str,
     vector_store_ids: List[str],
     metadata_filter: Optional[Dict[str, Any]] = None,
-    max_output_tokens: int = 12000,
+    max_output_tokens: int = 14000,
     query_rewrite: bool = True,
     temperature: Optional[float] = None,
     reasoning: Optional[Dict[str, Any]] = None,
+    raw_query: Optional[str] = None,
 ) -> str:
     """Call the OpenAI Responses API with File Search enabled."""
     if not vector_store_ids:
@@ -594,14 +611,19 @@ def response_with_file_search(
     combined_text = " ".join(
         str(m.get("content", "")) for m in messages if str(m.get("role", "user")).lower() != "assistant"
     )
+    user_segments = [
+        str(m.get("content", "")) for m in messages if str(m.get("role", "")).lower() == "user"
+    ]
+    user_text = " ".join(user_segments).strip()
+    effective_raw = (raw_query or user_text or combined_text).strip()
 
-    query_spec = _structured_query(combined_text)
-    query_text = _compose_query_text(query_spec) or combined_text[:512]
+    query_spec = _structured_query(effective_raw)
+    query_text = _compose_query_text(query_spec, effective_raw) or raw_query[:512]
     selected_filter, search_attempts = _select_filter_and_search(
         client, vector_store_ids, query_text, metadata_filter, query_rewrite
     )
 
-    messages_with_hint = _inject_query_hint(messages, query_spec)
+    messages_with_hint = _inject_query_hint(messages, query_spec, effective_raw)
     matches_found = any(entry.get("results") for entry in search_attempts if entry.get("metadata_filter") == selected_filter)
     if not matches_found and search_attempts:
         messages_with_hint = [
@@ -667,6 +689,7 @@ def response_with_file_search(
         "original_metadata_filter": metadata_filter,
         "applied_metadata_filter": selected_filter,
         "query_text": query_text,
+        "raw_query": effective_raw,
         "query_spec": query_spec,
         "search_attempts": search_attempts,
         "tool_calls": tool_calls,

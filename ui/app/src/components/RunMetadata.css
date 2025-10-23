@@ -1,0 +1,55 @@
+﻿.run-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+@media (min-width: 900px) {
+  .run-metadata {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.breadcrumb {
+  margin: 0;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.metadata-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.metadata-title h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.meta-line {
+  margin: 0;
+  color: #475569;
+}
+
+.metadata-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .metadata-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .metadata-actions button {
+    width: 100%;
+  }
+}

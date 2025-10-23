@@ -40,6 +40,10 @@ schemas/dualsphysics_config_schema.json  # Main config schema
 schemas/planning_agent_schema.json       # Plan JSON schema (from Phase 1)
 ```
 
+  - Geometry normals must be provided via `geometry.normals`; reserve `casedef_extra` for miscellaneous nodes.
+
+
+
 ### Configuration Files
 ```
 AutoXml_script/config_library/*.json     # Example configurations (source for RAG)
@@ -250,7 +254,7 @@ def response_with_file_search(
     model: str,
     vector_store_ids: List[str],
     metadata_filter: Optional[Dict[str, Any]] = None,
-    max_output_tokens: int = 8000,
+    max_output_tokens: int = 14000,
     query_rewrite: bool = True,
     temperature: Optional[float] = None,
     reasoning: Optional[Dict[str, Any]] = None

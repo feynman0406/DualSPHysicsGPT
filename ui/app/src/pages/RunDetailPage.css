@@ -1,0 +1,31 @@
+﻿.run-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.loading,
+.error {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 2rem;
+  text-align: center;
+  color: #475569;
+}
+
+.error {
+  color: #b91c1c;
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.run-tabs {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.run-detail-page > section,
+.run-detail-page > div,
+.run-detail-page > article {
+  width: 100%;
+}

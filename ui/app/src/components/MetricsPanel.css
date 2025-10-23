@@ -1,0 +1,77 @@
+﻿.metrics-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.metric-card {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric-card h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.metric-card p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.metric-card span {
+  color: #64748b;
+}
+
+.metric-card ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: #475569;
+}
+
+.metrics-panel.loading,
+.metrics-panel.empty,
+.metrics-panel.error {
+  border-radius: 1rem;
+  border: 1px dashed #cbd5e1;
+  padding: 1.5rem;
+  text-align: center;
+  color: #475569;
+}
+
+.metrics-panel.error {
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: #b91c1c;
+}
+.gpu-metrics {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.metric-note {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.metric-note-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.metric-note-list li {
+  margin-bottom: 0.25rem;
+}
+
+.metric-note-list li:last-child {
+  margin-bottom: 0;
+}

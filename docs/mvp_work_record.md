@@ -1,54 +1,41 @@
-﻿# DualSPHysicsGPT MVP Work Record
+# DualSPHysicsGPT MVP Working Record
 
-## MVP Status
+## MVP Snapshot
 - Branch: experiment-s0-vectors-to-schema
-- Local modifications when the MVP succeeded: chains/json_normalizer.py, docs/auto_xml_schema.md, schemas/dualsphysics_config_schema.json, scripts/mvp_direct_file_search.py
-- MVP run artifacts saved in logs/mvp/ (agent1_output.json, agent2_config.json, generated_case.xml)
+- MVP run artifacts: `logs/mvp/agent1_output.json`, `logs/mvp/agent2_config.json`, `logs/mvp/generated_case.xml`
+- Core entry points: `scripts/mvp_direct_file_search.py`, `rag/openai_file_search.py`, `chains/json_normalizer.py`, `AutoXml_script/generate_xml.py`
 
-## End-to-End Workflow
-**Stage 0 - Retrieval framing**
-- scripts/mvp_direct_file_search.py:386 creates the Agent 1 prompt and enables OpenAI file_search, seeding the conversation with the user query and guardrails about evaluating every candidate reference.
+## Architecture Overview
+- **Stage 0 - Query prep**: `rag/openai_file_search.py:360` tokenizes the raw request into MUST/SHOULD lists, appends the untouched query, and injects a retrieval hint so file-search always sees the original wording alongside structured cues (dimensionality, mDBC, etc.).
+- **Stage 1 - Reference finder**: `scripts/mvp_direct_file_search.py:369` prompts Agent 1 with OpenAI file_search. The tool fetches up to 15 candidates per vector store, Agent 1 inspects each snippet, keeps only semantically correct templates, and emits adaptation notes in `logs/mvp/agent1_output.json`. `_reorder_sources_by_analysis_text` then re-ranks by the agent's reasoning so downstream prompts stay grounded.
+- **Stage 2 - Config generator**: `scripts/mvp_direct_file_search.py:510` packages Agent 1's survivors into a compact prompt for Agent 2. The response format uses the DualSPHysics schema with `strict:false`, letting the LLM flex optional blocks while diff guardrails protect constants, mkconfig, and geometry. Conflicts between user intent and Agent 1 guidance are reconciled silently before edits are applied.
+- **Stage 3 - Normalization**: `chains/json_normalizer.py:41` harmonizes aliases, vector shapes, gauge fingerprints, and execution defaults so every config matches the canonical layout the XML generator expects.
+- **Stage 4 - XML generation and optional GenCase**: `scripts/mvp_direct_file_search.py:703` calls `AutoXml_script/generate_xml.py:1177` to materialize XML. When `--execute` is used, `tools/exec.py` runs GenCase and saves outputs under `logs/mvp/case_out/` for inspection.
 
-**Stage 1 - Agent 1 (Reference Finder)**
-- Agent 1 analyzes file search hits, reranks them by how they appear in the analysis, and captures lightweight metadata plus guidance in logs/mvp/agent1_output.json (scripts/mvp_direct_file_search.py:386).
-- _reorder_sources_by_analysis_text gives LLM reasoning priority over raw retrieval scores so the instructions stay semantically grounded (scripts/mvp_direct_file_search.py:325).
+## Key Design Decisions
+- Two-agent handshake keeps retrieval vetting (Agent 1) separate from schema-constrained synthesis (Agent 2), reducing prompt bloat and forcing an explicit instruction pass (`scripts/mvp_direct_file_search.py:458`).
+- Query rewriting stays additive: the raw user text is preserved, preventing tool hallucinations and helping niche terms like mDBC survive preprocessing.
+- Schema enforcement shifted from strict JSON validation to loose mode plus targeted diff checks after real cases revealed high structural variance (`scripts/mvp_direct_file_search.py:638`, `schemas/dualsphysics_config_schema.json`).
+- Normalizer favors repair over rejection, emitting warnings when it fills missing vectors or renames legacy keys so the pipeline remains resilient during exploration.
+- Geometry normals now mandate `norgeometry.svshapes`; the generator backfills `{ "v": true }` and a standard debug comment when legacy templates omit it so schema validation and GenCase exports stay aligned.
 
-**Stage 2 - Agent 2 (Config Generator)**
-- scripts/mvp_direct_file_search.py:510 loads the local JSON references returned by Agent 1, persists the full payload to logs/mvp/agent2_input.json, and builds the structured prompt.
-- The OpenAI call uses the project schema with strict mode disabled to allow legitimate variability while still validating shape (scripts/mvp_direct_file_search.py:626).
-- A fixed-section diff check guards constants, mkconfig, and geometry.definition, retrying the call up to three times if the LLM drifts from the reference template (scripts/mvp_direct_file_search.py:638).
+## Retrieval Debugging Log (mDBC dam-break)
+- Raw file-search with "generate a 3D dambreak mdbc xml file" surfaces `CaseDamBreak3D_mDBC_Def.json` immediately, but the MVP hint "MUST: dambreak, mdbc, 3D" still allows non-mDBC files to outrank it because the vector score dominates once results are truncated at `_DEFAULT_SEARCH_LIMIT = 15` (`rag/openai_file_search.py:29`).
+- The metadata filter today is purely textual; `CaseDamBreak3D_mDBC_Def.json` lacks a dedicated metadata key, so the filter cannot force inclusion. MUST tokens live only in the query string, not a hard filter.
+- Recommended mitigations:
+  1. Increase `max_num_results` to 25 when MUST contains niche terms (`rag/openai_file_search.py:406`).
+  2. Post-process search results to bubble filenames whose `source_path` contains "mdbc" ahead of equal-score items before handing them to Agent 1.
+  3. Extend ingestion metadata so mDBC templates carry an explicit tag, unlocking true metadata filtering.
+- Interim verification lives in `logs/last_run/sources.json`, and `search_query_test.py` reproduces raw vs. MVP queries side-by-side for regression tracking.
 
-**Stage 3 - JSON normalization and XML generation**
-- Agent 2's JSON is normalized into the canonical format via normalize_case_config before any XML is produced (chains/json_normalizer.py:41).
-- The normalizer accepts loose inputs (aliases like constantsdef, mixed vector shapes) and issues warnings rather than failing whenever possible (chains/json_normalizer.py:66).
-- generate_xml_and_execute then calls generate_case_xml, which validates the structure before serializing XML (scripts/mvp_direct_file_search.py:703, AutoXml_script/generate_xml.py:1177).
+## Tooling and Validation
+- `tests/test_agent2_reference_loading.py` guards against missing reference payloads and truncated snippets.
+- `tests/test_json_normalizer.py` and `tests/test_generator_json_pipeline.py` cover the normalization flow and XML conversion.
+- `scripts/regenerate_config_library.py` refreshes local exemplars and re-syncs checksums consumed by the vector store ingestion helpers.
+- `roundtrip_report.md` documents XML->JSON->XML checks, while `TEST_MVP.md` captures the manual smoke-playbook followed during the successful run.
 
-**Stage 4 - Optional GenCase execution**
-- When --execute is supplied, generate_xml_and_execute invokes tools.exec.run_gencase to test the XML end-to-end, capturing outputs in logs/mvp/case_out/ (scripts/mvp_direct_file_search.py:727).
-
-## Key Design Choices
-- **Two-agent handshake**: Agent 1 performs semantic vetting over the raw retrieval scores so Agent 2 starts from a vetted, instruction-rich template. This separation keeps the second prompt compact and focused.
-- **Reference resolution**: The MVP resolves file paths locally to avoid large context windows and make debugging reproducible (scripts/mvp_direct_file_search.py:135).
-- **Instruction alignment**: The Agent 2 prompt insists on silently reconciling user intent and Agent 1 guidance before editing, reducing contradictory edits.
-- **Semi-strict schema**: We set strict:false in the response format after discovering that real DualSPHysics cases contain optional blocks and naming variations that the strict schema rejected. The diff guardrails keep high-value sections locked even with relaxed validation.
-- **Synonym heuristics**: Token maps for constants and geometry terms help spot when the user explicitly requests changes, allowing Agent 2 to permit only those edits in fixed sections (scripts/mvp_direct_file_search.py:179).
-- **Progressive hardening**: The JSON normalizer backfills missing canonical keys, normalizes vectors, and synthesizes execution parameter plans so the downstream XML generator stays deterministic (chains/json_normalizer.py:41).
-
-## Validation & Tooling
-- docs/MVP_USAGE.md documents CLI-driven verification, including pausing after Agent 1 for manual review.
-- tests/test_agent2_reference_loading.py exercises reference resolution edge cases to ensure truncated excerpts still resolve for Agent 2.
-- tests/test_generate_xml.py keeps the generator honest by round-tripping known-good configs through the XML serializer.
-- logs/mvp/agent2_fixed_section_diff.json captures any diff violations for rapid debugging when Agent 2 retries.
-
-## Lessons & Next Steps
-- Strict JSON schema enforcement proved too brittle for the diversity of DualSPHysics templates, so we now lean on semantic guardrails plus normalization.
-- The current workflow lacks an automated retry path for poor Agent 1 retrievals; a light feedback loop (for example, alternative rerank strategies) would improve recall.
-- Metrics and telemetry are still manual, so wiring the MVP into metrics/plan_runs.csv would surface coverage and failure modes over time.
-- Future work: integrate the MVP guardrails into the production planner chain, add automated GenCase smoke tests, and broaden schema allowances for motion and floating blocks.
-
-## Latest Updates
-- Semi-strict schema now enumerates all known execution parameters and keeps TimeMax/TimeOut required while permitting new flexible sections. See schemas/dualsphysics_config_schema.json and the mirrored guardrails in scripts/mvp_direct_file_search.py.
-- Normalizer and XML generator stay aligned: _normalize_geometry_commands now preserves ICS-style commands.children, and _build_gauges uses normalized fingerprints to avoid duplicating generic nodes (resolves repeated <pointdp> in SWL gauges).
-- mvp_direct_file_search.py defers schema enforcement to the new diff checker but still retries Agent 2 when locked sections drift. Prompt updates instruct Agent 2 to reconcile user intent and Agent 1 guidance before editing.
-- When debugging, compare Agent 2 output under logs/mvp/agent2_config.json with the generated XML—logs/mvp/generated_case_from_test.xml reflects the canonical form after normalization.
-
+## Lessons Learned and Next Steps
+- Retrieval must treat specialist keywords (mDBC, HR/NS variants) as scarcity signals; relaxing schema is not enough without higher-recall search.
+- Add automated rerank metrics so we can compare raw vs. hint-driven searches and detect when important templates fall below the cutoff.
+- Wire MVP runs into lightweight telemetry (for example append outcomes to `metrics/plan_runs.csv`) and gate new prompt changes with the regression tests above.
+- Future work: implement metadata tagging during ingestion, broaden normalization to cover commands.list children, and automate GenCase smoke runs for high-value scenarios.

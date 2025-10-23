@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -112,6 +113,24 @@ def _resolve_output_dir(record: RunRecord) -> Optional[Path]:
     except Exception:
         logger.debug("Unable to resolve output directory for run %s", record.run_id)
         return None
+
+
+
+def _delete_output_directory(path: Path) -> None:
+    try:
+        path.relative_to(_RUN_OUTPUT_ROOT)
+    except ValueError:
+        logger.warning("Skipping deletion of %s because it is outside managed run directory", path)
+        return
+    if path == _RUN_OUTPUT_ROOT:
+        logger.warning("Refusing to delete run output root %s", path)
+        return
+    if not path.exists():
+        return
+    try:
+        shutil.rmtree(path)
+    except OSError:
+        logger.exception("Failed to delete run output directory %s", path)
 
 
 def _resolve_artifact_path(record: RunRecord, artifact_path: str) -> Optional[Path]:
@@ -313,6 +332,23 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
                 detail="Run not found",
             )
         return _serialize_run(record)
+
+
+    @router.delete("/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_run_endpoint(
+        run_id: str,
+        history = Depends(get_store),
+    ) -> Response:
+        record = history.delete_run(run_id)
+        if record is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Run not found",
+            )
+        output_dir = _resolve_output_dir(record)
+        if output_dir is not None:
+            _delete_output_directory(output_dir)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.get("/{run_id}/metrics", response_model=None)
     def get_run_metrics(run_id: str, history = Depends(get_store)):

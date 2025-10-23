@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import textwrap
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
 
 # ---- Runtime Options ----
 # For .bat execution, headless is default; set USE_EXISTING_BATCH=1 to reuse existing .bat script
@@ -69,6 +70,28 @@ def _compute_asset_dirs():
 
 
 ASSET_SEARCH_DIRS = _compute_asset_dirs()
+
+
+@contextmanager
+def _temporary_env(overrides):
+    """Temporarily set environment variables, restoring previous values afterwards."""
+
+    sentinel = object()
+    original = {}
+    for key, value in (overrides or {}).items():
+        original[key] = os.environ.get(key, sentinel)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+    try:
+        yield
+    finally:
+        for key, prior in original.items():
+            if prior is sentinel:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prior
 
 
 def _looks_like_data_file(value: str) -> bool:
@@ -663,6 +686,47 @@ def _run_existing_bat(xml_str: str):
     stage = _infer_stage_from_logs(stdout, stderr, "post" if status == "success" else "unknown")
     result = {"status": status, "stage": stage, "stdout": stdout, "stderr": stderr, "workdir": bat_dir}
     return result
+
+def run_gencase(xml_file: str | os.PathLike[str], *, output_dir: str | os.PathLike[str] | None = None) -> dict:
+    """Execute GenCase on a generated XML file."""
+
+    xml_path = pathlib.Path(xml_file)
+    if not xml_path.exists():
+        raise FileNotFoundError(f"XML file not found: {xml_path}")
+
+    xml_text = xml_path.read_text(encoding="utf-8", errors="ignore")
+
+    env_overrides = {"RUN_GENCASE": "1", "RUN_SOLVER": "0", "RUN_POST": "0"}
+    with _temporary_env(env_overrides):
+        result = _run_direct_exec(xml_text)
+
+    if result.get("status") != "success":
+        stderr = (result.get("stderr") or "").strip()
+        stdout = (result.get("stdout") or "").strip()
+        message = stderr or stdout or "GenCase execution failed"
+        raise RuntimeError(message)
+
+    workdir_value = result.get("workdir")
+    if output_dir is not None:
+        source_dir = None
+        if workdir_value:
+            source_dir = pathlib.Path(workdir_value) / f"{CASE_NAME}_out"
+        if source_dir is None or not source_dir.exists():
+            raise RuntimeError(f"GenCase completed but produced no output directory at: {source_dir}")
+
+        destination = pathlib.Path(output_dir)
+        try:
+            if destination.exists():
+                shutil.rmtree(destination)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(source_dir, destination)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to publish GenCase output to '{destination}': {exc}")
+
+        result["output_dir"] = str(destination)
+
+    return result
+
 def run_dualsphysics(xml_str: str):
     if USE_EXISTING_BATCH:
         return _run_existing_bat(xml_str)

@@ -76,8 +76,18 @@
   },
   "geometry": {
     "definition": {
-      "attributes": {
-        "dp": "0.005",
+      "dp": "0.005",
+      "pointmin": {
+        "x": "-1",
+        "y": "-1",
+        "z": "-1"
+      },
+      "pointmax": {
+        "x": "5",
+        "y": "2",
+        "z": "2"
+      },
+      "meta": {
         "comment": "Initial inter-particle distance",
         "units_comment": "metres (m)"
       },
@@ -88,22 +98,6 @@
             "x": "0",
             "y": "0",
             "z": "0"
-          }
-        },
-        {
-          "tag": "pointmin",
-          "vector": {
-            "x": "-1",
-            "y": "-1",
-            "z": "-1"
-          }
-        },
-        {
-          "tag": "pointmax",
-          "vector": {
-            "x": "5",
-            "y": "2",
-            "z": "2"
           }
         }
       ]

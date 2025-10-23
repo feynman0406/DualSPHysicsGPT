@@ -1,0 +1,81 @@
+﻿.log-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.log-toolbar input,
+.log-toolbar select {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.log-toolbar .toggle {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-weight: 500;
+}
+
+.log-viewport {
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 1rem;
+  max-height: 420px;
+  overflow: auto;
+  padding: 1rem;
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+}
+
+.placeholder {
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.log-entries {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.log-entry {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.timestamp {
+  color: rgba(226, 232, 240, 0.6);
+  min-width: 60px;
+}
+
+.stream {
+  min-width: 80px;
+  color: rgba(96, 165, 250, 0.9);
+}
+
+.log-stderr .stream {
+  color: rgba(248, 113, 113, 0.9);
+}
+
+.message {
+  flex: 1;
+}
+
+.log-error {
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(248, 113, 113, 0.15);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}

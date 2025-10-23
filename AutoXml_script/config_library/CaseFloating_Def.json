@@ -77,8 +77,18 @@
   },
   "geometry": {
     "definition": {
-      "attributes": {
-        "dp": "0.1",
+      "dp": "0.1",
+      "pointmin": {
+        "x": "-1",
+        "y": "-1",
+        "z": "-1"
+      },
+      "pointmax": {
+        "x": "17",
+        "y": "7",
+        "z": "6"
+      },
+      "meta": {
         "units_comment": "metres (m)"
       },
       "children": [
@@ -88,22 +98,6 @@
             "x": "0",
             "y": "0",
             "z": "0"
-          }
-        },
-        {
-          "tag": "pointmin",
-          "vector": {
-            "x": "-1",
-            "y": "-1",
-            "z": "-1"
-          }
-        },
-        {
-          "tag": "pointmax",
-          "vector": {
-            "x": "17",
-            "y": "7",
-            "z": "6"
           }
         }
       ]

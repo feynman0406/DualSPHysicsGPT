@@ -18,6 +18,7 @@ Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent tha
 ## Constraints and principles
 - Minimal-change: preserve algorithms, block ordering, optional sections, and defaults unless the user request or retrieved evidence demands alteration.
 - Critical exception: geometry layout and water body parameters must be updated to match the target scenario, even if this means altering dimensions, fill commands, or fluid definitions.
+- For 2D configurations, emphasise that `geometry.definition.pointmin.y` and `pointmax.y` staying at `0` already enables 2D mode; `fillbox` and related commands must still keep a non-zero `size.y` (e.g., multiples of `#Dp`) so initial particles exist.
 - Cite source files or snippets when possible so later review can trace decisions.
 - Keep guidance concise (target under 6000 characters) yet unambiguous.
 

@@ -1,0 +1,55 @@
+﻿.overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.overview-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.overview-cards > div {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 1rem 1.2rem;
+}
+
+.overview-cards h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.overview-cards p {
+  margin: 0.35rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.overview-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.overview-detail h3 {
+  margin: 0 0 0.4rem;
+  color: #1f2937;
+}
+
+.overview-detail p {
+  margin: 0;
+  color: #475569;
+}
+
+.overview-detail ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: #475569;
+}

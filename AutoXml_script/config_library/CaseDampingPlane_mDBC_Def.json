@@ -76,8 +76,18 @@
   },
   "geometry": {
     "definition": {
-      "attributes": {
-        "dp": "0.0125",
+      "dp": "0.0125",
+      "pointmin": {
+        "x": "0.8",
+        "y": "0.2",
+        "z": "-0.2"
+      },
+      "pointmax": {
+        "x": "6.6",
+        "y": "0.2",
+        "z": "1"
+      },
+      "meta": {
         "comment": "Initial inter-particle distance",
         "units_comment": "metres (m)"
       },
@@ -88,22 +98,6 @@
             "x": "0",
             "y": "0",
             "z": "0"
-          }
-        },
-        {
-          "tag": "pointmin",
-          "vector": {
-            "x": "0.8",
-            "y": "0.2",
-            "z": "-0.2"
-          }
-        },
-        {
-          "tag": "pointmax",
-          "vector": {
-            "x": "6.6",
-            "y": "0.2",
-            "z": "1"
           }
         }
       ]
@@ -247,41 +241,10 @@
           ]
         }
       ]
-    }
-  },
-  "motion": [
-    {
-      "ref": "10",
-      "children": [
-        {
-          "tag": "begin",
-          "mov": "1",
-          "start": "0.00",
-          "finish": "100"
-        },
-        {
-          "tag": "mvpredef",
-          "id": "1",
-          "duration": "10",
-          "children": [
-            {
-              "tag": "file",
-              "name": "CaseDampingPlane_PistonMovement.dat",
-              "fields": "3",
-              "fieldtime": "0",
-              "fieldx": "1"
-            }
-          ]
-        }
-      ],
-      "type": "objreal"
-    }
-  ],
-  "casedef_extra": [
-    {
-      "tag": "normals",
+    },
+    "normals": {
       "active": true,
-      "children": [
+      "extra": [
         {
           "tag": "norplane",
           "mkbound": "10",
@@ -329,6 +292,34 @@
         }
       ]
     }
+  },
+  "motion": [
+    {
+      "ref": "10",
+      "children": [
+        {
+          "tag": "begin",
+          "mov": "1",
+          "start": "0.00",
+          "finish": "100"
+        },
+        {
+          "tag": "mvpredef",
+          "id": "1",
+          "duration": "10",
+          "children": [
+            {
+              "tag": "file",
+              "name": "CaseDampingPlane_PistonMovement.dat",
+              "fields": "3",
+              "fieldtime": "0",
+              "fieldx": "1"
+            }
+          ]
+        }
+      ],
+      "type": "objreal"
+    }
   ],
   "casedef_children": [
     {
@@ -348,58 +339,8 @@
       "key": "motion"
     },
     {
-      "type": "generic",
-      "spec": {
-        "tag": "normals",
-        "active": true,
-        "children": [
-          {
-            "tag": "norplane",
-            "mkbound": "10",
-            "children": [
-              {
-                "tag": "point",
-                "auto": true,
-                "comment": "Point is calculated automatically accoding to normal configuration"
-              },
-              {
-                "tag": "limitdist",
-                "vdp": "0.5",
-                "comment": "Minimun distance (Dp*vdp) between particles and boundary limit to calculate the point (default=0.5)"
-              },
-              {
-                "tag": "normal",
-                "vector": {
-                  "x": "1",
-                  "y": "0",
-                  "z": "0"
-                }
-              },
-              {
-                "tag": "maxdisth",
-                "v": "2.0",
-                "comment": "Maximum distance to boundary limit. It uses H*maxdisth (default=2)"
-              },
-              {
-                "tag": "clear",
-                "v": true,
-                "comment": "Clears previous normal data (default=true)"
-              }
-            ]
-          },
-          {
-            "tag": "norparts",
-            "mkbound": "20",
-            "children": [
-              {
-                "tag": "maxdisth",
-                "v": "2.0",
-                "comment": "Maximum distance to boundary limit. It uses H*maxdisth (default=2)"
-              }
-            ]
-          }
-        ]
-      }
+      "type": "section",
+      "key": "normals"
     }
   ],
   "execution": {

@@ -94,6 +94,75 @@ def test_geometry_fallback_support(tmp_path: Path) -> None:
     assert fillbox.attrib == {"x": "0", "y": "0", "z": "0"}
 
 
+def test_fluid_fillbox_modefill_solid_becomes_void(tmp_path: Path) -> None:
+    config = {
+        "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 1, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "children": [
+                            {"tag": "modefill", "text": "solid"},
+                            {"tag": "point", "vector": {"x": 0.5, "y": 0.0, "z": 0.0}},
+                            {"tag": "size", "vector": {"x": 1.2, "y": 0.3, "z": 0.4}},
+                        ],
+                    },
+                ],
+            },
+        },
+    }
+    output_xml = run_generator(tmp_path, config)
+    root = ET.parse(output_xml).getroot()
+    modefill = root.find("casedef/geometry/commands/mainlist/fillbox/modefill")
+    assert modefill is not None
+    assert modefill.text == "void"
+
+def test_normals_section_emitted(tmp_path: Path) -> None:
+    normals_cfg = {
+        "active": True,
+        "norgeometry": {
+            "comment": "Normals for test case",
+            "geometryfile": {"file": "normals.vtk", "comment": "Normals mesh"},
+            "distanceh": {"v": 1.5, "comment": "Distance multiplier"},
+            "svshapes": {"v": True, "comment": "Dump debug shapes"},
+        },
+    }
+    config = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {"normals": normals_cfg},
+        "normals": normals_cfg,
+    }
+
+    output_xml = run_generator(tmp_path, config)
+    root = ET.parse(output_xml).getroot()
+
+    normals_node = root.find("casedef/normals")
+    assert normals_node is not None
+    assert normals_node.attrib.get("active") == "true"
+
+    norgeometry = normals_node.find("norgeometry")
+    assert norgeometry is not None
+
+    geometryfile = norgeometry.find("geometryfile")
+    assert geometryfile is not None
+    assert geometryfile.attrib["file"] == "normals.vtk"
+    assert geometryfile.attrib["comment"] == "Normals mesh"
+
+    distanceh = norgeometry.find("distanceh")
+    assert distanceh is not None
+    assert distanceh.attrib["v"] == "1.5"
+
+    svshapes = norgeometry.find("svshapes")
+    assert svshapes is not None
+    assert svshapes.attrib["v"] == "true"
 def test_mkconfig_patterns_and_timeout(tmp_path: Path) -> None:
     config = {
         "constants": {},

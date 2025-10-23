@@ -299,3 +299,40 @@ def test_create_run_invokes_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert len(records) == 1
     assert records[0].run_id == captured["run_id"]
     assert records[0].status == "queued"
+
+def test_delete_run_endpoint_removes_history_and_outputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_root = tmp_path / "runs"
+    run_root.mkdir()
+    monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", run_root)
+
+    store = HistoryStore(tmp_path / "history.json")
+    started = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    run_dir = run_root / "RUN-REMOVE"
+    run_dir.mkdir(parents=True)
+    (run_dir / "artifact.txt").write_text("payload", encoding="utf-8")
+
+    removable = _build_record("RUN-REMOVE", started, run_dir)
+    retained_dir = run_root / "RUN-KEEP"
+    retained_dir.mkdir(parents=True)
+    retained = _build_record("RUN-KEEP", started + timedelta(minutes=5), retained_dir)
+
+    store.start_run(removable)
+    store.start_run(retained)
+
+    client = _client_with_store(store)
+    response = client.delete("/api/runs/RUN-REMOVE")
+    assert response.status_code == 204
+    assert store.get_run("RUN-REMOVE") is None
+    assert not run_dir.exists()
+
+    remaining_ids = [record.run_id for record in store.list_runs()]
+    assert remaining_ids == ["RUN-KEEP"]
+
+
+def test_delete_run_endpoint_returns_not_found(tmp_path: Path) -> None:
+    store = _prepare_store(tmp_path)
+    client = _client_with_store(store)
+
+    response = client.delete("/api/runs/DOES-NOT-EXIST")
+    assert response.status_code == 404

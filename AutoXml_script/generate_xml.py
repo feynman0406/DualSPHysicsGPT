@@ -220,13 +220,16 @@ class CaseBuilder:
                     elif key == "geometry" and "geometry" in self.config and key not in added_sections:
                         append_if_not_none(casedef, self._build_geometry())
                         added_sections.add(key)
+                    elif key == "normals" and key not in added_sections:
+                        append_if_not_none(casedef, self._build_normals())
+                        added_sections.add(key)
                     elif key in {"initials", "floatings", "motion"} and key in self.config and key not in added_sections:
                         append_if_not_none(casedef, self._build_section_list(key))
                         added_sections.add(key)
                 elif entry_type == "generic":
                     casedef.append(build_generic_node(entry["spec"]))
         else:
-            config_order = ["constants", "mkconfig", "patterns", "geometry", "initials", "floatings", "motion", "casedef_extra"]
+            config_order = ["constants", "mkconfig", "patterns", "geometry", "normals", "initials", "floatings", "motion", "casedef_extra"]
             for key in config_order:
                 if key == "constants":
                     if "constants" in self.config or "constantsdef" in self.config:
@@ -237,6 +240,8 @@ class CaseBuilder:
                     append_if_not_none(casedef, self._build_patterns())
                 elif key == "geometry" and "geometry" in self.config:
                     append_if_not_none(casedef, self._build_geometry())
+                elif key == "normals" and ("normals" in self.config or (isinstance(self.config.get("geometry"), dict) and self.config["geometry"].get("normals") is not None)):
+                    append_if_not_none(casedef, self._build_normals())
                 elif key in {"initials", "floatings", "motion"} and key in self.config:
                     append_if_not_none(casedef, self._build_section_list(key))
                 elif key == "casedef_extra" and "casedef_extra" in self.config:
@@ -384,6 +389,43 @@ class CaseBuilder:
         for spec in geometry_cfg.get("extra", []):
             geometry_node.append(build_generic_node(spec))
         return geometry_node
+
+    def _build_normals(self) -> Optional[ET.Element]:
+        geometry_cfg = self.config.get("geometry")
+        normals_cfg: Any = None
+        if isinstance(geometry_cfg, dict):
+            geometry_normals = geometry_cfg.get("normals")
+            if geometry_normals is not None:
+                normals_cfg = geometry_normals
+        if normals_cfg is None:
+            normals_cfg = self.config.get("normals")
+        if normals_cfg is None:
+            return None
+
+        if isinstance(normals_cfg, list):
+            entries = [entry for entry in normals_cfg if entry is not None]
+            if not entries:
+                return None
+            if len(entries) == 1:
+                normals_cfg = entries[0]
+            else:
+                children_specs: List[Dict[str, Any]] = []
+                for entry in entries:
+                    if isinstance(entry, dict):
+                        child_spec = dict(entry)
+                        if "tag" not in child_spec and "name" not in child_spec and "type" not in child_spec:
+                            child_spec["tag"] = "item"
+                        children_specs.append(child_spec)
+                    else:
+                        children_specs.append({"tag": "item", "text": entry})
+                return build_generic_node({"tag": "normals", "children": children_specs})
+
+        if isinstance(normals_cfg, dict):
+            spec = dict(normals_cfg)
+            spec.setdefault("tag", "normals")
+            return build_generic_node(spec)
+
+        return build_generic_node({"tag": "normals", "text": normals_cfg})
 
     def _build_geometry_predefinition(self, config: Any) -> Optional[ET.Element]:
         if not config:
@@ -670,6 +712,13 @@ class CaseBuilder:
             val = node.attrib.pop("value", None)
             if (node.text is None or node.text == "") and val is not None:
                 node.text = stringify(val)
+
+        if cmd == "fillbox":
+            for child in node:
+                if str(child.tag or "").lower() == "modefill":
+                    text = (child.text or "").strip().lower()
+                    if text == "solid":
+                        child.text = "void"
 
         return node
 

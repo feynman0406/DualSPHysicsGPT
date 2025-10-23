@@ -12,6 +12,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from AutoXml_script.generate_xml import generate_case_xml
+from chains.json_normalizer import normalize_case_config
+from chains.mdbc_normals import enforce_mdbc_normals
 from tools.exec import run_dualsphysics
 
 
@@ -45,7 +47,9 @@ def smoke_test_configs(config_dir: Path, output_dir: Path, *, run_solver: bool) 
         }
         try:
             config = _load_config(config_path)
-            xml_text = generate_case_xml(config)
+            normalization = normalize_case_config(config)
+            config_normalized = enforce_mdbc_normals(normalization.config)
+            xml_text = generate_case_xml(config_normalized)
             xml_path = _write_xml(output_dir, config_path, xml_text)
             record["xml"] = str(xml_path)
             if run_solver:
