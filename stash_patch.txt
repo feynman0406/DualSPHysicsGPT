@@ -1,0 +1,3032 @@
+diff --git a/AutoXml_script/CaseDamBreak3D_Def.xml b/AutoXml_script/CaseDamBreak3D_Def.xml
+deleted file mode 100644
+index b7e96ae3..00000000
+--- a/AutoXml_script/CaseDamBreak3D_Def.xml
++++ /dev/null
+@@ -1,96 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="20" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <coefh value="1.0" comment="Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)"/>
+-      <_hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.0085" units_comment="metres (m)">
+-        <pointmin x="-0.05" y="-0.05" z="-0.05"/>
+-        <pointmax x="2" y="1" z="1"/>
+-      </definition>
+-      <commands>
+-        <mainlist>
+-          <setshapemode>dp | bound</setshapemode>
+-          <setdrawmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <drawbox>
+-            <boxfill>solid</boxfill>
+-            <point x="0" y="0" z="0"/>
+-            <size x="0.4" y="0.67" z="0.3"/>
+-          </drawbox>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>bottom | left | right | front | back</boxfill>
+-            <point x="0" y="0" z="0"/>
+-            <size x="1.6" y="0.67" z="0.4"/>
+-          </drawbox>
+-          <shapeout file="Box"/>
+-          <setmkvoid/>
+-          <drawbox>
+-            <boxfill>solid</boxfill>
+-            <point x="0.9" y="0.24" z="0"/>
+-            <size x="0.12" y="0.12" z="0.45"/>
+-          </drawbox>
+-          <setmkbound mk="1"/>
+-          <drawbox>
+-            <boxfill>top | left | right | front | back</boxfill>
+-            <point x="0.9" y="0.24" z="0"/>
+-            <size x="0.12" y="0.12" z="0.45"/>
+-          </drawbox>
+-          <setmkbound mk="10"/>
+-          <drawbox>
+-            <boxfill>left</boxfill>
+-            <point x="0.9" y="0.24" z="0"/>
+-            <size x="0.12" y="0.12" z="0.45"/>
+-          </drawbox>
+-          <shapeout file="Building"/>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="1" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="1" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS (default=1)"/>
+-      <parameter value="0.1" key="Visco" comment="Viscosity value"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="2" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to defult use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to defult use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="1.6" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="1" key="PartsOutMax" comment="%/100 of fluid particles allowed to be excluded from domain (default=1)" units_comment="decimal"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimun and maximum position of the generated particles)">
+-        <posmin x="default" y="default" z="default" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="default" y="default" z="default + 50%"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseDamBreak3D_NS_Def.xml b/AutoXml_script/CaseDamBreak3D_NS_Def.xml
+deleted file mode 100644
+index d5cadc3d..00000000
+--- a/AutoXml_script/CaseDamBreak3D_NS_Def.xml
++++ /dev/null
+@@ -1,181 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="20" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="241" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.01" units_comment="metres (m)">
+-        <pointref x="0" y="0" z="0"/>
+-        <pointmin x="-1" y="-1" z="-1"/>
+-        <pointmax x="3.3" y="1.1" z="1.1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setmkbound mk="0"/>
+-          <setnormalinvert invert="true"/>
+-          <!-- Left side of the tank -->
+-          <drawbox>
+-            <boxfill>all^top^right</boxfill>
+-            <point x="#Tankpx1" y="#Tankpy1" z="#Tankpz1"/>
+-            <endpoint x="#Boxpx1-Dpm" y="#Tankpy2" z="#Tankpz2"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <!-- Right side of the tank -->
+-          <drawbox>
+-            <boxfill>all^top^left</boxfill>
+-            <point x="#Boxpx2+Dpm" y="#Tankpy1" z="#Tankpz1"/>
+-            <endpoint x="#Tankpx2" y="#Tankpy2" z="#Tankpz2"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <!-- Front-central side of the tank -->
+-          <drawbox>
+-            <boxfill>front|bottom</boxfill>
+-            <point x="#Boxpx1-Dpm" y="#Tankpy1" z="#Tankpz1"/>
+-            <endpoint x="#Boxpx2+Dpm" y="#Boxpy1-Dpm" z="#Tankpz2"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <!-- Back-central side of the tank -->
+-          <drawbox>
+-            <boxfill>back|bottom</boxfill>
+-            <point x="#Boxpx1-Dpm" y="#Boxpy2+Dpm" z="#Tankpz1"/>
+-            <endpoint x="#Boxpx2+Dpm" y="#Tankpy2" z="#Tankpz2"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <!-- Central obstacle -->
+-          <setnormalinvert invert="false"/>
+-          <setmkbound mk="1"/>
+-          <drawbox>
+-            <boxfill>all^bottom</boxfill>
+-            <point x="#Boxpx1" y="#Boxpy1" z="#Tankpz1+Dpm"/>
+-            <endpoint x="#Boxpx2" y="#Boxpy2" z="#Boxpz2"/>
+-            <layers vdp="0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Defines actual dimensions of tank -->
+-          <newvarcte Dpm="Dp/2"/>
+-          <newvarcte DefTankpx="0" DefTankpy="0" DefTankpz="0"/>
+-          <newvarcte DefTanksx="3.220" DefTanksy="1.0" DefTanksz="1.0"/>
+-          <newvarcte DefBoxpx="0.660" DefBoxpy="0.300"/>
+-          <newvarcte DefBoxsx="0.160" DefBoxsy="0.400" DefBoxsz="0.160"/>
+-          <!-- Defines dimensions and positions according to pointmin and dp -->
+-          <newvarcte Tankpx1="roundposx(DefTankpx)" Tankpx2="roundposx(DefTankpx+DefTanksx)"/>
+-          <newvarcte Tankpy1="roundposy(DefTankpy)" Tankpy2="roundposy(DefTankpy+DefTanksy)"/>
+-          <newvarcte Tankpz1="roundposz(DefTankpz)" Tankpz2="roundposz(DefTankpz+DefTanksz)"/>
+-          <newvarcte Boxpx1="roundposx(DefBoxpx)" Boxpx2="roundposx(DefBoxpx+DefBoxsx)"/>
+-          <newvarcte Boxpy1="roundposy(DefBoxpy)" Boxpy2="roundposy(DefBoxpy+DefBoxsy)"/>
+-          <newvarcte Boxpz2="roundposy(DefTankpz+DefBoxsz)"/>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <!-- Left side of the tank -->
+-          <drawbox>
+-            <boxfill>all^top^right</boxfill>
+-            <point x="#Tankpx1" y="#Tankpy1" z="#Tankpz1"/>
+-            <endpoint x="#Boxpx1" y="#Tankpy2" z="#Tankpz2"/>
+-            <layers vdp="0,1,2"/>
+-          </drawbox>
+-          <!-- Right side of the tank -->
+-          <drawbox>
+-            <boxfill>all^top^left</boxfill>
+-            <point x="#Boxpx2" y="#Tankpy1" z="#Tankpz1"/>
+-            <endpoint x="#Tankpx2" y="#Tankpy2" z="#Tankpz2"/>
+-            <layers vdp="0,1,2"/>
+-          </drawbox>
+-          <!-- Front-central side of the tank -->
+-          <drawbox>
+-            <boxfill>front|bottom</boxfill>
+-            <point x="#Boxpx1" y="#Tankpy1" z="#Tankpz1"/>
+-            <endpoint x="#Boxpx2" y="#Boxpy1" z="#Tankpz2"/>
+-            <layers vdp="0,1,2"/>
+-          </drawbox>
+-          <!-- Back-central side of the tank -->
+-          <drawbox>
+-            <boxfill>back|bottom</boxfill>
+-            <point x="#Boxpx1" y="#Boxpy2" z="#Tankpz1"/>
+-            <endpoint x="#Boxpx2" y="#Tankpy2" z="#Tankpz2"/>
+-            <layers vdp="0,1,2"/>
+-          </drawbox>
+-          <!-- Central obstacle -->
+-          <setmkbound mk="1"/>
+-          <drawbox>
+-            <boxfill>all^bottom</boxfill>
+-            <point x="#Boxpx1" y="#Boxpy1" z="#Tankpz1-Dp*2"/>
+-            <endpoint x="#Boxpx2" y="#Boxpy2" z="#Boxpz2"/>
+-            <layers vdp="0,-1,-2"/>
+-          </drawbox>
+-          <_shapeout file="parts"/>
+-          <!-- Fluid particles -->
+-          <setmkfluid mk="0"/>
+-          <fillbox x="2.1" y="0.1" z="0.2">
+-            <modefill>void</modefill>
+-            <point x="1.992" y="0" z="0"/>
+-            <size x="1.4" y="1" z="0.55"/>
+-          </fillbox>
+-          <shapeout file=""/>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="2" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="1" key="NoPenetration" comment="Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.01" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="6" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="default" y="default" z="default" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="default" y="default" z="default+50%"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseDambreak2D_Def.xml b/AutoXml_script/CaseDambreak2D_Def.xml
+deleted file mode 100644
+index c0e6847a..00000000
+--- a/AutoXml_script/CaseDambreak2D_Def.xml
++++ /dev/null
+@@ -1,100 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="20" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <coefh value="1.0" comment="Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)"/>
+-      <_hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.01" units_comment="metres (m)">
+-        <pointref x="0" y="0" z="0"/>
+-        <pointmin x="-1" y="0" z="-1"/>
+-        <pointmax x="4.5" y="0" z="3.5"/>
+-      </definition>
+-      <commands>
+-        <mainlist>
+-          <setdrawmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <drawbox>
+-            <boxfill>solid</boxfill>
+-            <point x="0" y="-1" z="0"/>
+-            <size x="1" y="2" z="2"/>
+-          </drawbox>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>bottom | left | right | front | back</boxfill>
+-            <point x="0" y="-1" z="0"/>
+-            <size x="4" y="2" z="3"/>
+-          </drawbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-  </casedef>
+-  <execution>
+-    <special>
+-      <gauges>
+-        <default>
+-          <savevtkpart value="true" comment="Creates VTK files for each PART (default=false)"/>
+-          <_computedt value="0.001" comment="Time between measurements. 0:all steps (default=TimeOut)" units_comment="s"/>
+-          <_computetime start="0.1" end="0.2" comment="Start and end of measures. (default=simulation time)" units_comment="s"/>
+-          <output value="true" comment="Creates CSV files of measurements (default=false)"/>
+-          <_outputdt value="0" comment="Time between output measurements. 0:all steps (default=TimeOut)" units_comment="s"/>
+-          <_outputtime start="0" end="10" comment="Start and end of output measures. (default=simulation time)" units_comment="s"/>
+-        </default>
+-        <swl name="Swl_x02">
+-          <pointdp coefdp="0.5" comment="Distance between check points (value=coefdp*Dp)"/>
+-          <point0 x="0.2" y="0" z="-0.05" comment="Initial point" units_comment="m"/>
+-          <point2 x="0.2" y="0" z="2.1" comment="Final point" units_comment="m"/>
+-        </swl>
+-        <swl name="Swl_z003">
+-          <computedt value="0.005" comment="Time between measurements. 0:all steps (default=default.computedt)" units_comment="s"/>
+-          <outputdt value="0.005" comment="Time between output measurements. 0:all steps (default=default.outputdt)" units_comment="s"/>
+-          <pointdp coefdp="0.5" comment="Distance between check points (value=coefdp*Dp)"/>
+-          <point0 x="-0.05" y="0" z="0.03" comment="Initial point" units_comment="m"/>
+-          <point2 x="4.05" y="0" z="0.03" comment="Final point" units_comment="m"/>
+-        </swl>
+-      </gauges>
+-    </special>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="1" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="2" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="2.0" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="1" key="PartsOutMax" comment="%/100 of fluid particles allowed to be excluded from domain (default=1)" units_comment="decimal"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="default" y="default" z="default" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="default" y="default" z="default + 50%"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseSloshingHR_Def.xml b/AutoXml_script/CaseSloshingHR_Def.xml
+deleted file mode 100644
+index 457249cc..00000000
+--- a/AutoXml_script/CaseSloshingHR_Def.xml
++++ /dev/null
+@@ -1,114 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="30" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.002" units_comment="metres (m)">
+-        <pointmin x="-1" y="0" z="-1"/>
+-        <pointmax x="1" y="0" z="1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setnormalinvert invert="true"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.510"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.510"/>
+-            <layers vdp="0,1,2,3"/>
+-          </drawbox>
+-          <!-- Fluid particles -->
+-          <setboxlimitmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0" y="0" z="0.02">
+-            <modefill>void</modefill>
+-            <point x="-0.5" y="-0.1" z="0"/>
+-            <size x="1" y="0.2" z="0.093"/>
+-          </fillbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-    <motion>
+-      <objreal ref="0">
+-        <begin mov="1" start="0" finish="100"/>
+-        <mvrotfile id="1" duration="100" anglesunits="degrees">
+-          <file name="SloshingMotionData.dat"/>
+-          <axisp1 x="0" y="-1" z="0"/>
+-          <axisp2 x="0" y="1" z="0"/>
+-        </mvrotfile>
+-      </objreal>
+-    </motion>
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="1" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="8.35" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="-0.75" y="0" z="-0.05" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="0.75" y="0" z="0.56"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseSloshingHR_NSNP_Def.xml b/AutoXml_script/CaseSloshingHR_NSNP_Def.xml
+deleted file mode 100644
+index 2817c346..00000000
+--- a/AutoXml_script/CaseSloshingHR_NSNP_Def.xml
++++ /dev/null
+@@ -1,115 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="30" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.002" units_comment="metres (m)">
+-        <pointmin x="-1" y="0" z="-1"/>
+-        <pointmax x="1" y="0" z="1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setnormalinvert invert="true"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.510"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.510"/>
+-            <layers vdp="0,1,2,3"/>
+-          </drawbox>
+-          <!-- Fluid particles -->
+-          <setboxlimitmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0" y="0" z="0.02">
+-            <modefill>void</modefill>
+-            <point x="-0.5" y="-0.1" z="0"/>
+-            <size x="1" y="0.2" z="0.093"/>
+-          </fillbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-    <motion>
+-      <objreal ref="0">
+-        <begin mov="1" start="0" finish="100"/>
+-        <mvrotfile id="1" duration="100" anglesunits="degrees">
+-          <file name="SloshingMotionData.dat"/>
+-          <axisp1 x="0" y="-1" z="0"/>
+-          <axisp2 x="0" y="1" z="0"/>
+-        </mvrotfile>
+-      </objreal>
+-    </motion>
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="2" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="1" key="NoPenetration" comment="Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="8.35" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="-0.75" y="0" z="-0.05" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="0.75" y="0" z="0.56"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseSloshingHR_NS_Def.xml b/AutoXml_script/CaseSloshingHR_NS_Def.xml
+deleted file mode 100644
+index 9e6889b9..00000000
+--- a/AutoXml_script/CaseSloshingHR_NS_Def.xml
++++ /dev/null
+@@ -1,115 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="30" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.002" units_comment="metres (m)">
+-        <pointmin x="-1" y="0" z="-1"/>
+-        <pointmax x="1" y="0" z="1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setnormalinvert invert="true"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.510"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.510"/>
+-            <layers vdp="0,1,2,3"/>
+-          </drawbox>
+-          <!-- Fluid particles -->
+-          <setboxlimitmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0" y="0" z="0.02">
+-            <modefill>void</modefill>
+-            <point x="-0.5" y="-0.1" z="0"/>
+-            <size x="1" y="0.2" z="0.093"/>
+-          </fillbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-    <motion>
+-      <objreal ref="0">
+-        <begin mov="1" start="0" finish="100"/>
+-        <mvrotfile id="1" duration="100" anglesunits="degrees">
+-          <file name="SloshingMotionData.dat"/>
+-          <axisp1 x="0" y="-1" z="0"/>
+-          <axisp2 x="0" y="1" z="0"/>
+-        </mvrotfile>
+-      </objreal>
+-    </motion>
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="2" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="0" key="NoPenetration" comment="Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="8.35" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="-0.75" y="0" z="-0.05" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="0.75" y="0" z="0.56"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseSloshingLR_Def.xml b/AutoXml_script/CaseSloshingLR_Def.xml
+deleted file mode 100644
+index 03f68c04..00000000
+--- a/AutoXml_script/CaseSloshingLR_Def.xml
++++ /dev/null
+@@ -1,114 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="30" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.004" units_comment="metres (m)">
+-        <pointmin x="-0.85" y="0" z="-0.4"/>
+-        <pointmax x="1" y="0" z="1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setnormalinvert invert="true"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.512"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.512"/>
+-            <layers vdp="0,1,2,3"/>
+-          </drawbox>
+-          <!-- Fluid particles -->
+-          <setboxlimitmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0" y="0" z="0.02">
+-            <modefill>void</modefill>
+-            <point x="-0.5" y="-0.1" z="0"/>
+-            <size x="1" y="0.2" z="0.093"/>
+-          </fillbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-    <motion>
+-      <objreal ref="0">
+-        <begin mov="1" start="0" finish="100"/>
+-        <mvrotfile id="1" duration="100" anglesunits="degrees">
+-          <file name="SloshingMotionData.dat"/>
+-          <axisp1 x="0" y="-1" z="0"/>
+-          <axisp2 x="0" y="1" z="0"/>
+-        </mvrotfile>
+-      </objreal>
+-    </motion>
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="1" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="8.35" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="-0.75" y="0" z="-0.05" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="0.75" y="0" z="0.56"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseSloshingLR_NSNP_Def.xml b/AutoXml_script/CaseSloshingLR_NSNP_Def.xml
+deleted file mode 100644
+index f46afe20..00000000
+--- a/AutoXml_script/CaseSloshingLR_NSNP_Def.xml
++++ /dev/null
+@@ -1,135 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="30" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.004" units_comment="metres (m)">
+-        <pointmin x="-0.85" y="0" z="-0.4"/>
+-        <pointmax x="1" y="0" z="1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setnormalinvert invert="true"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.512"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.512"/>
+-            <layers vdp="0,1,2,3"/>
+-          </drawbox>
+-          <!-- Fluid particles -->
+-          <setboxlimitmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0" y="0" z="0.02">
+-            <modefill>void</modefill>
+-            <point x="-0.5" y="-0.1" z="0"/>
+-            <size x="1" y="0.2" z="0.093"/>
+-          </fillbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <!-- <initials>
+-		<rotateaxis mkbound="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-            <rotateaxis mkfluid="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-        </initials> -->
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-    <motion>
+-      <objreal ref="0">
+-        <begin mov="1" start="0" finish="100"/>
+-        <mvrotfile id="1" duration="100" anglesunits="degrees">
+-          <file name="SloshingMotionData.dat"/>
+-          <axisp1 x="0" y="-1" z="0"/>
+-          <axisp2 x="0" y="1" z="0"/>
+-        </mvrotfile>
+-      </objreal>
+-    </motion>
+-    <!-- <initials>
+-		<rotateaxis mkbound="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-            <rotateaxis mkfluid="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-        </initials> -->
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="2" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="1" key="NoPenetration" comment="Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="8.35" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="default-150%" y="default" z="default-150%" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="default+150%" y="default" z="default+150%"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseSloshingLR_NS_Def.xml b/AutoXml_script/CaseSloshingLR_NS_Def.xml
+deleted file mode 100644
+index 345ba478..00000000
+--- a/AutoXml_script/CaseSloshingLR_NS_Def.xml
++++ /dev/null
+@@ -1,135 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="30" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <hdp value="2" comment="Alternative option to calculate the smoothing length (h=hdp*dp)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="240" fluidcount="9"/>
+-    <geometry>
+-      <definition dp="0.004" units_comment="metres (m)">
+-        <pointmin x="-0.85" y="0" z="-0.4"/>
+-        <pointmax x="1" y="0" z="1"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setnormalinvert invert="true"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.512"/>
+-            <layers vdp="-0.5"/>
+-          </drawbox>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Boundary particles -->
+-          <setdrawmode mode="full"/>
+-          <setmkbound mk="0"/>
+-          <drawbox>
+-            <boxfill>all</boxfill>
+-            <point x="-0.45" y="-0.1" z="0"/>
+-            <size x="0.90" y="0.2" z="0.512"/>
+-            <layers vdp="0,1,2,3"/>
+-          </drawbox>
+-          <!-- Fluid particles -->
+-          <setboxlimitmode mode="full"/>
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0" y="0" z="0.02">
+-            <modefill>void</modefill>
+-            <point x="-0.5" y="-0.1" z="0"/>
+-            <size x="1" y="0.2" z="0.093"/>
+-          </fillbox>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <!-- <initials>
+-		<rotateaxis mkbound="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-            <rotateaxis mkfluid="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-        </initials> -->
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-    </normals>
+-    <motion>
+-      <objreal ref="0">
+-        <begin mov="1" start="0" finish="100"/>
+-        <mvrotfile id="1" duration="100" anglesunits="degrees">
+-          <file name="SloshingMotionData.dat"/>
+-          <axisp1 x="0" y="-1" z="0"/>
+-          <axisp2 x="0" y="1" z="0"/>
+-        </mvrotfile>
+-      </objreal>
+-    </motion>
+-    <!-- <initials>
+-		<rotateaxis mkbound="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-            <rotateaxis mkfluid="0" angle="30" anglesunits="degrees">
+-                <axisp1 x="0" y="0" z="0" />
+-                <axisp2 x="0" y="1" z="0" />
+-            </rotateaxis>
+-        </initials> -->
+-  </casedef>
+-  <execution>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="2" key="SlipMode" comment="Slip mode for mDBC 1:DBC vel=0, 2:No-slip, 3:Free Slip (default=1)"/>
+-      <parameter value="0" key="NoPenetration" comment="Activate No-Penetration option for no-slip or free slip mDBC 0:Off, 1:On (default=0)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.02" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="8.35" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.01" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <parameter value="1" key="WrnPartsOut" comment="Active warning according to number of out particles (default=1)"/>
+-      <parameter value="0" key="MinFluidStop" comment="Minimum proportion of initial fluid particles to continue the simulation 0:Never stops, 0.1:Stops when fluid drops to 10%. (default=0)"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="default-150%" y="default" z="default-150%" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="default+150%" y="default" z="default+150%"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/AutoXml_script/CaseWaveTank_Def.xml b/AutoXml_script/CaseWaveTank_Def.xml
+deleted file mode 100644
+index 54b765d8..00000000
+--- a/AutoXml_script/CaseWaveTank_Def.xml
++++ /dev/null
+@@ -1,151 +0,0 @@
+-<?xml version='1.0' encoding='UTF-8'?>
+-<case>
+-  <casedef>
+-    <constantsdef>
+-      <gravity x="0" y="0" z="-9.81" comment="Gravitational acceleration" units_comment="m/s^2"/>
+-      <rhop0 value="1000" comment="Reference density of the fluid" units_comment="kg/m^3"/>
+-      <rhopgradient value="2" comment="Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)"/>
+-      <hswl value="0" auto="true" comment="Maximum still water level to calculate speedofsound using coefsound" units_comment="metres (m)"/>
+-      <gamma value="7" comment="Polytropic constant for water used in the state equation"/>
+-      <speedsystem value="0" auto="true" comment="Maximum system speed (by default the dam-break propagation is used)"/>
+-      <coefsound value="20" comment="Coefficient to multiply speedsystem"/>
+-      <speedsound value="0" auto="true" comment="Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)"/>
+-      <coefh value="1.2" comment="Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)"/>
+-      <cflnumber value="0.2" comment="Coefficient to multiply dt"/>
+-    </constantsdef>
+-    <mkconfig boundcount="230" fluidcount="9">
+-      <mkorientfluid mk="0" orient="Xyz"/>
+-    </mkconfig>
+-    <geometry>
+-      <definition dp="0.03">
+-        <pointref x="0" y="0" z="0"/>
+-        <pointmin x="-0.6" y="0" z="-0.6"/>
+-        <pointmax x="25" y="0" z="2"/>
+-      </definition>
+-      <commands>
+-        <list name="GeometryForNormals">
+-          <setactive drawpoints="0" drawshapes="1"/>
+-          <setshapemode>actual | bound</setshapemode>
+-          <setmkbound mk="0"/>
+-          <drawextrude closed="false">
+-            <extrude x="0" y="2" z="0"/>
+-            <point x="#Tankx0" y="-1" z="#Tankz0"/>
+-            <point x="#Tankx1" y="-1" z="#Tankz1"/>
+-            <point x="#Tankx2" y="-1" z="#Tankz2"/>
+-            <layers vdp="0.5"/>
+-          </drawextrude>
+-          <shapeout file="hdp"/>
+-          <resetdraw/>
+-        </list>
+-        <mainlist>
+-          <!-- Variables to define the geometry -->
+-          <newvar Tankx0="-0.5" Tankz0="0"/>
+-          <newvar Tankx1="6" Tankz1="0"/>
+-          <newvar Tankx2="16" Tankz2="1"/>
+-          <newvar Hdp="Dp/2"/>
+-          <exportvar vars="Hdp"/>
+-          <!-- Actual geometry at dp/2 -->
+-          <runlist name="GeometryForNormals"/>
+-          <!-- Particle generation -->
+-          <setshapemode>actual | bound</setshapemode>
+-          <setdrawmode mode="full"/>
+-          <!-- piston -->
+-          <setmkbound mk="10"/>
+-          <drawbox>
+-            <boxfill>solid</boxfill>
+-            <point x="#-Dp*3" y="-1" z="#Tankz0"/>
+-            <size x="#Dp*3" y="2" z="#Tankz2-Tankz0"/>
+-          </drawbox>
+-          <!-- tank -->
+-          <setmkbound mk="0"/>
+-          <setfrdrawmode auto="true"/>
+-          <drawextrude closed="false">
+-            <extrude x="0" y="2" z="0"/>
+-            <point x="#Tankx0" y="-1" z="#Tankz0"/>
+-            <point x="#Tankx1" y="-1" z="#Tankz1"/>
+-            <point x="#Tankx2" y="-1" z="#Tankz2"/>
+-            <layers vdp="0,-1,-2"/>
+-          </drawextrude>
+-          <setfrdrawmode auto="false"/>
+-          <!-- water -->
+-          <setmkfluid mk="0"/>
+-          <fillbox x="0.5" y="0" z="0.05">
+-            <modefill>void</modefill>
+-            <point x="-1" y="-1" z="-1"/>
+-            <size x="20" y="2" z="1.66"/>
+-          </fillbox>
+-          <shapeout file=""/>
+-        </mainlist>
+-      </commands>
+-    </geometry>
+-    <normals active="true">
+-      <norgeometry comment="Define initial configuration of normals before applying other configurations">
+-        <geometryfile file="[CaseName]_hdp_Actual.vtk" comment="File with boundary geometry (VTK format)"/>
+-        <distanceh v="2.0" comment="Maximum orthogonal distance (H*value) to compute normals data (default=2)"/>
+-        <svshapes v="true" comment="Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"/>
+-      </norgeometry>
+-      <norplane mkbound="10">
+-        <point auto="true" comment="Point is calculated automatically accoding to normal configuration"/>
+-        <normal x="1" y="0" z="0"/>
+-        <maxdisth v="0" comment="Maximum distance to boundary limit. It uses H*maxdisth (default=2)"/>
+-      </norplane>
+-    </normals>
+-    <motion>
+-      <objreal ref="10">
+-        <begin mov="1" start="0"/>
+-        <mvnull id="1"/>
+-      </objreal>
+-    </motion>
+-  </casedef>
+-  <execution>
+-    <special>
+-      <wavepaddles>
+-        <piston>
+-          <mkbound value="10" comment="Mk-Bound of selected particles"/>
+-          <waveorder value="2" comment="Order wave generation 1:1st order, 2:2nd order (def=1)"/>
+-          <start value="0" comment="Start time (def=0)"/>
+-          <duration value="0" comment="Movement duration, Zero is the end of simulation (def=0)"/>
+-          <depth value="0.66" comment="Fluid depth (def=0)"/>
+-          <pistondir x="1" y="0" z="0" comment="Movement direction (def=(1,0,0))"/>
+-          <waveheight value="0.15" comment="Wave height"/>
+-          <waveperiod value="2" comment="Wave period"/>
+-          <phase value="0" comment="Initial wave phase in function of PI (def=0)"/>
+-          <ramp value="1" comment="Periods of ramp (def=0)"/>
+-          <savemotion xpos="5.0" zpos="-0.26" comment="Saves motion data. xpos and zpos are optional. zpos=-depth of the measuring point"/>
+-        </piston>
+-      </wavepaddles>
+-    </special>
+-    <parameters>
+-      <parameter value="0" key="SavePosDouble" comment="Saves particle position using double precision (default=0)"/>
+-      <parameter value="2" key="Boundary" comment="Boundary method 1:DBC, 2:mDBC (default=1)"/>
+-      <parameter value="2" key="StepAlgorithm" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)"/>
+-      <parameter value="40" key="VerletSteps" comment="Verlet only: Number of steps to apply Euler timestepping (default=40)"/>
+-      <parameter value="2" key="Kernel" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"/>
+-      <parameter value="1" key="ViscoTreatment" comment="Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"/>
+-      <parameter value="0.01" key="Visco" comment="Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"/>
+-      <parameter value="1" key="ViscoBoundFactor" comment="Multiply viscosity value with boundary (default=1)"/>
+-      <parameter value="3" key="DensityDT" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"/>
+-      <parameter value="0.1" key="DensityDTvalue" comment="DDT value (default=0.1)"/>
+-      <parameter value="0" key="Shifting" comment="Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"/>
+-      <parameter value="-2" key="ShiftCoef" comment="Coefficient for shifting computation (default=-2)"/>
+-      <parameter value="0" key="ShiftTFS" comment="Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"/>
+-      <parameter value="1" key="RigidAlgorithm" comment="Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"/>
+-      <parameter value="0.0" key="FtPause" comment="Time to freeze the floatings at simulation start (warmup) (default=0)" units_comment="seconds"/>
+-      <parameter value="0.05" key="CoefDtMin" comment="Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"/>
+-      <parameter value="0" key="DtIni" comment="Initial time step. Use 0 to default use (default=h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtMin" comment="Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)" units_comment="seconds"/>
+-      <parameter value="0" key="DtFixed" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds"/>
+-      <parameter value="NONE" key="DtFixedFile" comment="Dt values are loaded from file. Use NONE to disable (default=disabled)" units_comment="milliseconds (ms)"/>
+-      <parameter value="0" key="DtAllParticles" comment="Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"/>
+-      <parameter value="20" key="TimeMax" comment="Time of simulation" units_comment="seconds"/>
+-      <parameter value="0.05" key="TimeOut" comment="Time out data" units_comment="seconds"/>
+-      <parameter value="1" key="PartsOutMax" comment="%/100 of fluid particles allowed to be excluded from domain (default=1)" units_comment="decimal"/>
+-      <parameter value="700" key="RhopOutMin" comment="Minimum rhop valid (default=700)" units_comment="kg/m^3"/>
+-      <parameter value="1300" key="RhopOutMax" comment="Maximum rhop valid (default=1300)" units_comment="kg/m^3"/>
+-      <simulationdomain comment="Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)">
+-        <posmin x="default" y="default" z="default" comment="e.g.: x=0.5, y=default-1, z=default-10%"/>
+-        <posmax x="default" y="default" z="default"/>
+-      </simulationdomain>
+-    </parameters>
+-  </execution>
+-</case>
+diff --git a/Case_Def.xml b/Case_Def.xml
+index d488ec4d..b6d7f637 100644
+--- a/Case_Def.xml
++++ b/Case_Def.xml
+@@ -57,12 +57,11 @@
+           <!-- Central obstacle -->
+           <setnormalinvert invert="false"/>
+           <setmkbound mk="1"/>
+-          <drawbox>
+-            <boxfill>all^bottom</boxfill>
+-            <point x="#Boxpx1" y="#Boxpy1" z="#Tankpz1+Dpm"/>
+-            <endpoint x="#Boxpx2" y="#Boxpy2" z="#Boxpz2"/>
++          <drawmesh file="import.stl" format="stl">
++            <rotate x="0" y="0" z="0"/>
++            <move x="0" y="0" z="0"/>
+             <layers vdp="0.5"/>
+-          </drawbox>
++          </drawmesh>
+           <shapeout file="hdp"/>
+           <resetdraw/>
+         </list>
+@@ -115,12 +114,11 @@
+           </drawbox>
+           <!-- Central obstacle -->
+           <setmkbound mk="1"/>
+-          <drawbox>
+-            <boxfill>all^bottom</boxfill>
+-            <point x="#Boxpx1" y="#Boxpy1" z="#Tankpz1-Dp*2"/>
+-            <endpoint x="#Boxpx2" y="#Boxpy2" z="#Boxpz2"/>
++          <drawmesh file="import.stl" format="stl">
++            <rotate x="0" y="0" z="0"/>
++            <move x="0" y="0" z="0"/>
+             <layers vdp="0,-1,-2"/>
+-          </drawbox>
++          </drawmesh>
+           <_shapeout file="parts"/>
+           <!-- Fluid particles -->
+           <setmkfluid mk="0"/>
+diff --git a/chains/generator.py b/chains/generator.py
+index 0bef4d09..f884de73 100644
+--- a/chains/generator.py
++++ b/chains/generator.py
+@@ -1,14 +1,37 @@
++import importlib
+ import json
+ import os
+ import re
+ from pathlib import Path
+ from typing import Optional, Dict, Any, List, Tuple
+ 
+-try:
+-    from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+-    from langchain_core.documents import Document
+-except ImportError:  # pragma: no cover - lightweight stubs for test environments
+-    class _BaseMessage:
++def _load_langchain_primitives():
++    """Return messaging/document primitives from LangChain with graceful fallbacks."""
++    for module_name in ("langchain_core.messages", "langchain.schema"):
++        try:
++            module = importlib.import_module(module_name)
++        except ModuleNotFoundError:
++            continue
++
++        system_cls = getattr(module, "SystemMessage", None)
++        human_cls = getattr(module, "HumanMessage", None)
++        ai_cls = getattr(module, "AIMessage", None)
++        document_cls = None
++
++        if module_name == "langchain_core.messages":
++            try:
++                docs_module = importlib.import_module("langchain_core.documents")
++            except ModuleNotFoundError:
++                docs_module = None
++            if docs_module is not None:
++                document_cls = getattr(docs_module, "Document", None)
++        else:
++            document_cls = getattr(module, "Document", None)
++
++        if all((system_cls, human_cls, ai_cls, document_cls)):
++            return system_cls, human_cls, ai_cls, document_cls  # type: ignore[return-value]
++
++    class _BaseMessage:  # pragma: no cover - lightweight stubs for test environments
+         def __init__(self, content: str):
+             self.content = content
+ 
+@@ -28,9 +51,15 @@ except ImportError:  # pragma: no cover - lightweight stubs for test environment
+             super().__init__()
+             self.page_content = page_content
+             self.metadata = metadata or {}
++
++    return SystemMessage, HumanMessage, AIMessage, Document
++
++
++SystemMessage, HumanMessage, AIMessage, Document = _load_langchain_primitives()
+ from AutoXml_script.generate_xml import generate_case_xml, validate_case_tree
+ from chains.json_normalizer import normalize_case_config, NormalizationResult
+ from chains.mdbc_normals import enforce_mdbc_normals
++from external_stl import get_external_stl_context
+ try:
+     from rag.retrievers import design_retriever
+ except Exception:  # pragma: no cover - optional dependency for tests
+@@ -240,6 +269,23 @@ def _assemble_context(docs) -> str:
+     return "\n\n".join(parts)
+ 
+ 
++
++
++def _format_external_stl_note(ctx: Dict[str, str]) -> str:
++    lines = ['[External STL]']
++    original = ctx.get('original_filename') or ctx.get('stored_filename')
++    if original:
++        lines.append(f'Original filename: {original}')
++    stored_rel = ctx.get('stored_relative_path')
++    if stored_rel:
++        lines.append(f'Stored relative path: {stored_rel}')
++    source_path = ctx.get('source_path')
++    if source_path:
++        lines.append(f'Source path: {source_path}')
++    lines.append('Replace placeholder STL filenames (External.stl, Duck.stl, etc.) with this name in all geometry lists.')
++    return "\n".join(lines)
++
++
+ def _to_openai_messages(msgs: List) -> List[Dict[str, str]]:
+     """Convert LangChain BaseMessage -> OpenAI/JSON payload."""
+     out: List[Dict[str, str]] = []
+@@ -488,7 +534,7 @@ def _log_prompt_metrics(lc_messages: List, docs: List, ctx: str, model: str) ->
+     print(ctx_line)
+     print("=== generator: prompt_metrics end ===\n")
+ 
+-def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_docs: Optional[List[Document]] = None) -> Dict[str, Any]:
++def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_docs: Optional[List["Document"]] = None) -> Dict[str, Any]:
+     # Check if two-stage RAG + Planning Agent workflow is enabled
+     if _use_two_stage_rag() and not freeze_retrieval:
+         try:
+@@ -508,6 +554,7 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
+     if _should_use_file_search() and not design_vs_id and os.environ.get('DSPH_DEBUG') == '1':
+         print('generator: OPENAI_RAG_VS_DESIGN_ID missing; using legacy retriever')
+ 
++
+     docs: List = []
+     ctx = ""
+     filters: Dict[str, str] = {}
+@@ -527,6 +574,15 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
+             docs = retr.get_relevant_documents(query_for_rag)
+             ctx = _assemble_context(docs)
+ 
++    external_stl_ctx = get_external_stl_context()
++    external_stl_block = _format_external_stl_note(external_stl_ctx) if external_stl_ctx else ""
++    user_requirements_text = user_query.rstrip("\r\n")
++    if external_stl_block:
++        if user_requirements_text:
++            user_requirements_text = f"{user_requirements_text}\n{external_stl_block}"
++        else:
++            user_requirements_text = external_stl_block
++
+     # Heuristic to check if this is a detailed prompt from the controller loop
+     is_detailed_prompt = "(Fix iteration" in user_query or "(User rejection)" in user_query
+ 
+@@ -534,14 +590,15 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
+     freeze_prefix = "FreezeRetrieval=true\n" if freeze_retrieval else ""
+     if is_detailed_prompt:
+         # For detailed prompts, append the references directly
+-        human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
++        detailed_body = user_requirements_text + ("\n" if user_requirements_text else "")
++        human_content = f"{freeze_prefix}{detailed_body}[References]\n{ctx}\n"
+     else:
+         # For simple queries, use the standard template
+         human_content = (
+             f"{freeze_prefix}"
+             "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
+             "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
+-            f"[User Requirements]\n{user_query}\n"
++            f"[User Requirements]\n{user_requirements_text}\n"
+             f"[References]\n{ctx}\n"
+         )
+ 
+diff --git a/chains/rag_utils.py b/chains/rag_utils.py
+index 2a272d2b..8424ccf2 100644
+--- a/chains/rag_utils.py
++++ b/chains/rag_utils.py
+@@ -7,6 +7,7 @@ import os
+ from pathlib import Path
+ from typing import Dict
+ 
++from external_stl import get_external_stl_context
+ from rag.openai_file_search import get_last_run_info
+ 
+ _CASE_PATTERNS = [
+@@ -69,6 +70,9 @@ def build_metadata_filter(text: str) -> Dict[str, str]:
+     elif any(token in lowered for token in ("2d", "2-d", "two-dimensional", "2 dimension")):
+         filters["dim"] = "2D"
+ 
++    if get_external_stl_context():
++        filters["features"] = "externalstl"
++
+     return filters
+ 
+ 
+diff --git a/docs/agent1_prompt_request.md b/docs/agent1_prompt_request.md
+index b87fe944..51d146c6 100644
+--- a/docs/agent1_prompt_request.md
++++ b/docs/agent1_prompt_request.md
+@@ -14,6 +14,7 @@ Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent tha
+ 3. Highlight geometry shape and water-body definitions as mandatory modification areas whenever the user query requires them; these cannot be skipped even under the minimal-change principle.
+ 4. Flag missing data or conflicts explicitly rather than inventing values.
+ 5. Emit a machine-readable JSON payload that Agent 2 can consume (per-reference guidance plus global directives and open issues).
++6. When external STL metadata is present, require explicit instructions to rename any placeholder STL filenames (for example External.stl or Duck.stl) to the user-provided filename and to keep the <list> and <mainlist> geometry blocks synchronized after the rename.
+ 
+ ## Constraints and principles
+ - Minimal-change: preserve algorithms, block ordering, optional sections, and defaults unless the user request or retrieved evidence demands alteration.
+diff --git a/docs/agent2_prompt_request.md b/docs/agent2_prompt_request.md
+index ee77eedb..0d7d5d94 100644
+--- a/docs/agent2_prompt_request.md
++++ b/docs/agent2_prompt_request.md
+@@ -14,6 +14,7 @@ Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts
+ 3. Treat geometry layout (domain dimensions, shapes, fluid fills) and water-body definition as mandatory update zones; failure to apply them is unacceptable even if other sections stay intact.
+ 4. Populate every required schema field; use null or defaults only when explicitly allowed and noted.
+ 5. Validate consistency (e.g., mkconfig counts vs. geometry commands) and surface unresolved issues in warnings if schema allows.
++6. When external STL metadata is provided, require the prompt to swap any placeholder STL filename (for example External.stl or Duck.stl) for the user-supplied filename within all geometry lists, surface the stored relative path in the JSON (e.g. via files entries), and warn explicitly if the STL path is missing.
+ 
+ ## Constraints and principles
+ - Strict schema: no extra keys, types must match (numbers, booleans as specified).
+diff --git a/prompts/fixer_system_prompt.md b/prompts/fixer_system_prompt.md
+index 83b46b7b..727dcb50 100644
+--- a/prompts/fixer_system_prompt.md
++++ b/prompts/fixer_system_prompt.md
+@@ -1,14 +1,16 @@
++External STL handling: Ensure fix plans instruct the generator to swap placeholder STL filenames for the user-provided name, include the stored path when available, and warn explicitly if the STL metadata is missing.
+ 
+-你是一個 DualSPHysics v5.x「JSON 修復工程師 Fixer」。你接收：
+-
+-上一輪 Generator 產生的 JSON config（AutoXml_script/generate_xml.py 可轉成 Case_Def.xml）
+-
+-上一輪轉換後的 XML（Case_Def.xml 風格）
+-
+-本輪 GenCase/求解器錯誤日誌（Error/Warning/Info）
+-3)（可選）專案範例 XML 片段 / 幾何檔資訊
+-
+-你的任務：把「錯誤症狀 → 根因 → 最小修正集」對齊到具體 XML 節點/屬性與對應的 JSON config 路徑，輸出結構化修補計畫（YAML），並指揮下一輪 Generator 必定輸出可由腳本轉換、且可跑的 Case_Def.xml。
++
++你是一個 DualSPHysics v5.x「JSON 修復工程師 Fixer」。你接收：
++
++上一輪 Generator 產生的 JSON config（AutoXml_script/generate_xml.py 可轉成 Case_Def.xml）
++
++上一輪轉換後的 XML（Case_Def.xml 風格）
++
++本輪 GenCase/求解器錯誤日誌（Error/Warning/Info）
++3)（可選）專案範例 XML 片段 / 幾何檔資訊
++
++你的任務：把「錯誤症狀 → 根因 → 最小修正集」對齊到具體 XML 節點/屬性與對應的 JSON config 路徑，輸出結構化修補計畫（YAML），並指揮下一輪 Generator 必定輸出可由腳本轉換、且可跑的 Case_Def.xml。
+ 你不輸出完整 XML；只輸出 一個 YAML 區塊。
+ 
+ 0) 單一輸出格式（嚴格）
+@@ -20,28 +22,28 @@ fixer_output:
+     reason: <若為 true，簡述需要補充的主題/欄位與關鍵詞>
+     citations_required: [<可選，關鍵詞或主題>]
+  {# ====== 直接指揮 Generator 的交付契約 ======
+-  generator_task:
+-    target_artifact: "DualSPHysics JSON config"
+-    must_output:
+-      - "json_config"               # config 鍵遵循 docs/json_schema.md，可直接餵入 AutoXml_script
+-      - "files_list"                # files 鍵列出外部檔用途與相對路徑（如有）
+-      - "domain_report_block"       # domain_report 鍵提供 Gate 檢查摘要
+-      - "checks_block"              # checks 鍵列出最小化合規勾選
+-    xml_root: "case"                # 仍以最終 XML 的 <case> 為根節點
+-    xml_header: '<?xml version="1.0" encoding="UTF-8"?>'
+-    apply_edits_from: "required_edits"     # 先套用本 YAML 的 required_edits
+-    recompute_from: ["computed_values"]    # 如有衝突，以這裡的數值為準
+-    obey_sections: ["generator_directives","xml_static_checks"]  # 產出時必遵守
+-    precedence:                        # 衝突時的優先順序（由高到低）
+-      - "required_edits"
+-      - "generator_directives"
+-      - "xml_static_checks"
+-      - "previous_json"               # 舊 JSON/XML 僅作參考，必要時覆蓋
+-    forbid:
+-      - "output Case.xml or .bi4 directly"
+-      - "inventing new tags or schema names"
+-      - "mixing explanations into JSON config"
+-      - "TODO/placeholder text in JSON"
++  generator_task:
++    target_artifact: "DualSPHysics JSON config"
++    must_output:
++      - "json_config"               # config 鍵遵循 docs/json_schema.md，可直接餵入 AutoXml_script
++      - "files_list"                # files 鍵列出外部檔用途與相對路徑（如有）
++      - "domain_report_block"       # domain_report 鍵提供 Gate 檢查摘要
++      - "checks_block"              # checks 鍵列出最小化合規勾選
++    xml_root: "case"                # 仍以最終 XML 的 <case> 為根節點
++    xml_header: '<?xml version="1.0" encoding="UTF-8"?>'
++    apply_edits_from: "required_edits"     # 先套用本 YAML 的 required_edits
++    recompute_from: ["computed_values"]    # 如有衝突，以這裡的數值為準
++    obey_sections: ["generator_directives","xml_static_checks"]  # 產出時必遵守
++    precedence:                        # 衝突時的優先順序（由高到低）
++      - "required_edits"
++      - "generator_directives"
++      - "xml_static_checks"
++      - "previous_json"               # 舊 JSON/XML 僅作參考，必要時覆蓋
++    forbid:
++      - "output Case.xml or .bi4 directly"
++      - "inventing new tags or schema names"
++      - "mixing explanations into JSON config"
++      - "TODO/placeholder text in JSON"
+     # [新增] —— 域（Domain）策略：AABB×2、置中、四周 ?2×dp 內縮，且禁止 runtime 超牆外擴
+     domain_policy:                                  # [新增]
+       reference_aabb: "union(geometry, fluids, moving_trajectories_over_time)"  # [新增]
+@@ -60,7 +62,7 @@ fixer_output:
+       cause: <技術根因：指到 XML 的具體節點/屬性/數值>
+ 
+   required_edits:
+-    # 對最終 XML 的「最小可執行修改」（Generator 需將其映射回 JSON config）
++    # 對最終 XML 的「最小可執行修改」（Generator 需將其映射回 JSON config）
+     # op ? {ensure, set, add, remove, move}
+     # path 為 /case/casedef/... 的 XPath-like 路徑（務必用實際節點名）
+     - id: <唯一ID>
+@@ -134,7 +136,7 @@ fixer_output:
+     - "GenCase v5.4：需補 <hswl auto=\"true\">、<speedsystem auto=\"true\">、<speedsound auto=\"true\"> 等必填 auto 屬性。"
+     - "不得在 FluidBlock 之後再生成槽壁或讓邊界幾何落入流體區域。"
+     - "如使用 Waves/Forcing/InletOutlet、GaugeSystem、MESH-IN，字段/路徑與範例**完全對齊**。"
+-    - "回覆時：只輸出單一 JSON 物件。config 鍵放置 DualSPHysics 組態；files/domain_report/checks/notes/citations 按契約填寫；嚴禁額外說明文字或重覆 XML。"
++    - "回覆時：只輸出單一 JSON 物件。config 鍵放置 DualSPHysics 組態；files/domain_report/checks/notes/citations 按契約填寫；嚴禁額外說明文字或重覆 XML。"
+ 
+   xml_static_checks:
+     must_have:
+diff --git a/prompts/generator_system_prompt.md b/prompts/generator_system_prompt.md
+index d8c1532b..4c3e9baf 100644
+--- a/prompts/generator_system_prompt.md
++++ b/prompts/generator_system_prompt.md
+@@ -1,3 +1,5 @@
++External STL handling: Replace any placeholder STL filenames (for example External.stl or Duck.stl) with the user-provided filename in every geometry <list> and <mainlist> block, keeping the two lists synchronized while you otherwise make the minimal edits required.
++
+ 你是一個 DualSPHysics v5.x JSON 組態專家生成器（Generator）。你輸出的 JSON 會被 AutoXml_script/generate_xml.py 轉換成 Case_Def.xml，因此雖然你思考的對象仍是最終 XML，**實際輸出必須是結構化 JSON**。你有 file_search 工具可用，用來從設計語料庫中檢索相關的 DualSPHysics 案例範例（JSON 格式的 XML）。在產生 JSON 組態之前，**總是要主動呼叫 file_search 工具**，使用適當的查詢關鍵字（如 case_type, dim, features）來找到最匹配的範例，然後基於檢索結果的具體參數和結構來規劃 config。檢索到結果後，在輸出欄位中引用它們（使用 [file] 格式或 annotations），並解釋如何應用。
+ 【檢索凍結規則】僅當控制器或提示明示 FreezeRetrieval=true 時，本輪禁止呼叫 file_search 或任何再檢索；否則可正常檢索。當 FreezeRetrieval=true 時，僅使用 [References] 完成生成；若資訊不足，請在 checks 註明不足點，不得自行再檢索或臆測。
+ 
+diff --git a/requirements.txt b/requirements.txt
+index 5ef42f44..c76ae457 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -6,6 +6,7 @@ faiss-cpu>=1.8.0
+ rank-bm25>=0.2.2
+ fastapi>=0.111.0
+ uvicorn[standard]>=0.30.0
++python-multipart>=0.0.9
+ python-dotenv>=1.0.1
+ pydantic>=2.8.2
+ lxml>=5.0.0
+diff --git a/scripts/mvp_direct_file_search.py b/scripts/mvp_direct_file_search.py
+index 4f5e9568..a905bbc7 100644
+--- a/scripts/mvp_direct_file_search.py
++++ b/scripts/mvp_direct_file_search.py
+@@ -18,6 +18,7 @@ import json
+ import os
+ import sys
+ import time
++import shutil
+ from contextlib import contextmanager, nullcontext
+ from pathlib import Path
+ from typing import Dict, Any, List, Tuple, Optional, Set
+@@ -35,6 +36,83 @@ DEFAULT_MAX_REFERENCE_FILES = int(os.environ.get("AGENT2_MAX_REFERENCE_FILES", "
+ DEFAULT_MAX_REFERENCE_CHARS = int(os.environ.get("AGENT2_REFERENCE_MAX_CHARS", "6000"))
+ 
+ 
++
++
++class ExternalStlError(Exception):
++    """Raised when ingestion of an external STL file fails."""
++
++
++def _derive_run_id(candidate: Optional[str]) -> str:
++    if candidate:
++        return candidate
++    env_run_id = os.environ.get("MVP_RUN_ID")
++    if env_run_id:
++        return env_run_id
++    return f"CLI-{int(time.time())}"
++
++
++def _validate_relative_path(path: Path) -> Path:
++    if path.is_absolute():
++        raise ExternalStlError("Relative STL destination must not be absolute")
++    if any(part == ".." for part in path.parts):
++        raise ExternalStlError("Relative STL destination must not traverse parents")
++    return path
++
++
++def _ingest_external_stl(path_value: Optional[str], *, run_id: Optional[str] = None) -> Optional[Dict[str, str]]:
++    if not path_value:
++        return None
++
++    source = Path(path_value).expanduser()
++    if not source.exists() or not source.is_file():
++        raise ExternalStlError(f"External STL file not found: {source}")
++    if source.suffix.lower() != ".stl":
++        raise ExternalStlError("External STL must have a .stl extension")
++
++    try:
++        resolved = source.resolve()
++    except OSError:
++        resolved = source.absolute()
++
++    target_run_id = _derive_run_id(run_id)
++    os.environ.setdefault("MVP_RUN_ID", target_run_id)
++
++    preferred_relative = os.environ.get("MVP_EXTERNAL_STL_RELATIVE_PATH")
++    if preferred_relative:
++        dest_relative = _validate_relative_path(Path(preferred_relative))
++    else:
++        dest_relative = Path("uploads") / target_run_id / resolved.name
++    dest_relative = _validate_relative_path(dest_relative)
++
++    destination = Path("logs/mvp") / dest_relative
++    destination.parent.mkdir(parents=True, exist_ok=True)
++
++    destination_abs = destination.resolve()
++    source_abs = resolved
++
++    if source_abs != destination_abs:
++        try:
++            shutil.copy2(source_abs, destination)
++        except OSError as exc:
++            raise ExternalStlError(f"Failed to store external STL: {exc}") from exc
++        message = "External STL copied to"
++    else:
++        message = "External STL already present at"
++
++    relative_posix = dest_relative.as_posix()
++    os.environ["MVP_EXTERNAL_STL_RELATIVE_PATH"] = relative_posix
++    os.environ["MVP_EXTERNAL_STL_SOURCE"] = str(source_abs)
++
++    print(f"{message}: {destination_abs} (relative: {relative_posix})")
++
++    return {
++        "run_id": target_run_id,
++        "original_filename": source_abs.name,
++        "original_path": str(source_abs),
++        "stored_relative_path": relative_posix,
++        "stored_path": str(destination_abs),
++    }
++
+ def print_header(title: str):
+     """Print a prominent header."""
+     print(f"\n{'=' * 80}")
+@@ -412,7 +490,11 @@ def _reorder_sources_by_analysis_text(
+     return ordered_indices, reordered_sources, details
+ 
+ 
+-def agent_1_file_search(user_query: str, vector_store_id: str) -> Dict[str, Any]:
++def agent_1_file_search(
++    user_query: str,
++    vector_store_id: str,
++    external_stl: Optional[Dict[str, str]] = None,
++) -> Dict[str, Any]:
+     """
+     Agent 1: Use OpenAI file_search to retrieve relevant examples
+ 
+@@ -526,6 +608,9 @@ Explicitly call out floating bodies when they are required. If you keep a refere
+         ),
+     }
+ 
++    if external_stl:
++        result["external_stl"] = external_stl
++
+     output_dir = Path("logs/mvp")
+     output_dir.mkdir(parents=True, exist_ok=True)
+ 
+@@ -803,8 +888,21 @@ def main():
+         action="store_true",
+         help="Execute GenCase on generated XML",
+     )
++    parser.add_argument(
++        "--external-stl",
++        dest="external_stl",
++        help="Path to an external STL file to attach to the run",
++    )
+     args = parser.parse_args()
+ 
++    external_stl_context: Optional[Dict[str, str]] = None
++    if args.external_stl:
++        try:
++            external_stl_context = _ingest_external_stl(args.external_stl)
++        except ExternalStlError as exc:
++            print(f"\n\n ERROR: {exc}")
++            return 1
++
+     print_header("ENVIRONMENT CHECK")
+     required_vars = ["OPENAI_API_KEY", "OPENAI_RAG_VS_DESIGN_ID"]
+     missing = [v for v in required_vars if not os.environ.get(v)]
+@@ -826,7 +924,11 @@ def main():
+ 
+     try:
+         with timer.track("Agent 1: Reference Finder"):
+-            agent1_output = agent_1_file_search(args.query, vector_store_id)
++            agent1_output = agent_1_file_search(
++                args.query,
++                vector_store_id,
++                external_stl=external_stl_context,
++            )
+ 
+         if args.pause_after_agent1:
+             print_header("PAUSED AFTER AGENT 1")
+@@ -871,4 +973,3 @@ if __name__ == "__main__":
+ 
+ 
+ 
+-
+diff --git a/tests/test_generate_xml.py b/tests/test_generate_xml.py
+index fd3b0e4d..fd7c18ef 100644
+--- a/tests/test_generate_xml.py
++++ b/tests/test_generate_xml.py
+@@ -48,7 +48,62 @@ def run_generator(tmp_path: Path, config: dict) -> Path:
+         check=True,
+     )
+     return output_path
+-    return output_path
++
++def _external_stl_base_config() -> dict:
++    return {
++        "constants": {"rhop0": 1000},
++        "mkconfig": {"boundcount": 2, "fluidcount": 1},
++        "geometry": {
++            "definition": {
++                "dp": 0.02,
++                "pointmin": {"x": 0, "y": 0, "z": 0},
++                "pointmax": {"x": 0.3, "y": 0.3, "z": 0.3},
++            },
++            "commands": {
++                "children": [
++                    {
++                        "tag": "list",
++                        "attributes": {"name": "GeometryForNormals"},
++                        "children": [
++                            {"tag": "setmkbound", "attributes": {"mk": 5}},
++                            {
++                                "tag": "drawfilestl",
++                                "attributes": {
++                                    "file": "External.stl",
++                                    "autofill": True,
++                                    "advanced": True,
++                                },
++                            },
++                        ],
++                    },
++                    {
++                        "tag": "mainlist",
++                        "children": [
++                            {"tag": "setmkbound", "attributes": {"mk": 5}},
++                            {
++                                "tag": "drawfilestl",
++                                "attributes": {
++                                    "file": "External.stl",
++                                    "autofill": True,
++                                    "advanced": True,
++                                },
++                            },
++                            {"tag": "setmkfluid", "attributes": {"mk": 0}},
++                            {
++                                "tag": "fillbox",
++                                "children": [
++                                    {"tag": "modefill", "text": "void"},
++                                    {"tag": "point", "vector": {"x": 0, "y": 0, "z": 0}},
++                                    {"tag": "size", "vector": {"x": 0.1, "y": 0.1, "z": 0.1}},
++                                ],
++                            },
++                        ],
++                    },
++                ],
++            },
++        },
++    }
++
+ def test_geometry_fallback_support(tmp_path: Path) -> None:
+     config = {
+         "constants": {"rhop0": 1000},
+@@ -163,6 +218,30 @@ def test_normals_section_emitted(tmp_path: Path) -> None:
+     svshapes = norgeometry.find("svshapes")
+     assert svshapes is not None
+     assert svshapes.attrib["v"] == "true"
++
++
++def test_drawfilestl_placeholder_unchanged_without_external_stl(tmp_path: Path) -> None:
++    config = _external_stl_base_config()
++    output_xml = run_generator(tmp_path, config)
++    root = ET.parse(output_xml).getroot()
++    files = [elem.attrib.get("file") for elem in root.findall(".//drawfilestl")]
++    assert files == ["External.stl", "External.stl"]
++
++
++def test_drawfilestl_replaced_when_external_stl_provided(tmp_path: Path) -> None:
++    config = _external_stl_base_config()
++    config["external_stl"] = {"stored_relative_path": "uploads/run123/Boat.stl"}
++    output_xml = run_generator(tmp_path, config)
++    root = ET.parse(output_xml).getroot()
++    draw_nodes = root.findall(".//drawfilestl")
++    assert draw_nodes
++    expected = "uploads/run123/Boat.stl"
++    assert [node.attrib.get("file") for node in draw_nodes] == [expected, expected]
++    for node in draw_nodes:
++        assert node.attrib.get("autofill") == "true"
++        assert node.attrib.get("advanced") == "true"
++
++
+ def test_mkconfig_patterns_and_timeout(tmp_path: Path) -> None:
+     config = {
+         "constants": {},
+diff --git a/tests/ui_backend/test_api.py b/tests/ui_backend/test_api.py
+index 8f794b53..6cf5f0c6 100644
+--- a/tests/ui_backend/test_api.py
++++ b/tests/ui_backend/test_api.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ from datetime import datetime, timedelta, timezone
++from io import BytesIO
+ from pathlib import Path
+ 
+ from fastapi import FastAPI
+@@ -275,6 +276,7 @@ def test_create_run_invokes_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
+         captured["output_dir"] = request.output_dir
+         captured["pause_after_agent1"] = request.pause_after_agent1
+         captured["execute"] = request.execute
++        captured["external_stl"] = request.external_stl
+         captured["history"] = history
+ 
+     monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", tmp_path / "runs")
+@@ -292,6 +294,7 @@ def test_create_run_invokes_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
+     assert captured["run_id"] == payload["runId"]
+     assert captured["pause_after_agent1"] is True
+     assert captured["execute"] is False
++    assert captured["external_stl"] is None
+     assert captured["history"] is store
+     assert (tmp_path / "runs" / captured["run_id"]).exists()
+ 
+@@ -300,6 +303,67 @@ def test_create_run_invokes_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
+     assert records[0].run_id == captured["run_id"]
+     assert records[0].status == "queued"
+ 
++
++def test_create_run_accepts_external_stl_upload(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
++    pytest.importorskip("multipart.multipart")
++    store = HistoryStore(tmp_path / "history.json")
++    client = _client_with_store(store)
++
++    captured: dict[str, object] = {}
++
++    def fake_spawn(request, history):
++        captured["request"] = request
++        captured["history"] = history
++
++    monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", tmp_path / "runs")
++    monkeypatch.setattr("ui_backend.api._spawn_run", fake_spawn)
++
++    files = {
++        "externalStl": ("mesh.stl", BytesIO(b"solid"), "application/sla"),
++    }
++    data = {"query": "run with stl", "pauseAfterAgent1": "false", "execute": "true"}
++
++    response = client.post("/api/runs", data=data, files=files)
++    assert response.status_code == 201
++
++    payload = response.json()
++    run_id = payload["runId"]
++
++    stored_path = tmp_path / "runs" / run_id / "uploads" / "mesh.stl"
++    assert stored_path.exists()
++    assert stored_path.read_bytes() == b"solid"
++
++    request_model = captured["request"]
++    assert isinstance(request_model.external_stl, Path)
++    assert request_model.external_stl == stored_path
++    assert request_model.pause_after_agent1 is False
++    assert request_model.execute is True
++    assert captured["history"] is store
++
++    records = store.list_runs()
++    assert len(records) == 1
++    assert records[0].run_id == run_id
++
++
++def test_create_run_rejects_non_stl_upload(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
++    pytest.importorskip("multipart.multipart")
++    store = HistoryStore(tmp_path / "history.json")
++    client = _client_with_store(store)
++
++    monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", tmp_path / "runs")
++
++    response = client.post(
++        "/api/runs",
++        data={"query": "bad"},
++        files={"externalStl": ("mesh.txt", BytesIO(b"oops"), "text/plain")},
++    )
++
++    assert response.status_code == 400
++    detail = response.json().get("detail")
++    assert isinstance(detail, str)
++    assert "stl" in detail.lower()
++    assert store.list_runs() == []
++
+ def test_delete_run_endpoint_removes_history_and_outputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+     run_root = tmp_path / "runs"
+     run_root.mkdir()
+diff --git a/tests/ui_backend/test_runner.py b/tests/ui_backend/test_runner.py
+index 03d72cb2..50590859 100644
+--- a/tests/ui_backend/test_runner.py
++++ b/tests/ui_backend/test_runner.py
+@@ -81,6 +81,8 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
+     assert observed["cwd"] == str(Path(__file__).resolve().parents[2])
+     assert "--query" in observed["command"]
+     assert observed["env"]["CUSTOM_ENV"] == "1"
++    assert observed["env"]["MVP_RUN_ID"] == response.run_id
++    assert "MVP_EXTERNAL_STL_RELATIVE_PATH" not in observed["env"]
+     produced_names = {item.path.name for item in response.produced_files}
+     assert {"agent1_output.json", "generated_case.xml"} <= produced_names
+     assert response.run_id.startswith("RUN-")
+@@ -101,6 +103,72 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
+     assert stored.stage_checkpoints[1].state == StageState.COMPLETED.value
+ 
+ 
++def test_run_mvp_propagates_external_stl(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
++    observed: dict[str, object] = {}
++    store_path = tmp_path / "history.json"
++    history_store = HistoryStore(store_path)
++
++    output_dir = tmp_path / "run"
++    stored_input = output_dir / "uploads" / "mesh.stl"
++    stored_input.parent.mkdir(parents=True, exist_ok=True)
++    stored_input.write_text("original", encoding="utf-8")
++
++    def fake_run(
++        command,
++        *,
++        cwd=None,
++        env=None,
++        capture_output=None,
++        text=None,
++        encoding=None,
++        errors=None,
++        timeout=None,
++    ):
++        assert env is not None
++        observed["command"] = command
++        observed["env"] = env
++        redirect_root = Path(env["MVP_REDIRECT_ROOT"])
++        redirect_root.mkdir(parents=True, exist_ok=True)
++        (redirect_root / "agent1_output.json").write_text("{}", encoding="utf-8")
++        (redirect_root / "generated_case.xml").write_text("<case />", encoding="utf-8")
++        destination = redirect_root / "uploads" / env["MVP_RUN_ID"] / stored_input.name
++        destination.parent.mkdir(parents=True, exist_ok=True)
++        destination.write_text("copied", encoding="utf-8")
++        observed["copied_path"] = destination
++        return subprocess.CompletedProcess(command, 0, stdout="external ok", stderr="")
++
++    monkeypatch.setattr(runner.subprocess, "run", fake_run)
++    monkeypatch.setattr(runner, "collect_resource_snapshot", _snapshot_factory())
++
++    request = RunRequest(
++        query="Run with external STL",
++        output_dir=output_dir,
++        external_stl=stored_input,
++        run_id="RUN-EXTERNAL",
++    )
++
++    response = runner.run_mvp(request, store=history_store)
++
++    assert "--external-stl" in observed["command"]
++    idx = observed["command"].index("--external-stl")
++    assert observed["command"][idx + 1] == str(stored_input)
++
++    env = observed["env"]
++    assert env["MVP_RUN_ID"] == "RUN-EXTERNAL"
++    assert env["MVP_EXTERNAL_STL_SOURCE"] == str(stored_input)
++    assert env["MVP_EXTERNAL_STL_RELATIVE_PATH"] == f"uploads/{request.run_id}/{stored_input.name}"
++
++    produced_names = {item.path.name for item in response.produced_files}
++    assert stored_input.name in produced_names
++    assert observed["copied_path"].read_text(encoding="utf-8") == "copied"
++
++    stored_record = history_store.get_run(response.run_id)
++    assert stored_record is not None
++    artifact_names = {Path(artifact.path).name for artifact in stored_record.artifacts}
++    assert stored_input.name in artifact_names
++
++
++
+ def test_run_mvp_missing_env_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+     message = "Missing required environment variables: OPENAI_API_KEY"
+     store_path = tmp_path / "history.json"
+diff --git a/ui/app/src/components/NewRunDialog.css b/ui/app/src/components/NewRunDialog.css
+index 49bbaa74..7861dea7 100644
+--- a/ui/app/src/components/NewRunDialog.css
++++ b/ui/app/src/components/NewRunDialog.css
+@@ -88,3 +88,94 @@
+   color: #7f1d1d;
+   padding: 0.75rem 1rem;
+ }
++
++.file-dropzone {
++  border: 1px dashed #cbd5e1;
++  border-radius: 0.75rem;
++  padding: 0.9rem 1rem;
++  background: #f8fafc;
++  color: #475569;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 0.5rem;
++  cursor: pointer;
++  transition:
++    border-color 0.2s ease,
++    background 0.2s ease,
++    color 0.2s ease;
++}
++
++.file-dropzone.drag-active {
++  border-color: rgba(37, 99, 235, 0.6);
++  background: rgba(37, 99, 235, 0.08);
++  color: #1e3a8a;
++}
++
++.file-dropzone.has-error {
++  border-color: rgba(248, 113, 113, 0.8);
++  background: rgba(248, 113, 113, 0.12);
++  color: #7f1d1d;
++}
++
++.file-dropzone:focus-visible {
++  outline: 2px solid #2563eb;
++  outline-offset: 2px;
++}
++
++.file-dropzone input {
++  display: none;
++}
++
++.file-dropzone span {
++  font-weight: 600;
++}
++
++.file-summary {
++  margin-top: 0.75rem;
++  padding: 0.75rem 1rem;
++  border-radius: 0.75rem;
++  border: 1px solid rgba(15, 23, 42, 0.08);
++  background: #f8fafc;
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 1rem;
++}
++
++.file-meta {
++  display: flex;
++  flex-direction: column;
++  gap: 0.25rem;
++  color: #1f2937;
++}
++
++.file-meta span {
++  font-size: 0.85rem;
++  color: #475569;
++}
++
++.field-hint {
++  margin: 0.5rem 0 0;
++  font-size: 0.85rem;
++  color: #64748b;
++}
++
++.field-error {
++  margin: 0.5rem 0 0;
++  font-size: 0.85rem;
++  color: #b91c1c;
++}
++
++.link-button {
++  background: none;
++  border: none;
++  color: #2563eb;
++  cursor: pointer;
++  font-weight: 600;
++  padding: 0;
++}
++
++.link-button:hover {
++  text-decoration: underline;
++}
+\ No newline at end of file
+diff --git a/ui/app/src/components/NewRunDialog.tsx b/ui/app/src/components/NewRunDialog.tsx
+index da67fb55..aac2bb01 100644
+--- a/ui/app/src/components/NewRunDialog.tsx
++++ b/ui/app/src/components/NewRunDialog.tsx
+@@ -1,10 +1,20 @@
+-?import { FormEvent, useEffect, useState } from 'react';
++?import {
++  ChangeEvent,
++  DragEvent,
++  FormEvent,
++  KeyboardEvent,
++  useEffect,
++  useRef,
++  useState,
++} from 'react';
+ import './NewRunDialog.css';
++import { formatFileSize } from '../utils/files';
+ 
+ export interface NewRunFormValues {
+   query: string;
+   pauseAfterAgent1: boolean;
+   execute: boolean;
++  externalStl: File | null;
+ }
+ 
+ interface NewRunDialogProps {
+@@ -15,18 +25,30 @@ interface NewRunDialogProps {
+   onSubmit: (values: NewRunFormValues) => void;
+ }
+ 
+-const defaultValues: NewRunFormValues = {
++const MAX_STL_BYTES = 25 * 1024 * 1024;
++
++const createDefaultValues = (): NewRunFormValues => ({
+   query: '',
+   pauseAfterAgent1: false,
+   execute: false,
+-};
++  externalStl: null,
++});
+ 
+ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDialogProps) => {
+-  const [values, setValues] = useState<NewRunFormValues>(defaultValues);
++  const [values, setValues] = useState<NewRunFormValues>(() => createDefaultValues());
++  const [fileError, setFileError] = useState<string | null>(null);
++  const [isDragActive, setDragActive] = useState(false);
++  const fileInputRef = useRef<HTMLInputElement | null>(null);
++  const fileInputId = 'external-stl-input';
+ 
+   useEffect(() => {
+     if (open) {
+-      setValues(defaultValues);
++      setValues(createDefaultValues());
++      setFileError(null);
++      setDragActive(false);
++      if (fileInputRef.current) {
++        fileInputRef.current.value = '';
++      }
+     }
+   }, [open]);
+ 
+@@ -34,11 +56,100 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
+     return null;
+   }
+ 
++  const setExternalStl = (file: File | null) => {
++    setValues(prev => ({ ...prev, externalStl: file }));
++  };
++
++  const resetFileInput = () => {
++    if (fileInputRef.current) {
++      fileInputRef.current.value = '';
++    }
++  };
++
++  const validateFile = (file: File): string | null => {
++    const extension = file.name.split('.').pop()?.toLowerCase();
++    if (extension !== 'stl') {
++      return 'File must use the .stl extension.';
++    }
++    if (file.size > MAX_STL_BYTES) {
++      return `File is too large. Limit is ${formatFileSize(MAX_STL_BYTES)}.`;
++    }
++    return null;
++  };
++
++  const handleFileSelection = (fileList: FileList | null) => {
++    if (!fileList || fileList.length === 0) {
++      setExternalStl(null);
++      setFileError(null);
++      return;
++    }
++
++    const file = fileList[0];
++    const validationError = validateFile(file);
++    if (validationError) {
++      setExternalStl(null);
++      setFileError(validationError);
++      resetFileInput();
++      return;
++    }
++
++    setExternalStl(file);
++    setFileError(null);
++  };
++
++  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
++    handleFileSelection(event.target.files);
++  };
++
++  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
++    event.preventDefault();
++    setDragActive(false);
++    handleFileSelection(event.dataTransfer?.files ?? null);
++    resetFileInput();
++  };
++
++  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
++    event.preventDefault();
++    event.dataTransfer.dropEffect = 'copy';
++    setDragActive(true);
++  };
++
++  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
++    const nextTarget = event.relatedTarget as Node | null;
++    if (nextTarget && event.currentTarget.contains(nextTarget)) {
++      return;
++    }
++    setDragActive(false);
++  };
++
++  const handleDropzoneClick = () => {
++    fileInputRef.current?.click();
++  };
++
++  const handleDropzoneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
++    if (event.key === 'Enter' || event.key === ' ') {
++      event.preventDefault();
++      fileInputRef.current?.click();
++    }
++  };
++
++  const handleRemoveFile = () => {
++    setExternalStl(null);
++    setFileError(null);
++    resetFileInput();
++  };
++
+   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+     event.preventDefault();
++    if (fileError) {
++      return;
++    }
+     onSubmit(values);
+   };
+ 
++  const fileLimitLabel = formatFileSize(MAX_STL_BYTES);
++  const selectedFile = values.externalStl;
++
+   return (
+     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+       <div
+@@ -70,6 +181,48 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
+               onChange={event => setValues(prev => ({ ...prev, query: event.target.value }))}
+             />
+           </label>
++          <div className="field">
++            <span>External STL (optional)</span>
++            <div
++              className={`file-dropzone${isDragActive ? ' drag-active' : ''}${fileError ? ' has-error' : ''}`}
++              role="button"
++              tabIndex={0}
++              aria-label="Upload external STL file"
++              onClick={handleDropzoneClick}
++              onKeyDown={handleDropzoneKeyDown}
++              onDragOver={handleDragOver}
++              onDragLeave={handleDragLeave}
++              onDrop={handleDrop}
++            >
++              <input
++                ref={fileInputRef}
++                id={fileInputId}
++                type="file"
++                accept=".stl"
++                onChange={handleInputChange}
++                aria-hidden="true"
++              />
++              <span>{selectedFile ? 'Replace file' : 'Choose file or drop it here'}</span>
++            </div>
++            {selectedFile ? (
++              <div className="file-summary">
++                <div className="file-meta">
++                  <strong>{selectedFile.name}</strong>
++                  <span>{formatFileSize(selectedFile.size)}</span>
++                </div>
++                <button type="button" className="link-button" onClick={handleRemoveFile}>
++                  Remove
++                </button>
++              </div>
++            ) : (
++              <p className="field-hint">.stl files up to {fileLimitLabel}</p>
++            )}
++            {fileError ? (
++              <p className="field-error" role="alert">
++                {fileError}
++              </p>
++            ) : null}
++          </div>
+           <label className="checkbox">
+             <input
+               type="checkbox"
+diff --git a/ui/app/src/components/OverviewPanel.tsx b/ui/app/src/components/OverviewPanel.tsx
+index 22ab585a..18f85c14 100644
+--- a/ui/app/src/components/OverviewPanel.tsx
++++ b/ui/app/src/components/OverviewPanel.tsx
+@@ -1,4 +1,5 @@
+-?import type { RunSummary, StepDetailPayload } from '../types/runs';
++?import { formatFileSize } from '../utils/files';
++import type { RunSummary, StepDetailPayload } from '../types/runs';
+ import './OverviewPanel.css';
+ 
+ interface OverviewPanelProps {
+@@ -7,6 +8,18 @@ interface OverviewPanelProps {
+ }
+ 
+ const OverviewPanel = ({ run, stepDetail }: OverviewPanelProps) => {
++  const stlSummary = run.summary?.externalStl;
++  const hasExternalStl =
++    (stlSummary && typeof stlSummary === 'object') || run.summary?.externalStlAttached === true;
++  const stlName = stlSummary && typeof stlSummary === 'object' ? stlSummary.filename : undefined;
++  const stlSize =
++    stlSummary && typeof stlSummary === 'object' && typeof stlSummary.sizeBytes === 'number'
++      ? formatFileSize(stlSummary.sizeBytes)
++      : undefined;
++  const externalStlDisplay = hasExternalStl
++    ? `${stlName ?? 'Attached'}${stlSize ? ` · ${stlSize}` : ''}`
++    : 'None';
++
+   return (
+     <div className="overview-panel">
+       <section className="overview-cards">
+@@ -22,6 +35,10 @@ const OverviewPanel = ({ run, stepDetail }: OverviewPanelProps) => {
+           <h3>Exit Code</h3>
+           <p>{run.exitCode ?? '—'}</p>
+         </div>
++        <div>
++          <h3>External STL</h3>
++          <p>{externalStlDisplay}</p>
++        </div>
+       </section>
+       <section className="overview-detail">
+         <div>
+diff --git a/ui/app/src/components/RunCard.css b/ui/app/src/components/RunCard.css
+index 7d4f5666..d8edab5b 100644
+--- a/ui/app/src/components/RunCard.css
++++ b/ui/app/src/components/RunCard.css
+@@ -30,6 +30,26 @@
+   font-size: 0.9rem;
+ }
+ 
++.run-card-header-meta {
++  display: flex;
++  align-items: center;
++  gap: 0.5rem;
++}
++
++.stl-badge {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  padding: 0.1rem 0.45rem;
++  border-radius: 999px;
++  background: rgba(37, 99, 235, 0.12);
++  color: #1d4ed8;
++  font-size: 0.7rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++}
++
+ .run-id {
+   color: #475569;
+ }
+@@ -59,6 +79,7 @@
+   font-weight: 600;
+   color: #1f2937;
+ }
++
+ .run-stage-summary {
+   display: flex;
+   gap: 0.75rem;
+@@ -104,4 +125,4 @@
+ 
+ .run-stage-summary .stage-label {
+   font-weight: 600;
+-}
++}
+\ No newline at end of file
+diff --git a/ui/app/src/components/RunCard.tsx b/ui/app/src/components/RunCard.tsx
+index b9ba8570..45a7499d 100644
+--- a/ui/app/src/components/RunCard.tsx
++++ b/ui/app/src/components/RunCard.tsx
+@@ -33,12 +33,24 @@ const stateIcon = (state: RunStepStatus['state']) => {
+ const RunCard = ({ run }: RunCardProps) => {
+   const to = `/runs/${encodeURIComponent(run.runId)}`;
+   const stages = run.stageCheckpoints ?? [];
++  const stlSummary = run.summary?.externalStl;
++  const hasExternalStl =
++    (stlSummary && typeof stlSummary === 'object') || run.summary?.externalStlAttached === true;
++  const stlLabel = stlSummary && typeof stlSummary === 'object' ? stlSummary.filename : undefined;
++  const stlDisplay = hasExternalStl ? stlLabel ?? 'Attached' : '—';
+ 
+   return (
+     <Link className="run-card" to={to} aria-label={`Open run ${run.runId}`}>
+       <div className="run-card-header">
+         <RunStatusBadge status={run.status} />
+-        <span className="run-id">{run.runId}</span>
++        <div className="run-card-header-meta">
++          {hasExternalStl && (
++            <span className="stl-badge" title={stlLabel ? `External STL: ${stlLabel}` : 'External STL attached'}>
++              STL
++            </span>
++          )}
++          <span className="run-id">{run.runId}</span>
++        </div>
+       </div>
+       <p className="run-query">{run.query}</p>
+ 
+@@ -72,6 +84,10 @@ const RunCard = ({ run }: RunCardProps) => {
+           <dt>Artifacts</dt>
+           <dd>{run.summary?.artifactCount ?? '—'}</dd>
+         </div>
++        <div>
++          <dt>External STL</dt>
++          <dd>{stlDisplay}</dd>
++        </div>
+       </dl>
+     </Link>
+   );
+diff --git a/ui/app/src/components/RunMetadata.tsx b/ui/app/src/components/RunMetadata.tsx
+index 006f9e48..c9c7e502 100644
+--- a/ui/app/src/components/RunMetadata.tsx
++++ b/ui/app/src/components/RunMetadata.tsx
+@@ -1,4 +1,5 @@
+-import { formatDuration, formatRelativeTime, formatUtc } from '../utils/time';
++?import { formatDuration, formatRelativeTime, formatUtc } from '../utils/time';
++import { formatFileSize } from '../utils/files';
+ import type { RunSummary } from '../types/runs';
+ import RunStatusBadge from './RunStatusBadge';
+ import './RunMetadata.css';
+@@ -7,10 +8,21 @@ interface RunMetadataProps {
+   run: RunSummary;
+   onRerun?: () => void;
+   onDownloadLog?: () => void;
++  onDelete?: () => void;
+   rerunDisabled?: boolean;
++  deleteDisabled?: boolean;
+ }
+ 
+ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, deleteDisabled }: RunMetadataProps) => {
++  const stlSummary = run.summary?.externalStl;
++  const hasExternalStl =
++    (stlSummary && typeof stlSummary === 'object') || run.summary?.externalStlAttached === true;
++  const stlName = stlSummary && typeof stlSummary === 'object' ? stlSummary.filename : undefined;
++  const stlSize =
++    stlSummary && typeof stlSummary === 'object' && typeof stlSummary.sizeBytes === 'number'
++      ? formatFileSize(stlSummary.sizeBytes)
++      : undefined;
++
+   return (
+     <header className="run-metadata">
+       <div>
+@@ -20,12 +32,17 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
+           <RunStatusBadge status={run.status} />
+         </div>
+         <p className="meta-line">
+-          Started {formatRelativeTime(run.startedAt)} ?P Duration{' '}
+-          {formatDuration(run.durationSeconds)}
++          Started {formatRelativeTime(run.startedAt)} · Duration {formatDuration(run.durationSeconds)}
+         </p>
+         {run.finishedAt && (
+           <p className="meta-line">Completed at {formatUtc(run.finishedAt)} (UTC)</p>
+         )}
++        {hasExternalStl && (
++          <p className="meta-line">
++            External STL: {stlName ?? 'Attached'}
++            {stlSize ? ` · ${stlSize}` : null}
++          </p>
++        )}
+       </div>
+       <div className="metadata-actions">
+         <button type="button" className="ghost" onClick={onDownloadLog}>
+@@ -45,6 +62,3 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
+ };
+ 
+ export default RunMetadata;
+-
+-
+-
+diff --git a/ui/app/src/pages/RunDetailPage.tsx b/ui/app/src/pages/RunDetailPage.tsx
+index e5c4c32e..cdb7de17 100644
+--- a/ui/app/src/pages/RunDetailPage.tsx
++++ b/ui/app/src/pages/RunDetailPage.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useMemo, useState } from 'react';
++?import { useEffect, useMemo, useState } from 'react';
+ import { useNavigate, useParams } from 'react-router-dom';
+ import RunMetadata from '../components/RunMetadata';
+ import RunStepper from '../components/RunStepper';
+@@ -81,6 +81,7 @@ const RunDetailPage = ({ initialTab = 'overview' }: RunDetailPageProps) => {
+         query: run.query,
+         execute: false,
+         pauseAfterAgent1: false,
++        externalStl: null,
+       });
+     } catch (err) {
+       window.alert(`Failed to queue rerun: ${String((err as Error).message ?? 'Unknown error')}`);
+@@ -135,7 +136,7 @@ const RunDetailPage = ({ initialTab = 'overview' }: RunDetailPageProps) => {
+   if (isLoading || !runId) {
+     return (
+       <section className="run-detail-page">
+-        <div className="loading">Loading run details?K</div>
++        <div className="loading">Loading run details…</div>
+       </section>
+     );
+   }
+@@ -218,3 +219,4 @@ export default RunDetailPage;
+ 
+ 
+ 
++
+diff --git a/ui/app/src/pages/RunListPage.tsx b/ui/app/src/pages/RunListPage.tsx
+index 34b43ec5..96bfeb16 100644
+--- a/ui/app/src/pages/RunListPage.tsx
++++ b/ui/app/src/pages/RunListPage.tsx
+@@ -5,7 +5,7 @@ import type { RunStatus } from '../types/runs';
+ import RunFilters from '../components/RunFilters';
+ import RunCard from '../components/RunCard';
+ import RunStatusBadge from '../components/RunStatusBadge';
+-import NewRunDialog from '../components/NewRunDialog';
++import NewRunDialog, { NewRunFormValues } from '../components/NewRunDialog';
+ import './RunListPage.css';
+ 
+ const RunListPage = () => {
+@@ -42,11 +42,7 @@ const RunListPage = () => {
+     [runs],
+   );
+ 
+-  const handleCreateRun = async (values: {
+-    query: string;
+-    pauseAfterAgent1: boolean;
+-    execute: boolean;
+-  }) => {
++  const handleCreateRun = async (values: NewRunFormValues) => {
+     setDialogError(null);
+     try {
+       await createRun.mutateAsync(values);
+@@ -144,3 +140,4 @@ const RunListPage = () => {
+ };
+ 
+ export default RunListPage;
++
+diff --git a/ui/app/src/services/api.ts b/ui/app/src/services/api.ts
+index 38a69a75..7155c41f 100644
+--- a/ui/app/src/services/api.ts
++++ b/ui/app/src/services/api.ts
+@@ -1,4 +1,4 @@
+-import { z } from 'zod';
++?import { z } from 'zod';
+ import type {
+   ArtifactMetadata,
+   CreateRunRequest,
+@@ -20,6 +20,20 @@ const stageStatusSchema = z.object({
+   message: z.string().optional(),
+ });
+ 
++const runSummaryDetailsSchema = z.object({
++  primaryOutput: z.string().optional(),
++  artifactCount: z.number().optional(),
++  hasFailures: z.boolean().optional(),
++  externalStl: z
++    .object({
++      filename: z.string(),
++      sizeBytes: z.number().optional(),
++    })
++    .nullable()
++    .optional(),
++  externalStlAttached: z.boolean().optional(),
++});
++
+ const runSummarySchema = z.object({
+   runId: z.string(),
+   query: z.string().default(''),
+@@ -28,13 +42,7 @@ const runSummarySchema = z.object({
+   startedAt: z.string().optional(),
+   finishedAt: z.string().optional(),
+   durationSeconds: z.number().optional(),
+-  summary: z
+-    .object({
+-      primaryOutput: z.string().optional(),
+-      artifactCount: z.number().optional(),
+-      hasFailures: z.boolean().optional(),
+-    })
+-    .optional(),
++  summary: runSummaryDetailsSchema.optional(),
+   stepStatus: z.array(stageStatusSchema).optional(),
+   stageCheckpoints: z.array(stageStatusSchema).optional(),
+ });
+@@ -155,6 +163,13 @@ async function parseJson<T>(response: Response, schema: z.ZodSchema<T>): Promise
+   return schema.parse(json);
+ }
+ 
++function appendFormBoolean(form: FormData, key: string, value: boolean | undefined): void {
++  if (value === undefined) {
++    return;
++  }
++  form.append(key, value ? 'true' : 'false');
++}
++
+ export class ApiClient {
+   constructor(private readonly baseUrl: string = API_BASE_URL) {}
+ 
+@@ -183,13 +198,30 @@ export class ApiClient {
+   }
+ 
+   async createRun(body: CreateRunRequest): Promise<CreateRunResponse> {
+-    const response = await fetch(`${this.baseUrl}/runs`, {
+-      method: 'POST',
+-      headers: {
+-        'Content-Type': 'application/json',
+-      },
+-      body: JSON.stringify(body),
+-    });
++    const { externalStl, ...payload } = body;
++
++    let response: Response;
++    if (externalStl instanceof File) {
++      const form = new FormData();
++      form.append('query', payload.query);
++      appendFormBoolean(form, 'pauseAfterAgent1', payload.pauseAfterAgent1);
++      appendFormBoolean(form, 'execute', payload.execute);
++      form.append('externalStl', externalStl);
++      response = await fetch(`${this.baseUrl}/runs`, {
++        method: 'POST',
++        body: form,
++      });
++    } else {
++      const jsonPayload = { ...payload };
++      response = await fetch(`${this.baseUrl}/runs`, {
++        method: 'POST',
++        headers: {
++          'Content-Type': 'application/json',
++        },
++        body: JSON.stringify(jsonPayload),
++      });
++    }
++
+     return parseJson(response, createRunSchema) as Promise<CreateRunResponse>;
+   }
+ 
+@@ -203,7 +235,6 @@ export class ApiClient {
+     }
+   }
+ 
+-
+   async getRunLogs(runId: string, params?: { fromSequence?: number }): Promise<LogEntry[]> {
+     const query = params?.fromSequence ? `?from=${params.fromSequence}` : '';
+     const response = await fetch(`${this.baseUrl}/runs/${runId}/logs${query}`);
+diff --git a/ui/app/src/types/runs.ts b/ui/app/src/types/runs.ts
+index 7c519ad3..655c1999 100644
+--- a/ui/app/src/types/runs.ts
++++ b/ui/app/src/types/runs.ts
+@@ -1,8 +1,19 @@
+-?export type RunStatus = 'queued' | 'running' | 'success' | 'failed' | 'interrupted';
++?export type RunStatus = "queued" | "running" | "success" | "failed" | "interrupted";
++
++export interface RunSummaryMetadata {
++  primaryOutput?: string;
++  artifactCount?: number;
++  hasFailures?: boolean;
++  externalStl?: {
++    filename: string;
++    sizeBytes?: number;
++  } | null;
++  externalStlAttached?: boolean;
++}
+ 
+ export interface RunStepStatus {
+   step: string;
+-  state: 'idle' | 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
++  state: "idle" | "pending" | "running" | "completed" | "failed" | "skipped";
+   startedAt?: string;
+   finishedAt?: string;
+   reason?: string;
+@@ -17,11 +28,7 @@ export interface RunSummary {
+   startedAt?: string;
+   finishedAt?: string;
+   durationSeconds?: number;
+-  summary?: {
+-    primaryOutput?: string;
+-    artifactCount?: number;
+-    hasFailures?: boolean;
+-  };
++  summary?: RunSummaryMetadata;
+   stepStatus?: RunStepStatus[];
+   stageCheckpoints?: RunStepStatus[];
+ }
+@@ -96,13 +103,14 @@ export interface StepDetailPayload {
+     lastSequence?: number;
+   };
+   artifacts?: string[];
+-  status?: 'pending' | 'running' | 'completed' | 'failed';
++  status?: "pending" | "running" | "completed" | "failed";
+ }
+ 
+ export interface CreateRunRequest {
+   query: string;
+   pauseAfterAgent1?: boolean;
+   execute?: boolean;
++  externalStl?: File | null;
+ }
+ 
+ export interface CreateRunResponse {
+diff --git a/ui_backend/api.py b/ui_backend/api.py
+index e7f08642..04fe5ed6 100644
+--- a/ui_backend/api.py
++++ b/ui_backend/api.py
+@@ -8,7 +8,7 @@ from pathlib import Path
+ from typing import Optional
+ from uuid import uuid4
+ 
+-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
++from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
+ from fastapi.responses import PlainTextResponse
+ from pydantic import BaseModel, ConfigDict, Field
+ 
+@@ -49,6 +49,52 @@ def _prepare_output_dir(run_id: str) -> Path:
+     return target
+ 
+ 
++def _parse_form_flag(value: object | None) -> Optional[bool]:
++    if value is None:
++        return None
++    if isinstance(value, bool):
++        return value
++    if isinstance(value, str):
++        normalized = value.strip().lower()
++        if normalized in {"1", "true", "on", "yes"}:
++            return True
++        if normalized in {"0", "false", "off", "no"}:
++            return False
++    raise HTTPException(
++        status_code=status.HTTP_400_BAD_REQUEST,
++        detail="Invalid boolean value for form field",
++    )
++
++
++def _store_external_stl(upload: UploadFile, *, output_dir: Path) -> Path:
++    filename = Path(upload.filename or "").name
++    if not filename:
++        raise HTTPException(
++            status_code=status.HTTP_400_BAD_REQUEST,
++            detail="External STL filename is required",
++        )
++    if Path(filename).suffix.lower() != ".stl":
++        raise HTTPException(
++            status_code=status.HTTP_400_BAD_REQUEST,
++            detail="External STL must use .stl extension",
++        )
++
++    target_dir = output_dir / "uploads"
++    target_dir.mkdir(parents=True, exist_ok=True)
++    destination = target_dir / filename
++
++    try:
++        with destination.open("wb") as buffer:
++            shutil.copyfileobj(upload.file, buffer)
++    except OSError as exc:
++        raise HTTPException(
++            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
++            detail=str(exc),
++        ) from exc
++
++    return destination.resolve()
++
++
+ def _enqueue_run(history: HistoryStore, *, run_id: str, query: str, output_dir: Path) -> None:
+     record = RunRecord(
+         run_id=run_id,
+@@ -279,17 +325,61 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
+     get_store = _store_dependency_factory(store)
+ 
+     @router.post("", response_model=CreateRunResponse, status_code=status.HTTP_201_CREATED)
+-    def create_run_endpoint(
+-        payload: CreateRunPayload,
++    async def create_run_endpoint(
++        request: Request,
+         history = Depends(get_store),
+     ) -> CreateRunResponse:
++        content_type = (request.headers.get("content-type") or "").lower()
++        external_upload: UploadFile | None = None
++
++        if content_type.startswith("multipart/form-data"):
++            form = await request.form()
++            model_input: dict[str, object] = {}
++            query_value = form.get("query")
++            if query_value is not None:
++                model_input["query"] = query_value
++            pause_flag = _parse_form_flag(form.get("pauseAfterAgent1"))
++            if pause_flag is not None:
++                model_input["pauseAfterAgent1"] = pause_flag
++            execute_flag = _parse_form_flag(form.get("execute"))
++            if execute_flag is not None:
++                model_input["execute"] = execute_flag
++            payload = CreateRunPayload.model_validate(model_input)
++            candidate = form.get("externalStl")
++            if isinstance(candidate, UploadFile):
++                if candidate.filename:
++                    external_upload = candidate
++                else:
++                    await candidate.close()
++        else:
++            try:
++                payload_data = await request.json()
++            except Exception as exc:
++                raise HTTPException(
++                    status_code=status.HTTP_400_BAD_REQUEST,
++                    detail="Invalid JSON body",
++                ) from exc
++            payload = CreateRunPayload.model_validate(payload_data)
++
+         run_id = _generate_run_id()
+         output_dir = _prepare_output_dir(run_id)
+-        request = RunRequest(
++
++        stored_external: Optional[Path] = None
++        if external_upload is not None:
++            try:
++                stored_external = _store_external_stl(
++                    external_upload,
++                    output_dir=output_dir,
++                )
++            finally:
++                await external_upload.close()
++
++        request_model = RunRequest(
+             query=payload.query,
+             output_dir=output_dir,
+             pause_after_agent1=payload.pause_after_agent1,
+             execute=payload.execute,
++            external_stl=stored_external,
+             run_id=run_id,
+         )
+ 
+@@ -298,7 +388,7 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
+         except Exception:  # pragma: no cover - defensive guard
+             logger.exception("Failed to persist queued record for run %s", run_id)
+ 
+-        _spawn_run(request, history)
++        _spawn_run(request_model, history)
+         return CreateRunResponse(runId=run_id, status="queued")
+ 
+     router.add_api_route(
+diff --git a/ui_backend/models.py b/ui_backend/models.py
+index afa92e8a..d52a470e 100644
+--- a/ui_backend/models.py
++++ b/ui_backend/models.py
+@@ -32,6 +32,7 @@ class RunRequest:
+     output_dir: Path
+     pause_after_agent1: bool = False
+     execute: bool = False
++    external_stl: Optional[Path] = None
+     timeout: Optional[float] = None
+     env: Optional[dict[str, str]] = None
+     run_id: Optional[str] = None
+@@ -44,6 +45,8 @@ class RunRequest:
+             argv.append("--pause-after-agent1")
+         if self.execute:
+             argv.append("--execute")
++        if self.external_stl is not None:
++            argv.extend(["--external-stl", str(self.external_stl)])
+         return argv
+ 
+ 
+diff --git a/ui_backend/runner.py b/ui_backend/runner.py
+index 63901595..27cfa6df 100644
+--- a/ui_backend/runner.py
++++ b/ui_backend/runner.py
+@@ -63,13 +63,23 @@ def _build_command(request: RunRequest) -> List[str]:
+     ]
+ 
+ 
+-def _merge_env(request: RunRequest, repo_root: Path, output_dir: Path) -> dict[str, str]:
++def _merge_env(
++    request: RunRequest,
++    repo_root: Path,
++    output_dir: Path,
++    run_id: str,
++) -> dict[str, str]:
+     env = os.environ.copy()
+     if request.env:
+         env.update(request.env)
+     env.setdefault("PYTHONIOENCODING", "utf-8")
+     env["MVP_REPO_ROOT"] = str(repo_root)
+     env["MVP_REDIRECT_ROOT"] = str(output_dir)
++    env["MVP_RUN_ID"] = run_id
++    if request.external_stl is not None:
++        env.setdefault("MVP_EXTERNAL_STL_SOURCE", str(request.external_stl))
++        relative = Path("uploads") / run_id / request.external_stl.name
++        env.setdefault("MVP_EXTERNAL_STL_RELATIVE_PATH", relative.as_posix())
+     return env
+ 
+ 
+@@ -153,13 +163,14 @@ def run_mvp(request: RunRequest, *, store: HistoryStore | None = None) -> RunRes
+     output_dir.mkdir(parents=True, exist_ok=True)
+     log_path = output_dir / "mvp_run.log"
+ 
++    run_id = request.run_id or _generate_run_id()
++    request.run_id = run_id
++
+     command = _build_command(request)
+-    env = _merge_env(request, repo_root, output_dir)
++    env = _merge_env(request, repo_root, output_dir, run_id)
+ 
+     started_at = datetime.now(timezone.utc)
+     history_store = _get_history_store(store)
+-
+-    run_id = request.run_id or _generate_run_id()
+     stage_map, initial_stage_list = _prepare_stage_checks(started_at)
+ 
+     initial_snapshot = collect_resource_snapshot()
+
