@@ -1,4 +1,5 @@
 import { formatDuration, formatRelativeTime, formatUtc } from '../utils/time';
+import { formatFileSize } from '../utils/files';
 import type { RunSummary } from '../types/runs';
 import RunStatusBadge from './RunStatusBadge';
 import './RunMetadata.css';
@@ -7,10 +8,22 @@ interface RunMetadataProps {
   run: RunSummary;
   onRerun?: () => void;
   onDownloadLog?: () => void;
+  onDelete?: () => void;
   rerunDisabled?: boolean;
+  deleteDisabled?: boolean;
 }
 
 const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, deleteDisabled }: RunMetadataProps) => {
+  const stlSummary = run.summary?.externalStl;
+  const hasExternalStl =
+    (stlSummary && typeof stlSummary === 'object') || run.summary?.externalStlAttached === true;
+  const stlName =
+    stlSummary && typeof stlSummary === 'object' ? stlSummary.filename : undefined;
+  const stlSize =
+    stlSummary && typeof stlSummary === 'object' && typeof stlSummary.sizeBytes === 'number'
+      ? formatFileSize(stlSummary.sizeBytes)
+      : undefined;
+
   return (
     <header className="run-metadata">
       <div>
@@ -20,9 +33,15 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
           <RunStatusBadge status={run.status} />
         </div>
         <p className="meta-line">
-          Started {formatRelativeTime(run.startedAt)} ¡P Duration{' '}
+          Started {formatRelativeTime(run.startedAt)} | Duration{' '}
           {formatDuration(run.durationSeconds)}
         </p>
+        {hasExternalStl && (
+          <p className="meta-line">
+            External STL: {stlName ?? 'Attached'}
+            {stlSize ? ` | ${stlSize}` : null}
+          </p>
+        )}
         {run.finishedAt && (
           <p className="meta-line">Completed at {formatUtc(run.finishedAt)} (UTC)</p>
         )}
@@ -45,6 +64,5 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
 };
 
 export default RunMetadata;
-
 
 

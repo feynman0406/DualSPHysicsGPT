@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import re
 from pathlib import Path
@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover - lightweight stubs for test environment
 from AutoXml_script.generate_xml import generate_case_xml, validate_case_tree
 from chains.json_normalizer import normalize_case_config, NormalizationResult
 from chains.mdbc_normals import enforce_mdbc_normals
+from external_stl import get_external_stl_context
 try:
     from rag.retrievers import design_retriever
 except Exception:  # pragma: no cover - optional dependency for tests
@@ -221,6 +222,34 @@ def sanitize_newvarcte(xml: str) -> str:
     return pattern.sub(repl, xml or "")
 
 
+def _format_external_stl_note(ctx: Dict[str, str]) -> str:
+    filename = (
+        ctx.get("stored_filename")
+        or ctx.get("original_filename")
+        or ctx.get("stored_relative_path")
+        or ctx.get("stored_path")
+        or ctx.get("source_path")
+        or "external_geometry.stl"
+    )
+    stored_rel = ctx.get("stored_relative_path") or ctx.get("stored_path")
+    source_path = ctx.get("source_path")
+    details: List[str] = []
+    if filename:
+        details.append(
+            f"External STL provided: replace any placeholder STL references with {filename} while keeping other content unchanged."
+        )
+    if stored_rel:
+        details.append(f"Stored location: {stored_rel}")
+    elif source_path:
+        details.append(f"Original upload: {source_path}")
+    if not details:
+        details.append(
+            "External STL provided: replace any placeholder STL references with the uploaded filename."
+        )
+    return "\n".join(details)
+
+
+
 def _validate_xml_or_raise(xml: str) -> None:
     import xml.etree.ElementTree as ET
 
@@ -229,7 +258,20 @@ def _validate_xml_or_raise(xml: str) -> None:
     except ET.ParseError as exc:
         raise ValueError(f"Fallback XML is not well-formed: {exc}") from exc
 
-    errors = validate_case_tree(root)
+    errors = list(validate_case_tree(root))
+
+    # Additional guard: when Boundary=2 (mDBC) is requested the XML must include normals.
+    boundary = None
+    for param in root.findall('.//parameter'):
+        key = (param.get('key') or '').strip().lower()
+        if key == 'boundary':
+            boundary = (param.get('value') or (param.text or '')).strip().lower()
+            break
+    if boundary in {'2', 'mdbc'}:
+        has_normals = root.find('.//normals') is not None
+        if not has_normals:
+            errors.append('Boundary=2 requires a <normals> section')
+
     if errors:
         raise ValueError("Fallback XML failed validation: " + '; '.join(errors))
 
@@ -327,11 +369,16 @@ def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
     
     # Stage 0: File search retrieval (required before Planning Agent)
     model = get_model_name()
+    external_stl_ctx = get_external_stl_context()
+    external_stl_block = _format_external_stl_note(external_stl_ctx) if external_stl_ctx else ""
+    base_query = user_query.rstrip("\r\n")
+    agent_query = base_query if base_query else user_query
+    if external_stl_block:
+        agent_query = f"{base_query}\n{external_stl_block}" if base_query else external_stl_block
     messages = [
         {"role": "system", "content": "You are a DualSPHysics configuration expert."},
-        {"role": "user", "content": f"Find relevant examples for: {user_query}"},
+        {"role": "user", "content": f"Find relevant examples for this request:\n{agent_query}"}
     ]
-    
     try:
         _ = response_with_file_search(
             messages=messages,
@@ -346,14 +393,14 @@ def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
         if debug_enabled:
             print(f"File search failed: {exc}")
         raise
-    
+
     if debug_enabled:
         print("=== Stage 1: Planning Agent ===")
-    
+
     # Stage 1: Planning Agent
     try:
         plan_json = run_planning_agent(
-            user_query=user_query,
+            user_query=agent_query,
             vector_store_ids=[design_vs_id],
             metadata_filter=metadata_filter,
             retry_context=None,
@@ -362,21 +409,21 @@ def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
         if debug_enabled:
             print(f"Planning Agent failed: {exc}")
         raise RuntimeError(f"Planning Agent failed: {exc}") from exc
-    
+
     if debug_enabled:
         print(f"Plan JSON generated: {len(plan_json.get('curated_examples', []))} examples")
-    
+
     # Stage 2: Schema Agent
     if debug_enabled:
         print("=== Stage 2: Schema Agent ===")
-    
+
     try:
         schema = _load_json_schema()
         llm_client = get_openai_client()
-        
+
         config_json = run_schema_agent(
             plan_json=plan_json,
-            user_query=user_query,
+            user_query=agent_query,
             schema=schema,
             llm_client=llm_client,
             model=model,
@@ -386,9 +433,10 @@ def _two_stage_workflow(user_query: str) -> Dict[str, Any]:
         if debug_enabled:
             print(f"Schema Agent failed: {exc}")
         raise RuntimeError(f"Schema Agent failed: {exc}") from exc
-    
+
     if debug_enabled:
         print("Config JSON generated successfully")
+
     
     # Normalize, enforce mDBC normals, and generate XML
     try:
@@ -515,6 +563,8 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
         if frozen_docs:
             docs = list(frozen_docs)
             ctx = _assemble_context(docs)
+
+
     elif use_file_search:
         filters = build_metadata_filter(user_query)
     elif is_rag_enabled():
@@ -527,6 +577,15 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
             docs = retr.get_relevant_documents(query_for_rag)
             ctx = _assemble_context(docs)
 
+    external_stl_ctx = get_external_stl_context()
+    external_stl_block = _format_external_stl_note(external_stl_ctx) if external_stl_ctx else ""
+    user_requirements_text = user_query.rstrip("\r\n")
+    if external_stl_block:
+        if user_requirements_text:
+            user_requirements_text = f"{user_requirements_text}\n{external_stl_block}"
+        else:
+            user_requirements_text = external_stl_block
+
     # Heuristic to check if this is a detailed prompt from the controller loop
     is_detailed_prompt = "(Fix iteration" in user_query or "(User rejection)" in user_query
 
@@ -534,14 +593,16 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
     freeze_prefix = "FreezeRetrieval=true\n" if freeze_retrieval else ""
     if is_detailed_prompt:
         # For detailed prompts, append the references directly
-        human_content = f"{freeze_prefix}{user_query}\n[References]\n{ctx}\n"
+        detailed_body = user_requirements_text + ("\n" if user_requirements_text else "")
+        human_content = f"{freeze_prefix}{detailed_body}[References]\n{ctx}\n"
+
     else:
         # For simple queries, use the standard template
         human_content = (
             f"{freeze_prefix}"
             "[Task] Based on the user's requirements and available references, generate a complete DualSPHysics Case_Def.xml.\n"
             "[Constraints] Output exactly one <case>...</case> XML block with no commentary, YAML, or code fences.\n"
-            f"[User Requirements]\n{user_query}\n"
+            f"[User Requirements]\n{user_requirements_text}\n"
             f"[References]\n{ctx}\n"
         )
 
@@ -658,3 +719,5 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
     if structured_meta is not None:
         result["structured_meta"] = structured_meta
     return result
+
+

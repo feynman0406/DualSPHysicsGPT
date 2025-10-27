@@ -18,6 +18,7 @@ import httpx
 import time
 import random
 from openai import APIConnectionError, APITimeoutError
+from external_stl import get_external_stl_context
 from openai import OpenAI, BadRequestError
 from openai.types.responses import Response
 from openai.types.responses.response_file_search_tool_call import ResponseFileSearchToolCall
@@ -391,6 +392,23 @@ def _structured_query(text: str) -> Dict[str, List[str]]:
     }
 
 
+
+def _apply_external_stl_bias(spec: Dict[str, List[str]], ctx: Optional[Dict[str, str]]) -> Dict[str, List[str]]:
+    """Add the 'externalstl' keyword to query requirements when context is available."""
+    if not ctx:
+        return spec
+    must_terms = set(spec.get("must", []))
+    if "externalstl" in must_terms:
+        return spec
+    biased = {key: (list(value) if isinstance(value, list) else value) for key, value in spec.items()}
+    must_terms.add("externalstl")
+    biased["must"] = sorted(must_terms)
+    if "should" not in biased:
+        biased["should"] = []
+    if "must_not" not in biased:
+        biased["must_not"] = []
+    return biased
+
 def _compose_query_text(spec: Dict[str, List[str]], raw_query: str) -> str:
     parts: List[str] = []
     if spec["must"]:
@@ -618,6 +636,8 @@ def response_with_file_search(
     effective_raw = (raw_query or user_text or combined_text).strip()
 
     query_spec = _structured_query(effective_raw)
+    external_stl_ctx = get_external_stl_context()
+    query_spec = _apply_external_stl_bias(query_spec, external_stl_ctx)
     query_text = _compose_query_text(query_spec, effective_raw) or raw_query[:512]
     selected_filter, search_attempts = _select_filter_and_search(
         client, vector_store_ids, query_text, metadata_filter, query_rewrite
@@ -719,3 +739,6 @@ __all__ = [
     "clear_last_run_info",
     "get_file_id_to_name_map",
 ]
+
+
+

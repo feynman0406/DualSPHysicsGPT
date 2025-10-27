@@ -1,4 +1,4 @@
-﻿import type { MetricsSnapshot, ResourceUsageSample } from '../types/runs';
+import type { MetricsSnapshot, ResourceUsageSample } from '../types/runs';
 import './MetricsPanel.css';
 
 interface MetricsPanelProps {
@@ -10,21 +10,21 @@ interface MetricsPanelProps {
 
 const formatPercent = (value?: number) => {
   if (value === undefined || Number.isNaN(value)) {
-    return '—';
+    return '--';
   }
   return `${(value * 100).toFixed(1)}%`;
 };
 
 const formatPercentValue = (value?: number) => {
   if (value === undefined || Number.isNaN(value)) {
-    return '—';
+    return '--';
   }
   return `${value.toFixed(1)}%`;
 };
 
 const formatMemory = (used?: number, total?: number) => {
   if (used === undefined) {
-    return '—';
+    return '--';
   }
   if (total === undefined) {
     return `${used.toFixed(0)} MB`;
@@ -55,7 +55,7 @@ const MetricsPanel = ({ metrics, isLoading, error, onRetry }: MetricsPanelProps)
   if (isLoading && !metrics) {
     return (
       <div className="metrics-panel loading">
-        <p>Loading metrics…</p>
+        <p>Loading metrics...</p>
       </div>
     );
   }
@@ -76,7 +76,7 @@ const MetricsPanel = ({ metrics, isLoading, error, onRetry }: MetricsPanelProps)
     <div className="metrics-panel">
       <div className="metric-card">
         <h3>Duration</h3>
-        <p>{metrics.durationSeconds ? `${metrics.durationSeconds.toFixed(1)}s` : '—'}</p>
+        <p>{metrics.durationSeconds ? `${metrics.durationSeconds.toFixed(1)}s` : '--'}</p>
         <span>Compared to baseline: {formatPercent(metrics.baselineDelta?.durationPercent)}</span>
       </div>
 
@@ -93,8 +93,8 @@ const MetricsPanel = ({ metrics, isLoading, error, onRetry }: MetricsPanelProps)
               <ul className="gpu-metrics">
                 {resource.gpu.map(device => (
                   <li key={device.name}>
-                    <strong>{device.name}</strong> · {formatPercentValue(device.utilizationPercent)}{' '}
-                    ·{` ${formatMemory(device.memoryUsedMb, device.memoryTotalMb)}`}
+                    <strong>{device.name}</strong>  |  {formatPercentValue(device.utilizationPercent)}{' '}
+                     | {` ${formatMemory(device.memoryUsedMb, device.memoryTotalMb)}`}
                   </li>
                 ))}
               </ul>
@@ -117,17 +117,17 @@ const MetricsPanel = ({ metrics, isLoading, error, onRetry }: MetricsPanelProps)
       <div className="metric-card">
         <h3>Token usage</h3>
         <p>
-          Input {metrics.tokenUsage?.input ?? '—'} · Output {metrics.tokenUsage?.output ?? '—'}
+          Input {metrics.tokenUsage?.input ?? '--'}  |  Output {metrics.tokenUsage?.output ?? '--'}
         </p>
         <span>
-          Cost {metrics.tokenUsage?.costUsd ? `$${metrics.tokenUsage.costUsd.toFixed(2)}` : '—'}
+          Cost {metrics.tokenUsage?.costUsd ? `$${metrics.tokenUsage.costUsd.toFixed(2)}` : '--'}
         </span>
       </div>
 
       <div className="metric-card">
         <h3>Retrieval</h3>
         <p>Recall@5 {formatPercent(metrics.retrieval?.recallAt5)}</p>
-        <span>Total sources {metrics.retrieval?.totalSources ?? '—'}</span>
+        <span>Total sources {metrics.retrieval?.totalSources ?? '--'}</span>
       </div>
 
       <div className="metric-card">

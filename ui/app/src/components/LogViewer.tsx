@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LogEntry } from '../types/runs';
 import './LogViewer.css';
 
@@ -12,7 +12,7 @@ interface LogViewerProps {
 
 const formatRelative = (seconds?: number) => {
   if (seconds === undefined) {
-    return '—';
+    return '--';
   }
   return seconds.toFixed(1).padStart(6, ' ');
 };
@@ -98,7 +98,7 @@ const LogViewer = ({
 
       <div className="log-viewport" ref={viewportRef} aria-live="polite">
         {isLoading && entries.length === 0 ? (
-          <div className="placeholder">Connecting to log stream…</div>
+          <div className="placeholder">Connecting to log stream...</div>
         ) : filteredEntries.length === 0 ? (
           <div className="placeholder">No log entries yet.</div>
         ) : (

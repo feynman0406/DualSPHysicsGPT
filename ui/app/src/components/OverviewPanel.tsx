@@ -1,4 +1,4 @@
-﻿import type { RunSummary, StepDetailPayload } from '../types/runs';
+import type { RunSummary, StepDetailPayload } from '../types/runs';
 import './OverviewPanel.css';
 
 interface OverviewPanelProps {
@@ -16,11 +16,11 @@ const OverviewPanel = ({ run, stepDetail }: OverviewPanelProps) => {
         </div>
         <div>
           <h3>Artifacts</h3>
-          <p>{run.summary?.artifactCount ?? '—'}</p>
+          <p>{run.summary?.artifactCount ?? '"'}</p>
         </div>
         <div>
           <h3>Exit Code</h3>
-          <p>{run.exitCode ?? '—'}</p>
+          <p>{run.exitCode ?? '"'}</p>
         </div>
       </section>
       <section className="overview-detail">
@@ -36,7 +36,7 @@ const OverviewPanel = ({ run, stepDetail }: OverviewPanelProps) => {
                 <li key={reference.filename}>
                   <strong>{reference.filename}</strong>
                   {reference.score !== undefined ? (
-                    <span> · Score {(reference.score * 100).toFixed(1)}%</span>
+                    <span>  |  Score {(reference.score * 100).toFixed(1)}%</span>
                   ) : null}
                 </li>
               ))}
@@ -54,7 +54,7 @@ const OverviewPanel = ({ run, stepDetail }: OverviewPanelProps) => {
                   <strong>{change.path}</strong>
                   <span>
                     {' '}
-                    {String(change.from ?? '—')} → {String(change.to ?? '—')}
+                    {String(change.from ?? '"')} -' {String(change.to ?? '"')}
                   </span>
                 </li>
               ))}

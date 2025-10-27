@@ -1,11 +1,11 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useCreateRun, useRuns } from '../hooks/useRuns';
 import type { RunStatus } from '../types/runs';
 import RunFilters from '../components/RunFilters';
 import RunCard from '../components/RunCard';
 import RunStatusBadge from '../components/RunStatusBadge';
-import NewRunDialog from '../components/NewRunDialog';
+import NewRunDialog, { NewRunFormValues } from '../components/NewRunDialog';
 import './RunListPage.css';
 
 const RunListPage = () => {
@@ -42,11 +42,7 @@ const RunListPage = () => {
     [runs],
   );
 
-  const handleCreateRun = async (values: {
-    query: string;
-    pauseAfterAgent1: boolean;
-    execute: boolean;
-  }) => {
+  const handleCreateRun = async (values: NewRunFormValues) => {
     setDialogError(null);
     try {
       await createRun.mutateAsync(values);
@@ -73,7 +69,7 @@ const RunListPage = () => {
             onClick={() => refetch()}
             disabled={isFetching}
           >
-            {isFetching ? 'Refreshing…' : 'Refresh'}
+            {isFetching ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </header>
@@ -87,7 +83,7 @@ const RunListPage = () => {
         />
         {activeRuns.length > 0 && (
           <div className="polling-indicator" role="status">
-            Tracking {activeRuns.length} active run{activeRuns.length > 1 ? 's' : ''}…
+            Tracking {activeRuns.length} active run{activeRuns.length > 1 ? 's' : ''}...
           </div>
         )}
       </div>

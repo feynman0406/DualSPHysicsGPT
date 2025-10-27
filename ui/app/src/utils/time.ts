@@ -1,8 +1,8 @@
-﻿import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 export const formatUtc = (iso: string | undefined) => {
   if (!iso) {
-    return '—';
+    return '--';
   }
   try {
     return format(new Date(iso), 'yyyy-MM-dd HH:mm:ss');
@@ -24,7 +24,7 @@ export const formatRelativeTime = (iso: string | undefined) => {
 
 export const formatDuration = (seconds: number | undefined | null) => {
   if (seconds === undefined || seconds === null) {
-    return '—';
+    return '--';
   }
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);

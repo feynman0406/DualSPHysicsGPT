@@ -83,7 +83,7 @@ const RunDetailPage = ({ initialTab = 'overview' }: RunDetailPageProps) => {
         pauseAfterAgent1: false,
       });
     } catch (err) {
-      window.alert(`Failed to queue rerun: ${String((err as Error).message ?? 'Unknown error')}`);
+      window.alert('Failed to queue rerun: ' + String((err as Error).message ?? 'Unknown error'));
     }
   };
 
@@ -135,7 +135,7 @@ const RunDetailPage = ({ initialTab = 'overview' }: RunDetailPageProps) => {
   if (isLoading || !runId) {
     return (
       <section className="run-detail-page">
-        <div className="loading">Loading run details¡K</div>
+        <div className="loading">Loading run details...</div>
       </section>
     );
   }
@@ -213,6 +213,7 @@ const RunDetailPage = ({ initialTab = 'overview' }: RunDetailPageProps) => {
 };
 
 export default RunDetailPage;
+
 
 
 

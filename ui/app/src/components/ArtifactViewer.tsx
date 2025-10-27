@@ -194,7 +194,7 @@ const ArtifactViewer = ({
           </button>
         </header>
         {isLoading && sortedArtifacts.length === 0 ? (
-          <p className="placeholder">Loading artifacts�K</p>
+          <p className="placeholder">Loading artifacts...</p>
         ) : error ? (
           <div className="error" role="alert">
             <strong>Unable to load artifacts.</strong>
@@ -225,7 +225,7 @@ const ArtifactViewer = ({
             <div>
               <h3>{selectedArtifact.label ?? selectedArtifact.path}</h3>
               <p>
-                {selectedArtifact.path} �P {humanFileSize(selectedArtifact.sizeBytes)}
+                {selectedArtifact.path} | {humanFileSize(selectedArtifact.sizeBytes)}
               </p>
             </div>
             {hasPreviewActions ? (
@@ -258,7 +258,7 @@ const ArtifactViewer = ({
         ) : null}
         <div className="preview-body">
           {isPreviewLoading ? (
-            <p className="placeholder">Loading preview�K</p>
+            <p className="placeholder">Loading preview...</p>
           ) : previewError ? (
             <div className="error" role="alert">
               {previewError}
@@ -275,5 +275,4 @@ const ArtifactViewer = ({
 };
 
 export default ArtifactViewer;
-
 

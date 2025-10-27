@@ -1,4 +1,4 @@
-﻿import type { RunStepStatus } from '../types/runs';
+import type { RunStepStatus } from '../types/runs';
 import { formatDuration, formatRelativeTime, formatUtc } from '../utils/time';
 import './StageProgress.css';
 
@@ -58,18 +58,18 @@ const StageProgress = ({ stages }: StageProgressProps) => {
                 <dt>Started</dt>
                 <dd>
                   {stage.startedAt
-                    ? `${formatRelativeTime(stage.startedAt)} · ${formatUtc(stage.startedAt)}`
-                    : '—'}
+                    ? `${formatRelativeTime(stage.startedAt)} | ${formatUtc(stage.startedAt)}`
+                    : '--'}
                 </dd>
               </div>
               <div>
                 <dt>Finished</dt>
                 <dd>
                   {stage.finishedAt
-                    ? `${formatRelativeTime(stage.finishedAt)} · ${formatUtc(stage.finishedAt)}`
+                    ? `${formatRelativeTime(stage.finishedAt)} | ${formatUtc(stage.finishedAt)}`
                     : state === 'running'
                       ? 'In progress'
-                      : '—'}
+                      : '--'}
                 </dd>
               </div>
             </dl>

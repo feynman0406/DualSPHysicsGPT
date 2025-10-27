@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { RunSummary, RunStepStatus } from '../types/runs';
 import { formatDuration, formatRelativeTime } from '../utils/time';
 import RunStatusBadge from './RunStatusBadge';
@@ -17,27 +17,36 @@ const STAGE_LABELS: Record<string, string> = {
 const stateIcon = (state: RunStepStatus['state']) => {
   switch (state) {
     case 'completed':
-      return '✓';
+      return 'OK';
     case 'running':
-      return '…';
+      return 'RUN';
     case 'failed':
-      return '!';
+      return 'ERR';
     case 'pending':
     case 'idle':
-      return '•';
     default:
-      return '•';
+      return '--';
   }
 };
 
 const RunCard = ({ run }: RunCardProps) => {
   const to = `/runs/${encodeURIComponent(run.runId)}`;
   const stages = run.stageCheckpoints ?? [];
+  const stlSummary = run.summary?.externalStl;
+  const hasExternalStl =
+    (stlSummary && typeof stlSummary === 'object') || run.summary?.externalStlAttached === true;
+  const stlLabel =
+    stlSummary && typeof stlSummary === 'object' ? stlSummary.filename : undefined;
 
   return (
     <Link className="run-card" to={to} aria-label={`Open run ${run.runId}`}>
       <div className="run-card-header">
         <RunStatusBadge status={run.status} />
+        {hasExternalStl && (
+          <span className="stl-badge" title={stlLabel ? `External STL: ${stlLabel}` : 'External STL attached'}>
+            STL
+          </span>
+        )}
         <span className="run-id">{run.runId}</span>
       </div>
       <p className="run-query">{run.query}</p>
@@ -70,7 +79,7 @@ const RunCard = ({ run }: RunCardProps) => {
         </div>
         <div>
           <dt>Artifacts</dt>
-          <dd>{run.summary?.artifactCount ?? '—'}</dd>
+          <dd>{run.summary?.artifactCount ?? 'N/A'}</dd>
         </div>
       </dl>
     </Link>
