@@ -1,4 +1,14 @@
-import { ChangeEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import {
+  ChangeEvent,
+  DragEvent,
+  FormEvent,
+  KeyboardEvent,
+  MouseEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import './NewRunDialog.css';
 import { formatFileSize } from '../utils/files';
 
@@ -31,6 +41,7 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputId = useId();
 
   useEffect(() => {
     if (open) {
@@ -103,7 +114,18 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
     setIsDragOver(false);
   };
 
+  const handleDropZoneClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (busy) {
+      event.preventDefault();
+      return;
+    }
+    openFilePicker();
+  };
+
   const handleDropZoneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (busy) {
+      return;
+    }
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       openFilePicker();
@@ -159,31 +181,31 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
               onChange={event => setValues(prev => ({ ...prev, query: event.target.value }))}
             />
           </label>
-          <label className='field file-field'>
-            <span>External STL (optional)</span>
+          <div className='field file-field'>
+            <label className='field-label' htmlFor={fileInputId}>
+              External STL (optional)
+            </label>
+            <input
+              ref={fileInputRef}
+              id={fileInputId}
+              type='file'
+              accept='.stl'
+              className='file-input'
+              onChange={handleFileInputChange}
+              disabled={busy}
+              aria-label='Upload STL file'
+            />
             <div
               className={`file-dropzone${isDragOver ? ' dragover' : ''}`}
               role='button'
               tabIndex={0}
               aria-disabled={busy}
-              onClick={event => {
-                event.preventDefault();
-                openFilePicker();
-              }}
+              onClick={handleDropZoneClick}
               onKeyDown={handleDropZoneKeyDown}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <input
-                ref={fileInputRef}
-                type='file'
-                accept='.stl'
-                className='file-input'
-                onChange={handleFileInputChange}
-                disabled={busy}
-                aria-label='Upload STL file'
-              />
               <div className='file-dropzone-copy'>
                 <strong>{selectedFile ? 'Replace STL file' : 'Click to select or drop an .stl file'}</strong>
                 <span>Maximum size 25 MB</span>
@@ -212,7 +234,7 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
                 {fileError}
               </p>
             ) : null}
-          </label>
+          </div>
           <label className='checkbox'>
             <input
               type='checkbox'

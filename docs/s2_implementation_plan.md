@@ -6,20 +6,20 @@ This document outlines the implementation plan for Phase 2 of the RAG Planning A
 ## Current State Analysis
 
 ### Existing Infrastructure
-1. ✅ **Schema Defined**: `schemas/planning_agent_schema.json` - Complete Plan JSON schema
-2. ✅ **OpenAI File Search**: `rag/openai_file_search.py` - Retrieval with metadata filtering
-3. ✅ **Generator Pipeline**: `chains/generator.py` - Can output JSON with schema
-4. ✅ **Validation**: `agents/plan_validator.py` - Schema validation infrastructure
-5. ✅ **Logging**: `agents/logging_utils.py` - Logging utilities
+1. [DONE] **Schema Defined**: `schemas/planning_agent_schema.json` - Complete Plan JSON schema
+2. [DONE] **OpenAI File Search**: `rag/openai_file_search.py` - Retrieval with metadata filtering
+3. [DONE] **Generator Pipeline**: `chains/generator.py` - Can output JSON with schema
+4. [DONE] **Validation**: `agents/plan_validator.py` - Schema validation infrastructure
+5. [DONE] **Logging**: `agents/logging_utils.py` - Logging utilities
 
 ### What's Missing (Phase 2)
-1. ❌ **Planning Agent Core Logic** - RAG retrieval + curation + scoring
-2. ❌ **XML/JSON Parsing & Scoring** - 4-dimension evaluation (Algorithm, Geometry, Boundary, Execution)
-3. ❌ **Schema Guidance Generator** - TODO placeholder generation
-4. ❌ **Two-Stage Integration** - Connect Planning Agent → Schema Agent
-5. ❌ **Retry Mechanism** - Feedback loops from Stage 2 failures
-6. ❌ **Metrics Tracking** - `metrics/plan_runs.csv` and monitoring
-7. ❌ **Comprehensive Tests** - End-to-end testing
+1. [TODO] **Planning Agent Core Logic** - RAG retrieval + curation + scoring
+2. [TODO] **XML/JSON Parsing & Scoring** - 4-dimension evaluation (Algorithm, Geometry, Boundary, Execution)
+3. [TODO] **Schema Guidance Generator** - TODO placeholder generation
+4. [TODO] **Two-Stage Integration** - Connect Planning Agent → Schema Agent
+5. [TODO] **Retry Mechanism** - Feedback loops from Stage 2 failures
+6. [TODO] **Metrics Tracking** - `metrics/plan_runs.csv` and monitoring
+7. [TODO] **Comprehensive Tests** - End-to-end testing
 
 ## Implementation Checklist
 

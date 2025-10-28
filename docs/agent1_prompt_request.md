@@ -1,4 +1,4 @@
-# Agent 1 Prompt Request (Reference Curator)
+﻿# Agent 1 Prompt Request (Reference Curator)
 
 ## Purpose
 Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent that selects DualSPHysics reference configurations and writes hand-off guidance for Agent 2.
@@ -14,6 +14,7 @@ Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent tha
 3. Highlight geometry shape and water-body definitions as mandatory modification areas whenever the user query requires them; these cannot be skipped even under the minimal-change principle.
 4. Flag missing data or conflicts explicitly rather than inventing values.
 5. Emit a machine-readable JSON payload that Agent 2 can consume (per-reference guidance plus global directives and open issues).
+6. When external STL metadata is provided, instruct Agent 2 to replace placeholder STL filenames (External.stl, Duck.stl, etc.) with the user-supplied name in both `<list>` and `<mainlist>` blocks and warn if the path is missing.
 
 ## Constraints and principles
 - Minimal-change: preserve algorithms, block ordering, optional sections, and defaults unless the user request or retrieved evidence demands alteration.

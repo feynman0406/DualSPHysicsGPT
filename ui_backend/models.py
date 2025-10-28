@@ -35,6 +35,7 @@ class RunRequest:
     timeout: Optional[float] = None
     env: Optional[dict[str, str]] = None
     run_id: Optional[str] = None
+    external_stl: Optional[Path] = None
 
     def as_argv(self) -> List[str]:
         """Translate the request into CLI arguments for the subprocess."""
@@ -44,6 +45,10 @@ class RunRequest:
             argv.append("--pause-after-agent1")
         if self.execute:
             argv.append("--execute")
+        if self.run_id:
+            argv.extend(["--run-id", self.run_id])
+        if self.external_stl:
+            argv.extend(["--external-stl", str(self.external_stl)])
         return argv
 
 

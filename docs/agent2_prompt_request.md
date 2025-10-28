@@ -1,4 +1,4 @@
-# Agent 2 Prompt Request (Strict Schema Generator)
+﻿# Agent 2 Prompt Request (Strict Schema Generator)
 
 ## Purpose
 Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts Agent 1 guidance into strict-schema DualSPHysics configuration JSON.
@@ -14,6 +14,7 @@ Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts
 3. Treat geometry layout (domain dimensions, shapes, fluid fills) and water-body definition as mandatory update zones; failure to apply them is unacceptable even if other sections stay intact.
 4. Populate every required schema field; use null or defaults only when explicitly allowed and noted.
 5. Validate consistency (e.g., mkconfig counts vs. geometry commands) and surface unresolved issues in warnings if schema allows.
+6. When external STL metadata is provided, update the JSON to use the stored relative path and filename instead of placeholders (External.stl, Duck.stl, etc.) and emit a warning if the path is missing.
 
 ## Constraints and principles
 - Strict schema: no extra keys, types must match (numbers, booleans as specified).

@@ -30,9 +30,24 @@ def main() -> None:
     sources = info.get("sources", []) if info else []
     print(f"Sources returned: {len(sources)}")
     for idx, src in enumerate(sources, 1):
-        filename = src.get("filename") or src.get("attributes", {}).get("filename")
+        meta = src.get("metadata") or src.get("attributes") or {}
+        if not isinstance(meta, dict):
+            meta = {}
+        filename = src.get("filename") or meta.get("source_path") or meta.get("filename") or src.get("file_id")
         score = src.get("score")
-        print(f"{idx}. {filename} (score={score})")
+        line = f"{idx}. {filename or 'unknown'}"
+        if score is not None:
+            line += f" (score={score})"
+        print(line)
+        snippets = src.get("snippets")
+        if isinstance(snippets, list) and snippets:
+            snippet_clean = " ".join(str(snippets[0]).split())
+            if len(snippet_clean) > 120:
+                snippet_clean = snippet_clean[:117] + "..."
+            print(f"   snippet: {snippet_clean}")
+        source_path = meta.get("source_path")
+        if source_path:
+            print(f"   source_path: {source_path}")
 
 
 if __name__ == "__main__":

@@ -1,53 +1,53 @@
 # DualSPHysics Pipeline Stabilization & Expansion Plan (Updated)
 
 ## Goals (status)
-1. ✅ **Restore automated regeneration + execution**: Smoke tests now default to `AutoXml_script/generated_cases_direct/` and always emit `results.json`.
-2. 🟡 **Guarantee fluid completeness**: Pending validator enhancements and regression tests.
-3. ✅ **Package auxiliary data**: Solver pipeline copies required `.dat`/`.txt`/`.csv` assets with configurable `DSPH_COPY_DATA` modes.
-4. 🟡 **Harden JSON-to-XML guardrails**: Vector/attribute guardrails still outstanding.
-5. ✅ **Document and script workflows**: README and `gen_case_test_report.md` document the regeneration workflow, asset handling, and env flags.
-6. 🟡 **Expand regression coverage**: Additional unit/integration tests remain to be added.
-7. 🟡 **XML Roundtrip Fidelity**: Ensure XML -> JSON -> XML conversion is lossless.
+1. [DONE] **Restore automated regeneration + execution**: Smoke tests now default to `AutoXml_script/generated_cases_direct/` and always emit `results.json`.
+2. [WIP] **Guarantee fluid completeness**: Pending validator enhancements and regression tests.
+3. [DONE] **Package auxiliary data**: Solver pipeline copies required `.dat`/`.txt`/`.csv` assets with configurable `DSPH_COPY_DATA` modes.
+4. [WIP] **Harden JSON-to-XML guardrails**: Vector/attribute guardrails still outstanding.
+5. [DONE] **Document and script workflows**: README and `gen_case_test_report.md` document the regeneration workflow, asset handling, and env flags.
+6. [WIP] **Expand regression coverage**: Additional unit/integration tests remain to be added.
+7. [WIP] **XML Roundtrip Fidelity**: Ensure XML -> JSON -> XML conversion is lossless.
 
 ## Workstreams & Deliverables
 
-### ✅ WS1 – Output Path & Artifact Discipline (Complete)
+### [DONE] WS1 – Output Path & Artifact Discipline (Complete)
 - `scripts/smoke_test_configs.py` now writes regenerated XML to `AutoXml_script/generated_cases_direct/` by default and persists `results.json`.
 - Results capture solver metadata including warnings, asset usage, and workspace paths.
 
-### 🟡 WS2 – Fluid Geometry Preservation (In Progress)
+### [WIP] WS2 – Fluid Geometry Preservation (In Progress)
 - TODO:
   - Extend `generate_xml.validate_case_tree` with `setmkfluid` → fill/draw enforcement and allowlisted boundary-only cases.
   - Add regression tests covering `geometry.objects` to `geometry.commands` conversion and fluid preservation.
 - Acceptance: Dam-break fixtures validate/run without fluid warnings while boundary-only templates remain valid.
 
-### ✅ WS3 – Auxiliary Data Copy Pipeline (Complete)
+### [DONE] WS3 – Auxiliary Data Copy Pipeline (Complete)
 - `tools/exec.run_dualsphysics` parses XML for data assets, copies them into the workspace, and surfaces warnings in result payloads.
 - `DSPH_COPY_DATA` modes: `off`, `warn` (default), `strict`. Assets resolved from `AutoXml_script/`, project root, or `DSPH_ASSET_PATHS`.
 
-### 🟡 WS4 – JSON Schema Guardrails (In Progress)
+### [WIP] WS4 – JSON Schema Guardrails (In Progress)
 - TODO:
   - Update `chains/json_normalizer` to enforce x/y/z vectors with optional `allow_zero_axes`.
   - Emit guardrail warnings back to the controller and cover via `tests/test_json_normalizer.py`.
 - Acceptance: Normalization emits deterministic vectors and fails fast on missing axes.
 
-### 🟡 WS5 – Template & Sanitizer Hygiene (Not Started)
+### [WIP] WS5 – Template & Sanitizer Hygiene (Not Started)
 - TODO:
   - Maintain `sanitize_newvarcte` and load rules from `configs/sanitizer.yaml`.
   - Ensure template workflows inject required constants (e.g., `Dp`) before XML is emitted.
 - Acceptance: Template runs avoid “The variable 'Dp' does not exist” and sanitizer toggles become config-driven.
 
-### ✅ WS6 – CLI & Documentation Updates (Complete)
+### [DONE] WS6 – CLI & Documentation Updates (Complete)
 - README “Regenerate and Run” section documents the smoke test workflow and `DSPH_COPY_DATA`.
 - `docs/gen_case_test_report.md` now includes a rerun checklist referencing the smoke script and asset handling behavior.
 
-### 🟡 WS7 – Test Matrix & Automation (In Progress)
+### [WIP] WS7 – Test Matrix & Automation (In Progress)
 - TODO:
   - Keep `tests/test_official_xml_cases.py` current and add new unit tests covering fluid + boundary cases and the asset pipeline.
   - Add optional gating for heavy solver tests via `DSPH_BIN_DIR`.
 - Acceptance: CI runs fast tests, skips heavy ones without binaries, and catches validator regressions.
 
-### 🟡 WS8 – XML Roundtrip Fidelity (Not Started)
+### [WIP] WS8 – XML Roundtrip Fidelity (Not Started)
 - **Goal:** Ensure that converting an XML to JSON and back to XML preserves all structural and semantic information. The round-tripped XML should be functionally identical to the original, preventing data loss.
 - **Tasks:**
   - **1. Create a Roundtrip Test Suite:**

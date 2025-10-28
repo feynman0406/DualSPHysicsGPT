@@ -21,7 +21,7 @@ Use this checklist whenever you need to drive the protected MVP pipeline from th
   ```powershell
   uvicorn ui_backend.server:app --host 0.0.0.0 --port 8000
   ```
-- If you see `Errno 10048`, another process already uses that port. Either stop it (`netstat -ano | findstr :8000` ¡÷ `taskkill /PID <pid> /F`) or restart uvicorn on a different port, e.g. `--port 8001`.
+- If you see `Errno 10048`, another process already uses that port. Either stop it (`netstat -ano | findstr :8000`  `taskkill /PID <pid> /F`) or restart uvicorn on a different port, e.g. `--port 8001`.
 - Backend stores history under `logs/ui_backend/data/run_history.json` and generated artifacts under `logs/ui_backend/runs/<run-id>/`.
 
 ## 3. Launch Frontend UI
@@ -35,8 +35,9 @@ Use this checklist whenever you need to drive the protected MVP pipeline from th
 ## 4. Run the MVP Pipeline via UI
 1. Open the Vite URL in the browser.
 2. The Run List loads existing executions from the history store.
-3. Click **New Run** (or equivalent), enter your simulation query, and submit.
+3. Click **New Run** (or equivalent), enter your simulation query, optionally attach an external .stl file (up to 25 MB), and submit.
 4. The backend shells out to the MVP CLI; UI updates the stage stepper, logs, metrics, and artifacts as telemetry arrives.
+   - STL uploads are validated client-side for extension and size. The dialog surfaces inline errors and shows the selected filename and size so you can remove or replace the file before triggering the run.
 5. On completion, download artifacts (e.g. `generated_case.xml`, `agent1_output.json`) from the UI or directly from `logs/ui_backend/runs/<run-id>/`.
 
 ## 5. Regression & Validation (recommended)
@@ -57,3 +58,9 @@ Use this checklist whenever you need to drive the protected MVP pipeline from th
 - **Stale history**: delete `logs/ui_backend/data/run_history.json` to reset the list (artifacts remain safe under `logs/ui_backend/runs`).
 
 Keep this guide in sync when backend ports change or new governance requirements land.
+
+
+
+
+
+

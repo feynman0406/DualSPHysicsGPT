@@ -1,4 +1,4 @@
-﻿.run-card {
+.run-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -105,3 +105,16 @@
 .run-stage-summary .stage-label {
   font-weight: 600;
 }
+
+.stl-badge {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+

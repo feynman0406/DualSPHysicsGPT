@@ -49,6 +49,74 @@ def run_generator(tmp_path: Path, config: dict) -> Path:
     )
     return output_path
     return output_path
+
+def _external_stl_base_config() -> dict:
+    return {
+        "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 20, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.05,
+                "pointmin": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "pointmax": {"x": 1.0, "y": 1.0, "z": 1.0},
+            },
+            "commands": {
+                "children": [
+                    {
+                        "tag": "list",
+                        "attributes": {"name": "GeometryForNormals"},
+                        "children": [
+                            {"tag": "setactive", "attributes": {"drawpoints": 0, "drawshapes": 1}},
+                            {"tag": "setmkbound", "attributes": {"mk": 10}},
+                            {
+                                "tag": "drawfilestl",
+                                "attributes": {"file": "External.stl", "autofill": True, "advanced": True},
+                                "children": [
+                                    {"tag": "drawmove", "attributes": {"x": 0, "y": 0, "z": 0}},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        "tag": "mainlist",
+                        "children": [
+                            {"tag": "setmkbound", "attributes": {"mk": 10}},
+                            {
+                                "tag": "drawfilestl",
+                                "attributes": {"file": "External.stl", "autofill": True, "advanced": True},
+                                "children": [
+                                    {"tag": "drawscale", "attributes": {"x": 1, "y": 1, "z": 1}},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    }
+
+
+def test_drawfilestl_placeholder_unchanged_without_external_stl(tmp_path: Path) -> None:
+    config = _external_stl_base_config()
+    output_xml = run_generator(tmp_path, config)
+    root = ET.parse(output_xml).getroot()
+    draw_nodes = root.findall('.//drawfilestl')
+    assert len(draw_nodes) == 2
+    assert [node.attrib.get('file') for node in draw_nodes] == ['External.stl', 'External.stl']
+
+
+def test_drawfilestl_replaced_when_external_stl_provided(tmp_path: Path) -> None:
+    config = _external_stl_base_config()
+    config['external_stl'] = {"stored_relative_path": "uploads/run123/Boat.stl"}
+    output_xml = run_generator(tmp_path, config)
+    root = ET.parse(output_xml).getroot()
+    draw_nodes = root.findall('.//drawfilestl')
+    assert len(draw_nodes) == 2
+    for node in draw_nodes:
+        assert node.attrib.get('file') == 'Boat.stl'
+        assert node.attrib.get('autofill') == 'true'
+        assert node.attrib.get('advanced') == 'true'
+
 def test_geometry_fallback_support(tmp_path: Path) -> None:
     config = {
         "constants": {"rhop0": 1000},

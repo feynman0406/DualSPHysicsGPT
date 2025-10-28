@@ -37,6 +37,19 @@ class PlanningAgent:
             max_quotes_per_file=3,
         )
 
+    @staticmethod
+    def _source_metadata(source: Dict[str, Any]) -> Dict[str, Any]:
+        '''Normalize retrieval metadata across legacy attributes payloads.'''
+        if not isinstance(source, dict):
+            return {}
+        metadata = source.get("metadata")
+        if isinstance(metadata, dict):
+            return dict(metadata)
+        attributes = source.get("attributes")
+        if isinstance(attributes, dict):
+            return dict(attributes)
+        return {}
+
     def run_planning_agent(
         self,
         user_query: str,
@@ -156,8 +169,9 @@ class PlanningAgent:
                 continue
 
             # Score the example
+            metadata = self._source_metadata(source)
             aggregate_score, score_rationale = self.scorer.score_example(
-                file_path, user_query, source.get("attributes", {})
+                file_path, user_query, metadata
             )
 
             # Extract quotes
@@ -179,7 +193,7 @@ class PlanningAgent:
                     "example": example,
                     "score_meta": score_rationale,
                     "file_path": str(file_path),
-                    "attributes": source.get("attributes", {}),
+                    "metadata": metadata,
                 }
             )
 
@@ -195,7 +209,7 @@ class PlanningAgent:
                 "score_meta": top["score_meta"],
                 "file_path": top["file_path"],
                 "filename": top["example"].get("filename", ""),
-                "attributes": top.get("attributes", {}),
+                "metadata": top.get("metadata", {}),
             }
 
         return curated, primary_payload

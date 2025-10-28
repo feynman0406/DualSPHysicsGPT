@@ -118,3 +118,17 @@ def main() -> int:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     sys.exit(main())
+
+# QA Log - 2025-10-28T09:45Z (Agent F)
+# Commands executed
+#   1. python -m pytest tests/test_generator_chain.py tests/ui_backend/test_api.py tests/test_openai_file_search.py
+#   2. python scripts/mvp_direct_file_search.py --query "Create a 2D dambreak"
+#   3. python scripts/mvp_direct_file_search.py --query "Create a 2D dambreak" --external-stl samples/Duck.stl
+# Environment adjustments: set PYTHONIOENCODING=utf-8 for the MVP runs to avoid cp950 stdout encoding failures.
+# Results
+#   - Pytest suite: 21 passed, 1 DeprecationWarning (datetime.utcnow) remains informational.
+#   - Baseline MVP run succeeded after retry with UTF-8 override; first attempt aborted while printing Agent 1 analysis (cp950 codec error).
+#   - STL run stored uploads/manual-1761642532/Duck.stl and metadata propagated to logs/mvp/agent1_output.json plus logs/last_run/metadata.json (query must tokens show externalstl).
+# Outstanding issues
+#   - Generated config and XML still rely on drawbox tank geometry; no drawfilestl block or Duck.stl substitution observed (logs/mvp/agent2_config.json, logs/mvp/generated_case.xml).
+#   - Baseline encoding failure indicates Windows console defaults remain fragile without PYTHONIOENCODING enforcement.

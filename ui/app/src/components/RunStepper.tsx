@@ -1,4 +1,4 @@
-﻿import type { RunStepStatus } from '../types/runs';
+import type { RunStepStatus } from '../types/runs';
 import './RunStepper.css';
 
 interface RunStepperProps {

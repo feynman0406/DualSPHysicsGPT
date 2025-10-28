@@ -1,4 +1,4 @@
-﻿import type { RunStatus } from '../types/runs';
+import type { RunStatus } from '../types/runs';
 import './RunStatusBadge.css';
 
 interface RunStatusBadgeProps {

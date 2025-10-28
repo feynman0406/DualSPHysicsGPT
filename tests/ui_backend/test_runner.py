@@ -42,6 +42,11 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     store_path = tmp_path / "history.json"
     history_store = HistoryStore(store_path)
 
+    stored_stl = tmp_path / "uploads" / "duck.stl"
+    stored_stl.parent.mkdir(parents=True, exist_ok=True)
+    stored_stl.write_text("source", encoding="utf-8")
+    run_id = "RUN-UNITTEST"
+
     def fake_run(
         command,
         *,
@@ -58,7 +63,17 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
         observed["command"] = command
         observed["cwd"] = cwd
         observed["env"] = env
+        assert "--run-id" in command
+        assert command[command.index("--run-id") + 1] == run_id
+        assert "--external-stl" in command
+        assert command[command.index("--external-stl") + 1] == str(stored_stl)
+        assert env["MVP_RUN_ID"] == run_id
+        assert env["MVP_EXTERNAL_STL_SOURCE_PATH"] == str(stored_stl)
+        assert env["MVP_EXTERNAL_STL_REL_PATH"] == f"uploads/{run_id}/duck.stl"
         output_dir = Path(env["MVP_REDIRECT_ROOT"])
+        copied_target = output_dir / Path(env["MVP_EXTERNAL_STL_REL_PATH"])
+        copied_target.parent.mkdir(parents=True, exist_ok=True)
+        copied_target.write_text("copied", encoding="utf-8")
         (output_dir / "agent1_output.json").write_text("{}", encoding="utf-8")
         (output_dir / "generated_case.xml").write_text("<case />", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, stdout="all good", stderr="")
@@ -70,6 +85,8 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
         query="Create a 2D dambreak simulation",
         output_dir=tmp_path,
         env={"CUSTOM_ENV": "1"},
+        run_id=run_id,
+        external_stl=stored_stl,
     )
 
     response = runner.run_mvp(request, store=history_store)
@@ -81,9 +98,14 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     assert observed["cwd"] == str(Path(__file__).resolve().parents[2])
     assert "--query" in observed["command"]
     assert observed["env"]["CUSTOM_ENV"] == "1"
+    assert response.run_id == run_id
+
     produced_names = {item.path.name for item in response.produced_files}
     assert {"agent1_output.json", "generated_case.xml"} <= produced_names
-    assert response.run_id.startswith("RUN-")
+    stl_files = [item for item in response.produced_files if item.path.suffix.lower() == ".stl"]
+    assert stl_files
+    assert all(file.description == "Uploaded STL file" for file in stl_files)
+    assert any(run_id in file.path.parts for file in stl_files)
 
     stages = {stage.stage: stage for stage in response.stage_checkpoints}
     assert set(stages.keys()) == {"init", "sim", "post"}
@@ -99,6 +121,8 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     assert stored.status == "success"
     assert len(stored.metrics) == len(response.metrics)
     assert stored.stage_checkpoints[1].state == StageState.COMPLETED.value
+    assert any(artifact.path.endswith(".stl") for artifact in stored.artifacts)
+
 
 
 def test_run_mvp_missing_env_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

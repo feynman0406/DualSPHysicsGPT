@@ -282,6 +282,40 @@ def _assemble_context(docs) -> str:
     return "\n\n".join(parts)
 
 
+def _source_to_document(source: Dict[str, Any]) -> Document:
+    """Convert a retrieval source entry into a LangChain Document with snippets."""
+    metadata_field = source.get("metadata")
+    metadata: Dict[str, Any] = dict(metadata_field) if isinstance(metadata_field, dict) else {}
+    legacy_attrs = source.get("attributes")
+    if isinstance(legacy_attrs, dict):
+        for key, value in legacy_attrs.items():
+            metadata.setdefault(key, value)
+    file_id = source.get("file_id")
+    if file_id and "file_id" not in metadata:
+        metadata["file_id"] = file_id
+    filename = source.get("filename")
+    if filename and "filename" not in metadata:
+        metadata["filename"] = filename
+    score = source.get("score")
+    if score is not None and "score" not in metadata:
+        metadata["score"] = score
+    vector_store_id = source.get("vector_store_id")
+    if vector_store_id and "vector_store_id" not in metadata:
+        metadata["vector_store_id"] = vector_store_id
+    snippets = source.get("snippets")
+    snippet_text = ""
+    if isinstance(snippets, list) and snippets:
+        cleaned = [str(snippet).strip() for snippet in snippets if isinstance(snippet, str)]
+        snippet_text = "\n\n".join(cleaned)
+        metadata.setdefault("snippets", cleaned)
+    fallback_text = source.get("text") or source.get("content") or ""
+    page_content = snippet_text or fallback_text
+    existing_source = metadata.get("source")
+    label = existing_source or metadata.get("source_path") or metadata.get("filename") or filename or file_id or "unknown"
+    metadata["source"] = label
+    return Document(page_content=page_content, metadata=metadata)
+
+
 def _to_openai_messages(msgs: List) -> List[Dict[str, str]]:
     """Convert LangChain BaseMessage -> OpenAI/JSON payload."""
     out: List[Dict[str, str]] = []
@@ -648,15 +682,7 @@ def generator_chain(user_query: str, *, freeze_retrieval: bool = False, frozen_d
         run_info = get_last_run_info()
         if run_info:
             fs_sources = run_info.get("sources", [])
-            # Convert the raw dict sources into Document-like objects for consistency.
-            # Prefer 'text' (snippet) then 'content'. Use filename as source when available.
-            docs = [
-                Document(
-                    page_content=s.get("text", s.get("content", "")),
-                    metadata={"source": (s.get("filename") or s.get("file_id") or "unknown")},
-                )
-                for s in fs_sources
-            ]
+            docs = [_source_to_document(s) for s in fs_sources]
         persist_sources('generator')
         if debug_enabled:
             print("\n=== generator: post_file_search_metrics ===")

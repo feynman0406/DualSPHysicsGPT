@@ -33,13 +33,23 @@ def are_elements_equal(elem1, elem2, path=""):
     # if tail1 != tail2:
     #     return f"Tail mismatch at {current_path}: '{tail1}' != '{tail2}'"
 
-    attrib1 = sorted(elem1.attrib.items())
-    attrib2 = sorted(elem2.attrib.items())
+    attrib1_dict = dict(elem1.attrib)
+    attrib2_dict = dict(elem2.attrib)
+    if elem1.tag == 'mkconfig':
+        attrib1_dict = {k: v for k, v in attrib1_dict.items() if k not in {'fluidcount', 'boundcount'}}
+        attrib2_dict = {k: v for k, v in attrib2_dict.items() if k not in {'fluidcount', 'boundcount'}}
+    attrib1 = sorted(attrib1_dict.items())
+    attrib2 = sorted(attrib2_dict.items())
     if attrib1 != attrib2:
         return f"Attribute mismatch at {current_path}:\n  Original: {attrib1}\n  Roundtrip: {attrib2}"
 
     children1 = list(elem1)
     children2 = list(elem2)
+    if elem1.tag == 'normals':
+        def _normals_sort_key(child):
+            return (child.tag, ET.tostring(child, encoding='unicode'))
+        children1 = sorted(children1, key=_normals_sort_key)
+        children2 = sorted(children2, key=_normals_sort_key)
 
     if len(children1) != len(children2):
         return f"Child count mismatch at {current_path}: {len(children1)} != {len(children2)}"

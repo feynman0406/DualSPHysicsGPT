@@ -1,6 +1,6 @@
-﻿# External STL Integration – Agent Prompt Pack
+# External STL Integration – Agent Prompt Pack
 
-This document provides ready-to-send prompts for the agents that will implement the External STL workflow. Each prompt references the shared implementation plan at `docs/external_stl_integration_plan.md` and highlights the requirement that any retrieved reference using `External.stl` must be rewritten to use the user-supplied STL filename while keeping all other edits minimal.
+This document provides ready-to-send prompts for the agents that will implement the External STL workflow. Each prompt references the shared implementation plan at `docs/external_stl_integration_plan.md`, calls out the include-based OpenAI File Search flow (snippets arrive in the `sources[*].snippets` list), and highlights the requirement that any retrieved reference using `External.stl` must be rewritten to use the user-supplied STL filename while keeping all other edits minimal.
 
 ## Agent A – Repository Safety Checkpoint
 **Mission**: Create a reversible checkpoint before the feature work starts.
@@ -58,11 +58,11 @@ You are responsible for retrieval strategy and prompt governance.
 Reference plan: `docs/external_stl_integration_plan.md` (sections 3 & 4 & 7).
 
 Tasks:
-1. When the pipeline indicates a user-uploaded STL (check the new context field), ensure file search queries and filters include the `externalstl` keyword. Update `_compose_query_text` or equivalent helper plus metadata filters in `chains/rag_utils.build_metadata_filter`.
+1. When the pipeline indicates a user-uploaded STL (check the new context field), ensure file search queries and filters include the `externalstl` keyword and the Responses call keeps `include=["file_search_call.results"]` so snippet-rich data lands in `sources[*].snippets`. Update `_compose_query_text` or equivalent helper plus metadata filters in `chains/rag_utils.build_metadata_filter`, and audit `response_with_file_search` callers for the include list.
 2. Expose the STL metadata (original filename, stored relative path) to both Agent 1 and Agent 2. Update `chains/generator.py` (or orchestrator glue) so the LLM payload includes this context.
 3. Edit `prompts/generator_system_prompt.md` and related docs so Agent 1 MUST replace any occurrence of `External.stl`, `Duck.stl`, or similar placeholders with the user-provided filename and otherwise perform minimal edits. Reinforce that both `<list>` and `<mainlist>` blocks must stay in sync.
 4. Update Agent 2 prompts/schema helpers so the generated JSON also swaps the STL filename and warns if the file path is missing.
-5. Add or adjust tests (unit or golden) to confirm: (a) retrieval queries append `externalstl`; (b) the generator prompt text contains the new instructions.
+5. Add or adjust tests (unit or golden) to confirm: (a) retrieval queries append `externalstl`; (b) the generator prompt text contains the new instructions; (c) file-search sources expose `snippets`, `filename`, `metadata.source_path`, and `search_call_id` as part of the include-derived payload.
 
 Output requirements:
 - Keep instructions concise but explicit.
@@ -127,6 +127,7 @@ Checklist:
    - Agent outputs reference the substituted filename.
    - Generated XML uses the uploaded filename in all `<drawfilestl>` nodes.
    - Stored artefacts include the uploaded STL.
+   - logs/last_run/sources.json records snippet-rich sources with snippets and search_call_id.
 3. Record results in `docs/ui_integration/mvp_reference_runner.py` or a new QA log section, noting any anomalies and how to reproduce them.
 4. If issues are found, create tickets or document blockers before sign-off.
 ```

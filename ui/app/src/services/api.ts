@@ -20,6 +20,19 @@ const stageStatusSchema = z.object({
   message: z.string().optional(),
 });
 
+const runSummaryDetailsSchema = z.object({
+  primaryOutput: z.string().optional(),
+  artifactCount: z.number().optional(),
+  hasFailures: z.boolean().optional(),
+  externalStl: z
+    .object({
+      filename: z.string(),
+      sizeBytes: z.number().optional(),
+    })
+    .nullable()
+    .optional(),
+  externalStlAttached: z.boolean().optional(),
+});
 const runSummarySchema = z.object({
   runId: z.string(),
   query: z.string().default(''),
@@ -28,13 +41,7 @@ const runSummarySchema = z.object({
   startedAt: z.string().optional(),
   finishedAt: z.string().optional(),
   durationSeconds: z.number().optional(),
-  summary: z
-    .object({
-      primaryOutput: z.string().optional(),
-      artifactCount: z.number().optional(),
-      hasFailures: z.boolean().optional(),
-    })
-    .optional(),
+  summary: runSummaryDetailsSchema.optional(),
   stepStatus: z.array(stageStatusSchema).optional(),
   stageCheckpoints: z.array(stageStatusSchema).optional(),
 });
@@ -155,6 +162,13 @@ async function parseJson<T>(response: Response, schema: z.ZodSchema<T>): Promise
   return schema.parse(json);
 }
 
+const appendFormBoolean = (form: FormData, key: string, value: boolean | undefined) => {
+  if (value !== undefined) {
+    form.append(key, value ? 'true' : 'false');
+  }
+};
+
+
 export class ApiClient {
   constructor(private readonly baseUrl: string = API_BASE_URL) {}
 
@@ -183,16 +197,31 @@ export class ApiClient {
   }
 
   async createRun(body: CreateRunRequest): Promise<CreateRunResponse> {
-    const response = await fetch(`${this.baseUrl}/runs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const { externalStl, ...payload } = body;
+
+    let response: Response;
+    if (externalStl instanceof File) {
+      const form = new FormData();
+      form.append('query', payload.query);
+      appendFormBoolean(form, 'pauseAfterAgent1', payload.pauseAfterAgent1);
+      appendFormBoolean(form, 'execute', payload.execute);
+      form.append('externalStl', externalStl, externalStl.name || 'external.stl');
+      response = await fetch(`${this.baseUrl}/runs`, {
+        method: 'POST',
+        body: form,
+      });
+    } else {
+      response = await fetch(`${this.baseUrl}/runs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    }
+
     return parseJson(response, createRunSchema) as Promise<CreateRunResponse>;
   }
-
   async deleteRun(runId: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/runs/${runId}`, {
       method: 'DELETE',
@@ -245,3 +274,7 @@ export const __mocks = {
     return Object.assign(new ApiClient('/__mock__'), overrides);
   },
 };
+
+
+
+

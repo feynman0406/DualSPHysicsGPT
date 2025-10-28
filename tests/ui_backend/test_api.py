@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from io import BytesIO
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,7 @@ import pytest
 
 from ui_backend.api import create_router
 from ui_backend.history_store import HistoryStore, RunRecord, StoredArtifact
-from ui_backend.models import ResourceUsageSnapshot, RunStageStatus, StageState
+from ui_backend.models import ResourceUsageSnapshot, RunRequest, RunStageStatus, StageState
 
 
 def _build_record(run_id: str, start: datetime, output_dir: Path) -> RunRecord:
@@ -271,10 +272,7 @@ def test_create_run_invokes_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     captured: dict[str, object] = {}
 
     def fake_spawn(request, history):
-        captured["run_id"] = request.run_id
-        captured["output_dir"] = request.output_dir
-        captured["pause_after_agent1"] = request.pause_after_agent1
-        captured["execute"] = request.execute
+        captured["request"] = request
         captured["history"] = history
 
     monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", tmp_path / "runs")
@@ -289,16 +287,83 @@ def test_create_run_invokes_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     payload = response.json()
     assert payload["status"] == "queued"
 
-    assert captured["run_id"] == payload["runId"]
-    assert captured["pause_after_agent1"] is True
-    assert captured["execute"] is False
+    request = captured["request"]
+    assert isinstance(request, RunRequest)
+    assert request.run_id == payload["runId"]
+    assert request.external_stl is None
+    assert request.pause_after_agent1 is True
+    assert request.execute is False
     assert captured["history"] is store
-    assert (tmp_path / "runs" / captured["run_id"]).exists()
+
+    run_dir = tmp_path / "runs" / request.run_id
+    assert run_dir.exists()
 
     records = store.list_runs()
     assert len(records) == 1
-    assert records[0].run_id == captured["run_id"]
+    assert records[0].run_id == request.run_id
     assert records[0].status == "queued"
+
+
+def test_create_run_accepts_external_stl_upload(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    store = HistoryStore(tmp_path / "history.json")
+    client = _client_with_store(store)
+
+    captured: dict[str, object] = {}
+
+    def fake_spawn(request, history):
+        captured["request"] = request
+        captured["history"] = history
+
+    run_root = tmp_path / "runs"
+    monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", run_root)
+    monkeypatch.setattr("ui_backend.api._spawn_run", fake_spawn)
+
+    files = {"externalStl": ("duck.stl", BytesIO(b"solid mesh"), "application/sla")}
+    data = {"query": "with stl", "pauseAfterAgent1": "false", "execute": "true"}
+
+    response = client.post("/api/runs", data=data, files=files)
+
+    assert response.status_code == 201
+    payload = response.json()
+    request = captured["request"]
+    assert isinstance(request, RunRequest)
+    assert request.external_stl is not None
+    assert request.external_stl.exists()
+    assert request.run_id == payload["runId"]
+    assert request.execute is True
+    assert request.pause_after_agent1 is False
+    assert captured["history"] is store
+
+    stored_path = run_root / request.run_id / "uploads" / "duck.stl"
+    assert stored_path.exists()
+    assert request.external_stl == stored_path
+    assert stored_path.read_bytes() == b"solid mesh"
+
+    records = store.list_runs()
+    assert len(records) == 1
+    assert records[0].run_id == request.run_id
+    assert records[0].status == "queued"
+
+
+def test_create_run_rejects_non_stl_upload(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    store = HistoryStore(tmp_path / "history.json")
+    client = _client_with_store(store)
+
+    run_root = tmp_path / "runs"
+    monkeypatch.setattr("ui_backend.api._RUN_OUTPUT_ROOT", run_root)
+
+    response = client.post(
+        "/api/runs",
+        data={"query": "bad upload"},
+        files={"externalStl": ("notes.txt", BytesIO(b"bad"), "text/plain")},
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["detail"] == "External STL must use a .stl extension"
+    assert store.list_runs() == []
+
+
 
 def test_delete_run_endpoint_removes_history_and_outputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_root = tmp_path / "runs"

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict
 
 from rag.openai_file_search import get_last_run_info
+from external_stl import get_external_stl_context
 
 _CASE_PATTERNS = [
     # Note: keep more specific patterns first
@@ -69,6 +70,9 @@ def build_metadata_filter(text: str) -> Dict[str, str]:
     elif any(token in lowered for token in ("2d", "2-d", "two-dimensional", "2 dimension")):
         filters["dim"] = "2D"
 
+    if get_external_stl_context():
+        filters["features"] = "externalstl"
+
     return filters
 
 
@@ -86,8 +90,48 @@ def persist_sources(role: str) -> None:
     except Exception:
         return
     target = base / f"{role}_sources.json"
+    summary_target = base / f"{role}_sources.txt"
     try:
         payload = json.dumps(sources, indent=2, ensure_ascii=False)
         target.write_text(payload, encoding="utf-8")
+
+        summary_lines = []
+        for idx, source in enumerate(sources, 1):
+            meta = source.get("metadata") or source.get("attributes") or {}
+            if not isinstance(meta, dict):
+                meta = {}
+            label = (
+                source.get("filename")
+                or meta.get("source_path")
+                or meta.get("filename")
+                or source.get("file_id")
+                or f"source_{idx}"
+            )
+            score = source.get("score")
+            header = f"[{idx}] {label}"
+            if score is not None:
+                header += f" (score={score})"
+            summary_lines.append(header)
+            snippets = source.get("snippets")
+            if isinstance(snippets, list):
+                for snippet in snippets[:3]:
+                    if not isinstance(snippet, str):
+                        continue
+                    snippet_clean = " ".join(snippet.strip().split())
+                    if len(snippet_clean) > 280:
+                        snippet_clean = snippet_clean[:277] + "..."
+                    summary_lines.append(f"    {snippet_clean}")
+            summary_lines.append("")
+
+        summary_text = "\n".join(summary_lines).strip()
+        if summary_text:
+            summary_target.write_text(summary_text + "\n", encoding="utf-8")
+        elif summary_target.exists():
+            try:
+                summary_target.unlink()
+            except Exception:
+                pass
     except Exception:
         return
+
+

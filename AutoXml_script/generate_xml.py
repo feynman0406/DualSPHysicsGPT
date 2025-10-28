@@ -58,6 +58,13 @@ DEFAULT_CONSTANT_META: Dict[str, Dict[str, Any]] = {
 }
 
 
+PLACEHOLDER_STL_FILENAMES: Set[str] = {
+    "external.stl",
+    "duck.stl",
+    "sampleexternal.stl",
+    "file.stl",
+}
+
 def load_config(path: Path) -> Dict[str, Any]:
     with path.open(encoding="utf-8") as handle:
         return json.load(handle)
@@ -192,6 +199,7 @@ def build_generic_node(spec: Dict[str, Any]) -> ET.Element:
 class CaseBuilder:
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
+        self._external_stl_filename = self._resolve_external_stl_filename()
 
     def build(self) -> ET.Element:
         case = element_with_attributes("case", self.config.get("case_attributes", {}))
@@ -388,6 +396,8 @@ class CaseBuilder:
 
         for spec in geometry_cfg.get("extra", []):
             geometry_node.append(build_generic_node(spec))
+
+        self._apply_external_stl_filename(geometry_node)
         return geometry_node
 
     def _build_normals(self) -> Optional[ET.Element]:
@@ -769,6 +779,75 @@ class CaseBuilder:
             if value is not None:
                 command_node.set(axis, value)
 
+    def _apply_external_stl_filename(self, geometry_node: ET.Element) -> None:
+        filename = self._external_stl_filename
+        if not filename:
+            return
+        for draw_node in geometry_node.findall('.//drawfilestl'):
+            file_attr = draw_node.attrib.get('file')
+            if not file_attr:
+                continue
+            current_name = Path(str(file_attr)).name.lower()
+            if current_name in PLACEHOLDER_STL_FILENAMES:
+                draw_node.set('file', filename)
+
+    def _resolve_external_stl_filename(self) -> Optional[str]:
+        candidates: List[Any] = []
+        direct = self.config.get('external_stl')
+        if direct:
+            candidates.append(direct)
+        geometry_cfg = self.config.get('geometry')
+        if isinstance(geometry_cfg, dict):
+            geometry_external = geometry_cfg.get('external_stl')
+            if geometry_external:
+                candidates.append(geometry_external)
+        try:
+            from external_stl import get_external_stl_context  # type: ignore
+        except Exception:
+            context = None
+        else:
+            context = get_external_stl_context()
+            if context:
+                candidates.append(context)
+        for candidate in candidates:
+            name = self._extract_external_stl_filename(candidate)
+            if name:
+                return name
+        return None
+
+    @staticmethod
+    def _extract_external_stl_filename(source: Any) -> Optional[str]:
+        if source is None:
+            return None
+        candidates: List[Any] = []
+        if isinstance(source, str):
+            candidates.append(source)
+        elif isinstance(source, dict):
+            for key in (
+                'stored_filename',
+                'original_filename',
+                'filename',
+                'name',
+                'stored_relative_path',
+                'relative_path',
+                'stored_path',
+                'source_path',
+                'path',
+            ):
+                value = source.get(key)
+                if value is not None:
+                    candidates.append(value)
+        else:
+            return None
+        for candidate in candidates:
+            candidate_str = str(candidate).strip()
+            if not candidate_str:
+                continue
+            name = Path(candidate_str).name
+            if not name or not name.lower().endswith('.stl'):
+                continue
+            return name
+        return None
     def _build_section_list(self, section_key: str) -> Optional[ET.Element]:
         specs_config = self.config.get(section_key)
         if not specs_config:
@@ -1270,3 +1349,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

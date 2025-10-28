@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import subprocess
 from pathlib import Path
 
@@ -50,6 +51,8 @@ GENCASE_EXE = _resolve_gencase_exe()
 @pytest.mark.slow
 @pytest.mark.parametrize("xml_path", OFFICIAL_XMLS, ids=lambda p: p.stem)
 def test_official_xml_runs_without_errors(xml_path: Path, tmp_path: Path) -> None:
+    if platform.system().lower() != 'windows':
+        pytest.skip('GenCase binary is Windows-only; skipping on non-Windows host.')
     if not GENCASE_EXE.exists():  # pragma: no cover - environment guard
         pytest.skip(f"GenCase binary not found at {GENCASE_EXE}")
 

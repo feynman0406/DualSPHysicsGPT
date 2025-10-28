@@ -1,4 +1,4 @@
-﻿import { ChangeEvent } from 'react';
+import { ChangeEvent } from 'react';
 import type { RunStatus } from '../types/runs';
 import './RunFilters.css';
 

@@ -1,4 +1,4 @@
-﻿# External STL Integration Plan
+# External STL Integration Plan
 
 ## 0. Safety Net / Checkpoint
 - Create a feature branch (e.g., `feature/external-stl-intake`).
@@ -24,14 +24,15 @@
 5. Update schema / normaliser layers if the STL path must appear in the structured JSON (e.g., add `files` entry with `{ "path": "uploads/<name>.stl", "purpose": "external_geometry" }`).
 
 ## 3. Retrieval & Agent Prompt Updates
-1. Modify `rag.openai_file_search` so when an external STL is present it automatically appends the keyword `externalstl` to the query text and adds a `must` token.
+1. Modify `rag.openai_file_search` so when an external STL is present it automatically appends the keyword `externalstl` to the query text, adds a `must` token, and keeps the Responses include set to `["file_search_call.results"]` so snippet-rich results populate `sources[*].snippets`.
 2. Extend `chains/rag_utils.build_metadata_filter` to force `features` or `case_type` search bias towards examples labelled with `externalstl`.
-3. Patch Agent 1 prompt templates (generator prompt + orchestrator glue):
+3. Document the include-derived payload: `_collect_tool_calls` and `_derive_sources` must emit `file_id`, `filename`, `score`, `snippets`, and `metadata.source_path`, plus `search_call_id`; update sanitizers (`scripts/mvp_direct_file_search`, `chains/generator`) to expect those keys and remove legacy `search_attempts` references.
+4. Patch Agent 1 prompt templates (generator prompt + orchestrator glue):
    - Explicitly instruct replacements of `External.stl` (and variations like `Duck.stl`) with the user-uploaded filename.
    - Emphasise minimal edits elsewhere.
    - Provide handling instructions if multiple `<drawfilestl>` statements exist.
-4. Patch Agent 2 instructions and schema alignment to enforce the same rename and to surface warnings when the STL file is missing.
-5. Update any agent hand-off JSON structures so they carry `user_provided_stl` metadata (name, rel_path, transforms).
+5. Patch Agent 2 instructions and schema alignment to enforce the same rename and to surface warnings when the STL file is missing.
+6. Update any agent hand-off JSON structures so they carry `user_provided_stl` metadata (name, rel_path, transforms).
 
 ## 4. XML Generation Layer
 1. Introduce helper in `AutoXml_script/generate_xml.py` that scans geometry commands for `<drawfilestl file="External.stl">` and swaps in the provided filename.
@@ -54,6 +55,7 @@
    - `tests/ui_backend/test_api.py` for uploads, verifying storage path and RunRequest propagation.
    - `tests/test_generator_json_pipeline.py` to confirm the STL rename occurs in emitted XML.
    - `tests/ui_backend/test_runner.py` to ensure CLI args include the `--external-stl` flag when provided.
+   - Add include-flow coverage (`tests/test_openai_file_search.py`) asserting the Responses request sets `include=["file_search_call.results"]` and the persisted sources expose `snippets`, `metadata.source_path`, and `search_call_id`.
 2. Include smoke test script update (`scripts/smoke_test_configs.py`) to optionally exercise STL flow.
 3. Verify existing regression tests still pass without an STL (backward compatibility).
 

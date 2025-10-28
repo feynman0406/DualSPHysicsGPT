@@ -1,4 +1,4 @@
-﻿import './TabNav.css';
+import './TabNav.css';
 
 interface TabOption<T extends string> {
   id: T;

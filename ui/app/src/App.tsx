@@ -1,4 +1,4 @@
-﻿import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import RunListPage from './pages/RunListPage';
 import RunDetailPage from './pages/RunDetailPage';

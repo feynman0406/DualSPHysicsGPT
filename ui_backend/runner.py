@@ -50,6 +50,13 @@ def _collect_produced_files(output_dir: Path, log_path: Path) -> List[ProducedFi
         if not path.is_file() or path == log_path:
             continue
         description = _DEFAULT_DESCRIPTIONS.get(path.name)
+        if description is None and path.suffix.lower() == ".stl":
+            try:
+                relative = path.relative_to(output_dir)
+            except ValueError:
+                relative = None
+            if relative is None or (relative.parts and relative.parts[0] == "uploads"):
+                description = "Uploaded STL file"
         produced.append(ProducedFile(path=path, description=description))
     return produced
 
@@ -70,6 +77,15 @@ def _merge_env(request: RunRequest, repo_root: Path, output_dir: Path) -> dict[s
     env.setdefault("PYTHONIOENCODING", "utf-8")
     env["MVP_REPO_ROOT"] = str(repo_root)
     env["MVP_REDIRECT_ROOT"] = str(output_dir)
+    if request.run_id:
+        env["MVP_RUN_ID"] = request.run_id
+    if request.external_stl:
+        env["MVP_EXTERNAL_STL_SOURCE_PATH"] = str(request.external_stl)
+        rel_path = Path("uploads")
+        if request.run_id:
+            rel_path /= request.run_id
+        rel_path /= request.external_stl.name
+        env["MVP_EXTERNAL_STL_REL_PATH"] = rel_path.as_posix()
     return env
 
 

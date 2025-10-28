@@ -16,6 +16,7 @@ Usage:
 import argparse
 import json
 import os
+import shutil
 import sys
 import time
 from contextlib import contextmanager, nullcontext
@@ -33,6 +34,80 @@ load_dotenv()
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MAX_REFERENCE_FILES = int(os.environ.get("AGENT2_MAX_REFERENCE_FILES", "1"))
 DEFAULT_MAX_REFERENCE_CHARS = int(os.environ.get("AGENT2_REFERENCE_MAX_CHARS", "6000"))
+
+
+class ExternalStlError(Exception):
+    '''Raised when the external STL argument is invalid.'''
+
+
+def _ensure_utf8_streams() -> None:
+    """Coerce stdout/stderr to UTF-8 when supported to avoid console codec errors."""
+
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None or not hasattr(stream, "reconfigure"):
+            continue
+        try:
+            stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+        except Exception:
+            # Some redirected streams do not support reconfigure (e.g., when piped).
+            continue
+
+
+def _sanitize_run_id(raw: Optional[str]) -> Optional[str]:
+    if raw is None:
+        return None
+    trimmed = raw.strip()
+    if not trimmed:
+        return None
+    allowed = [ch for ch in trimmed if ch.isalnum() or ch in {"-", "_"}]
+    return "".join(allowed) or None
+
+
+def _ingest_external_stl(source: Path, run_id: Optional[str]) -> Dict[str, str]:
+    resolved_source = Path(source).expanduser()
+    if not resolved_source.exists():
+        raise ExternalStlError(f"External STL not found: {resolved_source}")
+    if not resolved_source.is_file():
+        raise ExternalStlError(f"External STL must be a file: {resolved_source}")
+    if resolved_source.suffix.lower() != '.stl':
+        raise ExternalStlError("External STL must use a .stl extension")
+
+    sanitized_run_id = _sanitize_run_id(run_id) or _sanitize_run_id(os.environ.get("MVP_RUN_ID"))
+    if sanitized_run_id is None:
+        sanitized_run_id = f"manual-{int(time.time())}"
+
+    target_dir = Path('logs/mvp') / 'uploads'
+    if sanitized_run_id:
+        target_dir /= sanitized_run_id
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    destination = target_dir / resolved_source.name
+    try:
+        shutil.copy2(resolved_source, destination)
+    except shutil.SameFileError:
+        pass
+    except OSError as exc:
+        raise ExternalStlError(f"Failed to store external STL at {destination}: {exc}") from exc
+
+    relative_root = Path('logs/mvp')
+    try:
+        relative_path = destination.relative_to(relative_root)
+    except ValueError:
+        relative_path = Path(destination.name)
+
+    payload = {
+        'run_id': sanitized_run_id,
+        'filename': destination.name,
+        'stored_path': str(destination),
+        'relative_path': (
+            relative_path.as_posix() if hasattr(relative_path, 'as_posix')
+            else str(relative_path).replace("\\", "/")
+        ),
+        'original_path': str(resolved_source),
+    }
+    return payload
 
 
 def print_header(title: str):
@@ -103,6 +178,19 @@ def _resolve_reference_path(source_path: str) -> Optional[Path]:
     return None
 
 
+def _extract_source_metadata(source: Dict[str, Any]) -> Dict[str, Any]:
+    """Return metadata for a retrieval source entry, normalizing legacy fields."""
+    if not isinstance(source, dict):
+        return {}
+    metadata = source.get("metadata")
+    if isinstance(metadata, dict):
+        return dict(metadata)
+    attributes = source.get("attributes")
+    if isinstance(attributes, dict):
+        return dict(attributes)
+    return {}
+
+
 def _prepare_reference_documents(
     agent1_output: Dict[str, Any],
     *,
@@ -121,8 +209,11 @@ def _prepare_reference_documents(
 
     documents: List[Dict[str, Any]] = []
     for rank, ref in enumerate(references):
-        attrs = ref.get("attributes") or {}
-        source_path = attrs.get("source_path") or ref.get("filename")
+        if len(documents) >= max_files:
+            break
+
+        metadata = _extract_source_metadata(ref)
+        source_path = metadata.get("source_path") or metadata.get("filename") or ref.get("filename")
         resolved = _resolve_reference_path(str(source_path) if source_path is not None else "")
         if resolved is None:
             print(f"Warning: could not resolve reference file for Agent 2: {source_path}")
@@ -134,11 +225,11 @@ def _prepare_reference_documents(
             print(f"Warning: failed to read reference file {resolved}: {exc}")
             continue
 
-        if rank >= 1:
-            break
-
         prompt_excerpt = full_text
         truncated = False
+        if max_chars > 0 and len(prompt_excerpt) > max_chars:
+            prompt_excerpt = prompt_excerpt[:max_chars]
+            truncated = True
 
         original_index = detail_by_rank.get(rank, {}).get("original_index", rank)
 
@@ -150,6 +241,7 @@ def _prepare_reference_documents(
                 "prompt_excerpt": prompt_excerpt,
                 "full_text": full_text,
                 "truncated": truncated,
+                "snippets": list(ref.get("snippets") or []),
             }
         )
 
@@ -365,11 +457,11 @@ def _reorder_sources_by_analysis_text(
     analysis_lower = analysis_text.lower()
     indexed_positions: List[Tuple[int, int]] = []
     for idx, src in enumerate(sources):
-        attr = src.get("attributes") or {}
+        metadata = _extract_source_metadata(src)
         candidates = [
             src.get("filename"),
-            attr.get("filename"),
-            attr.get("source_path"),
+            metadata.get("filename"),
+            metadata.get("source_path"),
         ]
         best_pos: Optional[int] = None
         for candidate in candidates:
@@ -396,8 +488,12 @@ def _reorder_sources_by_analysis_text(
     details: List[Dict[str, Any]] = []
     for new_rank, original_idx in enumerate(ordered_indices):
         src = sources[original_idx]
-        attr = src.get("attributes") or {}
-        filename = src.get("filename") or attr.get("filename") or attr.get("source_path")
+        metadata = _extract_source_metadata(src)
+        filename = (
+            src.get("filename")
+            or metadata.get("filename")
+            or metadata.get("source_path")
+        )
         details.append(
             {
                 "new_rank": new_rank,
@@ -412,7 +508,7 @@ def _reorder_sources_by_analysis_text(
     return ordered_indices, reordered_sources, details
 
 
-def agent_1_file_search(user_query: str, vector_store_id: str) -> Dict[str, Any]:
+def agent_1_file_search(user_query: str, vector_store_id: str, external_stl: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """
     Agent 1: Use OpenAI file_search to retrieve relevant examples
 
@@ -437,6 +533,8 @@ def agent_1_file_search(user_query: str, vector_store_id: str) -> Dict[str, Any]
     print(f"Query: {user_query}")
     print(f"Model: {model}")
     print(f"Vector Store: {vector_store_id}\n")
+    if external_stl:
+        print(f"External STL: {external_stl['relative_path']} (source: {external_stl['original_path']})")
 
     print_step(1, 3, "Searching vector store for relevant examples...")
 
@@ -498,13 +596,20 @@ Explicitly call out floating bodies when they are required. If you keep a refere
 
     sanitized_sources: List[Dict[str, Any]] = []
     for src in sources:
+        metadata = _extract_source_metadata(src)
+        snippets = src.get("snippets")
         sanitized_entry: Dict[str, Any] = {
             "vector_store_id": src.get("vector_store_id"),
             "file_id": src.get("file_id"),
             "filename": src.get("filename"),
             "score": src.get("score"),
-            "attributes": src.get("attributes"),
+            "metadata": metadata if metadata else None,
+            "snippets": list(snippets) if isinstance(snippets, list) else None,
         }
+        raw_attrs = src.get("attributes")
+        legacy_attrs = raw_attrs if isinstance(raw_attrs, dict) else None
+        if legacy_attrs:
+            sanitized_entry.setdefault("attributes", legacy_attrs)
         if src.get("search_call_id") is not None:
             sanitized_entry["search_call_id"] = src.get("search_call_id")
         sanitized_sources.append({k: v for k, v in sanitized_entry.items() if v is not None})
@@ -526,6 +631,9 @@ Explicitly call out floating bodies when they are required. If you keep a refere
         ),
     }
 
+    if external_stl:
+        result["external_stl"] = dict(external_stl)
+
     output_dir = Path("logs/mvp")
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -539,7 +647,7 @@ Explicitly call out floating bodies when they are required. If you keep a refere
     return result
 
 
-def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) -> Dict[str, Any]:
+def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path, external_stl: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """Agent 2: Use references from Agent 1 to generate strict JSON config."""
     from openai import OpenAI
 
@@ -547,6 +655,9 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) ->
 
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     model = os.environ.get("OPENAI_MODEL", "gpt-4o")
+
+    if external_stl:
+        print(f"External STL for Agent 2: {external_stl['relative_path']}")
 
     reference_documents = _prepare_reference_documents(agent1_output)
     if reference_documents:
@@ -558,6 +669,8 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path) ->
     output_dir.mkdir(parents=True, exist_ok=True)
     agent2_input_payload = dict(agent1_output)
     agent2_input_payload["reference_documents"] = reference_documents
+    if external_stl:
+        agent2_input_payload["external_stl"] = dict(external_stl)
     agent2_input_path = output_dir / "agent2_input.json"
     with open(agent2_input_path, "w", encoding="utf-8") as f:
         json.dump(agent2_input_payload, f, indent=2, ensure_ascii=False)
@@ -794,6 +907,16 @@ def main():
         help="User query",
     )
     parser.add_argument(
+        "--external-stl",
+        dest="external_stl",
+        help="Path to an STL file to include in the run",
+    )
+    parser.add_argument(
+        "--run-id",
+        dest="run_id",
+        help="Run identifier used for upload storage",
+    )
+    parser.add_argument(
         "--pause-after-agent1",
         action="store_true",
         help="Pause after Agent 1 for inspection",
@@ -804,6 +927,23 @@ def main():
         help="Execute GenCase on generated XML",
     )
     args = parser.parse_args()
+
+    _ensure_utf8_streams()
+
+    run_id = args.run_id or os.environ.get("MVP_RUN_ID")
+    external_stl_info: Optional[Dict[str, str]] = None
+    if args.external_stl:
+        try:
+            external_stl_info = _ingest_external_stl(Path(args.external_stl), run_id)
+        except ExternalStlError as exc:
+            print(f"External STL error: {exc}")
+            return 1
+        run_id = external_stl_info["run_id"]
+        os.environ.setdefault("MVP_RUN_ID", run_id)
+        os.environ["MVP_EXTERNAL_STL_REL_PATH"] = external_stl_info["relative_path"]
+        os.environ["MVP_EXTERNAL_STL_STORED_PATH"] = external_stl_info["stored_path"]
+    elif run_id:
+        os.environ.setdefault("MVP_RUN_ID", run_id)
 
     print_header("ENVIRONMENT CHECK")
     required_vars = ["OPENAI_API_KEY", "OPENAI_RAG_VS_DESIGN_ID"]
@@ -820,13 +960,15 @@ def main():
     print(f"OPENAI_API_KEY: {'*' * 20}")
     print(f"OPENAI_RAG_VS_DESIGN_ID: {vector_store_id[:20]}...")
     print(f"OPENAI_MODEL: {os.environ.get('OPENAI_MODEL', 'gpt-4o')}")
+    if external_stl_info:
+        print(f"External STL stored at: {external_stl_info['relative_path']} (source: {external_stl_info['original_path']})")
 
     timer = PipelineTimer()
     exit_code = 0
 
     try:
         with timer.track("Agent 1: Reference Finder"):
-            agent1_output = agent_1_file_search(args.query, vector_store_id)
+            agent1_output = agent_1_file_search(args.query, vector_store_id, external_stl=external_stl_info)
 
         if args.pause_after_agent1:
             print_header("PAUSED AFTER AGENT 1")
@@ -836,7 +978,7 @@ def main():
 
         schema_path = Path("schemas/dualsphysics_config_schema.json")
         with timer.track("Agent 2: Config Generator"):
-            config_json = agent_2_generate_config(agent1_output, schema_path)
+            config_json = agent_2_generate_config(agent1_output, schema_path, external_stl=external_stl_info)
 
         generate_xml_and_execute(config_json, execute=args.execute, timer=timer)
 

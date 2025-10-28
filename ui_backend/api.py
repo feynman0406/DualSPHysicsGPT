@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,6 +47,50 @@ def _prepare_output_dir(run_id: str) -> Path:
     target = _RUN_OUTPUT_ROOT / run_id
     target.mkdir(parents=True, exist_ok=True)
     return target
+
+
+def _parse_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        return normalized in {"1", "true", "yes", "on"}
+    return False
+
+
+def _store_external_stl_upload(upload: UploadFile, run_output_dir: Path) -> Path:
+    filename = upload.filename or 'external_geometry.stl'
+    name = Path(filename).name
+    if Path(name).suffix.lower() != '.stl':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='External STL must use a .stl extension',
+        )
+
+    target_dir = run_output_dir / 'uploads'
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / name
+
+    try:
+        upload.file.seek(0)
+        with target_path.open('wb') as buffer:
+            shutil.copyfileobj(upload.file, buffer)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f'Failed to store STL upload: {exc}',
+        ) from exc
+    finally:
+        try:
+            upload.file.close()
+        except Exception:
+            pass
+
+    return target_path
 
 
 def _enqueue_run(history: HistoryStore, *, run_id: str, query: str, output_dir: Path) -> None:
@@ -279,26 +323,77 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
     get_store = _store_dependency_factory(store)
 
     @router.post("", response_model=CreateRunResponse, status_code=status.HTTP_201_CREATED)
-    def create_run_endpoint(
-        payload: CreateRunPayload,
+    async def create_run_endpoint(
+        request: Request,
         history = Depends(get_store),
     ) -> CreateRunResponse:
+        content_type = (request.headers.get("content-type") or "").lower()
+        query = ""
+        pause_after_agent1 = False
+        execute = False
+        external_upload: UploadFile | None = None
+
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            query_value = form.get("query")
+            query = str(query_value).strip() if query_value is not None else ""
+            if not query:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query is required")
+            pause_after_agent1 = _parse_bool(form.get("pauseAfterAgent1") or form.get("pause_after_agent1"))
+            execute = _parse_bool(form.get("execute"))
+            values = form.getlist("externalStl")
+            candidate = values[0] if values else form.get("externalStl")
+
+            upload_candidate: UploadFile | None
+            if isinstance(candidate, UploadFile):
+                upload_candidate = candidate
+            elif candidate is not None and hasattr(candidate, "filename"):
+                upload_candidate = candidate  # type: ignore[assignment]
+            else:
+                upload_candidate = None
+
+            if upload_candidate and (upload_candidate.filename or "").strip():
+                external_upload = upload_candidate
+            elif upload_candidate:
+                try:
+                    upload_candidate.file.close()
+                except Exception:  # pragma: no cover - best effort cleanup
+                    pass
+        else:
+            try:
+                payload_data = await request.json()
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid JSON body: {exc}",
+                ) from exc
+            payload = CreateRunPayload.model_validate(payload_data)
+            query = payload.query
+            pause_after_agent1 = payload.pause_after_agent1
+            execute = payload.execute
+
         run_id = _generate_run_id()
         output_dir = _prepare_output_dir(run_id)
-        request = RunRequest(
-            query=payload.query,
+
+        stored_external: Path | None = None
+        if external_upload is not None:
+            stored_external = _store_external_stl_upload(external_upload, output_dir)
+
+        request_model = RunRequest(
+            query=query,
             output_dir=output_dir,
-            pause_after_agent1=payload.pause_after_agent1,
-            execute=payload.execute,
+            pause_after_agent1=pause_after_agent1,
+            execute=execute,
             run_id=run_id,
+            external_stl=stored_external,
         )
 
         try:
-            _enqueue_run(history, run_id=run_id, query=payload.query, output_dir=output_dir)
+            _enqueue_run(history, run_id=run_id, query=query, output_dir=output_dir)
         except Exception:  # pragma: no cover - defensive guard
             logger.exception("Failed to persist queued record for run %s", run_id)
 
-        _spawn_run(request, history)
+        _spawn_run(request_model, history)
         return CreateRunResponse(runId=run_id, status="queued")
 
     router.add_api_route(

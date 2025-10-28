@@ -32,6 +32,7 @@ LOGGER = logging.getLogger(__name__)
 
 _LAST_RUN_INFO: Dict[str, Any] | None = None
 _DEFAULT_SEARCH_LIMIT = 20
+_MAX_RESULTS_ENV = "DSPH_FILE_SEARCH_MAX_RESULTS"
 
 # Based on OpenAI API documentation and observed errors
 _SUPPORTED_OPENAI_EXTS = {
@@ -85,6 +86,24 @@ def _client() -> OpenAI:
     )
     
     return OpenAI(api_key=api_key, http_client=http_client)
+
+
+def _resolve_max_results() -> int:
+    """Return the configured cap for retrieved snippets."""
+    raw = os.environ.get(_MAX_RESULTS_ENV)
+    if raw:
+        try:
+            value = int(str(raw).strip())
+            if value > 0:
+                return min(value, 50)
+        except (TypeError, ValueError):
+            LOGGER.warning(
+                "Invalid %s value '%s'; using default %d",
+                _MAX_RESULTS_ENV,
+                raw,
+                _DEFAULT_SEARCH_LIMIT,
+            )
+    return _DEFAULT_SEARCH_LIMIT
 
 
 @lru_cache(maxsize=4)
@@ -450,71 +469,6 @@ def _inject_query_hint(messages: Sequence[Dict[str, Any]], spec: Dict[str, List[
     return [{"role": "system", "content": hint_text}] + list(messages)
 
 
-def _select_filter_and_search(
-    client: OpenAI,
-    vector_store_ids: Sequence[str],
-    query_text: str,
-    metadata_filter: Optional[Dict[str, Any]],
-    rewrite: bool,
-) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
-    filter_candidates: List[Optional[Dict[str, Any]]] = []
-    if metadata_filter:
-        base = dict(metadata_filter)
-        filter_candidates.append(base)
-        if "dim" in base:
-            reduced = dict(base)
-            reduced.pop("dim", None)
-            if reduced not in filter_candidates:
-                filter_candidates.append(reduced)
-        if "case_type" in base:
-            reduced = dict(base)
-            reduced.pop("case_type", None)
-            if reduced not in filter_candidates:
-                filter_candidates.append(reduced)
-    filter_candidates.append(None)
-
-    attempt_summaries: List[Dict[str, Any]] = []
-    selected_filter: Optional[Dict[str, Any]] = None
-
-    for candidate in filter_candidates:
-        filter_payload = _build_filter_payload(candidate)
-        attempt_entry = {
-            "metadata_filter": candidate,
-            "results": [],
-        }
-        for vs_id in vector_store_ids:
-            try:
-                page = client.vector_stores.search(
-                    vs_id,
-                    query=query_text or "",
-                    filters=filter_payload,
-                    max_num_results=_DEFAULT_SEARCH_LIMIT,
-                    rewrite_query=rewrite,
-                )
-                for result in page.data: 
-                    attempt_entry["results"].append(
-                        {
-                            "vector_store_id": vs_id,
-                            "file_id": result.file_id,
-                            "filename": result.filename,
-                            "score": result.score,
-                            "attributes": result.attributes or {},
-                            "text": (result.content[0].text if getattr(result, "content", None) else "")[:600],
-                        }
-                    )
-            except Exception as exc:
-                LOGGER.warning("Vector store search failed (vs=%s): %s", vs_id, exc)
-        attempt_summaries.append(attempt_entry)
-        if attempt_entry["results"]:
-            selected_filter = candidate
-            break
-
-    if selected_filter is None and filter_candidates:
-        selected_filter = filter_candidates[-1]
-
-    return selected_filter, attempt_summaries
-
-
 def _collect_annotations(resp: Response) -> List[Dict[str, Any]]:
     annotations: List[Dict[str, Any]] = []
     if not resp.output:
@@ -553,46 +507,64 @@ def _collect_tool_calls(resp: Response) -> List[Dict[str, Any]]:
         return calls
     for item in resp.output:
         if isinstance(item, ResponseFileSearchToolCall):
+            results: List[Dict[str, Any]] = []
+            for res in item.results or []:
+                entry: Dict[str, Any] = {
+                    "file_id": res.file_id,
+                    "filename": res.filename,
+                    "score": res.score,
+                    "metadata": dict(res.attributes or {}),
+                }
+                if res.text:
+                    entry["text"] = res.text.strip()
+                results.append(entry)
             calls.append(
                 {
                     "id": item.id,
                     "status": item.status,
-                    "queries": item.queries,
-                    "results": [
-                        {
-                            "file_id": res.file_id,
-                            "filename": res.filename,
-                            "score": res.score,
-                            "attributes": res.attributes or {},
-                        }
-                        for res in (item.results or [])
-                    ],
+                    "queries": list(item.queries or []),
+                    "results": results,
                 }
             )
     return calls
 
 
-def _derive_sources(tool_calls: List[Dict[str, Any]], search_attempts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _derive_sources(tool_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     sources: List[Dict[str, Any]] = []
-    seen: set[str] = set()
+    seen: Dict[str, Dict[str, Any]] = {}
     for call in tool_calls:
+        call_id = call.get("id")
         for result in call.get("results", []):
             file_id = result.get("file_id")
-            if not file_id or file_id in seen:
+            if not file_id:
                 continue
-            entry = dict(result)
-            entry["search_call_id"] = call.get("id")
-            seen.add(file_id)
-            sources.append(entry)
-    if not sources:
-        for attempt in search_attempts:
-            for result in attempt.get("results", []):
-                file_id = result.get("file_id")
-                if not file_id or file_id in seen:
-                    continue
-                entry = dict(result)
-                seen.add(file_id)
-                sources.append(entry)
+            snippet = (result.get("text") or "").strip()
+            snippet = snippet[:800] if snippet else ""
+            payload = seen.get(file_id)
+            if not payload:
+                payload = {
+                    "file_id": file_id,
+                    "filename": result.get("filename"),
+                    "score": result.get("score"),
+                    "snippets": [snippet] if snippet else [],
+                    "metadata": dict(result.get("metadata") or {}),
+                    "search_call_id": call_id,
+                }
+                seen[file_id] = payload
+                sources.append(payload)
+            else:
+                if snippet and snippet not in payload["snippets"]:
+                    payload["snippets"].append(snippet)
+                if payload.get("filename") is None and result.get("filename"):
+                    payload["filename"] = result.get("filename")
+                if payload.get("score") is None and result.get("score") is not None:
+                    payload["score"] = result.get("score")
+                extra_meta = result.get("metadata") or {}
+                if extra_meta:
+                    meta_store = payload.setdefault("metadata", {})
+                    meta_store.update(extra_meta)
+                if payload.get("search_call_id") is None and call_id:
+                    payload["search_call_id"] = call_id
     return sources
 
 
@@ -638,31 +610,18 @@ def response_with_file_search(
     query_spec = _structured_query(effective_raw)
     external_stl_ctx = get_external_stl_context()
     query_spec = _apply_external_stl_bias(query_spec, external_stl_ctx)
-    query_text = _compose_query_text(query_spec, effective_raw) or raw_query[:512]
-    selected_filter, search_attempts = _select_filter_and_search(
-        client, vector_store_ids, query_text, metadata_filter, query_rewrite
-    )
+    query_text = _compose_query_text(query_spec, effective_raw) or effective_raw[:512]
+    applied_metadata_filter = dict(metadata_filter) if metadata_filter else None
 
     messages_with_hint = _inject_query_hint(messages, query_spec, effective_raw)
-    matches_found = any(entry.get("results") for entry in search_attempts if entry.get("metadata_filter") == selected_filter)
-    if not matches_found and search_attempts:
-        messages_with_hint = [
-            {
-                "role": "system",
-                "content": (
-                    "No corpus files matched the retrieval filters. "
-                    "Answer from general knowledge and make sure run logs record 'No source matched'."
-                ),
-            },
-            *messages_with_hint,
-        ]
 
     input_payload = _messages_to_input(messages_with_hint)
     tool_config: Dict[str, Any] = {
         "type": "file_search",
         "vector_store_ids": list(vector_store_ids),
+        "max_num_results": _resolve_max_results(),
     }
-    filter_payload = _build_filter_payload(selected_filter)
+    filter_payload = _build_filter_payload(applied_metadata_filter)
     if filter_payload:
         tool_config["filters"] = filter_payload
 
@@ -671,6 +630,7 @@ def response_with_file_search(
         "input": input_payload,
         "tools": [tool_config],
         "max_output_tokens": max_output_tokens,
+        "include": ["file_search_call.results"],
     }
     if temperature is not None:
         request_kwargs["temperature"] = float(temperature)
@@ -697,7 +657,7 @@ def response_with_file_search(
     text = (getattr(response, "output_text", None) or "").strip()
     tool_calls = _collect_tool_calls(response)
     annotations = _collect_annotations(response)
-    sources = _derive_sources(tool_calls, search_attempts)
+    sources = _derive_sources(tool_calls)
     if not sources:
         sources = [{"note": "no_source_matched"}]
 
@@ -707,15 +667,15 @@ def response_with_file_search(
         "prompt_sha256": prompt_hash,
         "vector_store_ids": list(vector_store_ids),
         "original_metadata_filter": metadata_filter,
-        "applied_metadata_filter": selected_filter,
+        "applied_metadata_filter": applied_metadata_filter,
         "query_text": query_text,
         "raw_query": effective_raw,
         "query_spec": query_spec,
-        "search_attempts": search_attempts,
         "tool_calls": tool_calls,
         "annotations": annotations,
         "response_text": text,
         "max_output_tokens": max_output_tokens,
+        "max_num_results": tool_config["max_num_results"],
         "query_rewrite": query_rewrite,
         "temperature": temperature,
         "reasoning": json.loads(json.dumps(reasoning)) if reasoning else None,
@@ -739,6 +699,3 @@ __all__ = [
     "clear_last_run_info",
     "get_file_id_to_name_map",
 ]
-
-
-

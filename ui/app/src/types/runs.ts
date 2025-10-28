@@ -1,4 +1,4 @@
-﻿export type RunStatus = 'queued' | 'running' | 'success' | 'failed' | 'interrupted';
+export type RunStatus = 'queued' | 'running' | 'success' | 'failed' | 'interrupted';
 
 export interface RunStepStatus {
   step: string;
@@ -21,6 +21,11 @@ export interface RunSummary {
     primaryOutput?: string;
     artifactCount?: number;
     hasFailures?: boolean;
+    externalStl?: {
+      filename: string;
+      sizeBytes?: number;
+    } | null;
+    externalStlAttached?: boolean;
   };
   stepStatus?: RunStepStatus[];
   stageCheckpoints?: RunStepStatus[];
@@ -103,9 +108,11 @@ export interface CreateRunRequest {
   query: string;
   pauseAfterAgent1?: boolean;
   execute?: boolean;
+  externalStl?: File | null;
 }
 
 export interface CreateRunResponse {
   runId: string;
   status: RunStatus;
 }
+

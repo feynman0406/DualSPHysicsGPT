@@ -34,9 +34,11 @@ artifacts in `logs/mvp/` remain untouched.
 | `execute` | `bool` | No | Mirrors `--execute`; runs GenCase when `True`. Defaults to `False`. |
 | `timeout` | `float | None` | No | Optional wall-clock timeout passed to `subprocess.run`. |
 | `env` | `dict[str, str] | None` | No | Additional environment variables merged into the subprocess environment. |
+| `external_stl` | `Path \| None` | No | Optional resolved path to the uploaded STL copied into the run workspace. |
 
 All requests must ensure `OPENAI_API_KEY` and `OPENAI_RAG_VS_DESIGN_ID` are available via the current
 process environment or the optional `env` override.
+When the UI uploads an external STL, `/api/runs` expects a `multipart/form-data` payload with the `externalStl` file field alongside the JSON fields (`query`, `pauseAfterAgent1`, `execute`).
 
 ## Response Schema (`RunResponse`)
 
@@ -45,21 +47,23 @@ process environment or the optional `env` override.
 | `status` | `RunStatus` enum (`success`, `failed`, `interrupted`) | Overall execution outcome derived from the subprocess exit code. |
 | `exit_code` | `int` | Raw exit code returned by the MVP CLI. Negative values indicate termination by signal. |
 | `started_at` / `finished_at` | `datetime` | UTC timestamps captured immediately before and after the subprocess execution. |
-| `command` | `Sequence[str]` | Exact command that was executed (`python -m ui_backend._mvp_entry …`). |
+| `command` | `Sequence[str]` | Exact command that was executed (`python -m ui_backend._mvp_entry ?`). |
 | `log_path` | `Path` | Location of the combined stdout/stderr log (`mvp_run.log`). |
 | `output_dir` | `Path` | Folder containing the redirected MVP artifacts and log. |
 | `produced_files` | `list[ProducedFile]` | Discovered output files (recursively) excluding the log file. Each record includes the absolute `Path` and an optional friendly description. |
 | `error` | `ErrorInfo | None` | Present when `status != success`; contains human-readable message, raw details, and remediation hint. |
 | `duration_seconds` (property) | `float` | Convenience accessor returning the elapsed duration in seconds. |
 
+- Summaries returned by `/api/runs` now expose `summary.externalStl` (filename + size metadata) and a boolean `summary.externalStlAttached` flag so the UI can highlight runs that included user geometry.
+
 ### Produced File Descriptions
 
 When present, the following artifacts receive canned descriptions:
 
-- `agent1_output.json` → "Agent 1 references & analysis"
-- `agent2_config.json` → "Agent 2 generated config"
-- `generated_case.xml` → "Generated XML case"
-- `agent2_input.json` → "Agent 2 normalized prompt"
+- `agent1_output.json` ??"Agent 1 references & analysis"
+- `agent2_config.json` ??"Agent 2 generated config"
+- `generated_case.xml` ??"Generated XML case"
+- `agent2_input.json` ??"Agent 2 normalized prompt"
 
 Any additional files are surfaced without a predefined description. Directory entries are ignored.
 
@@ -129,4 +133,7 @@ The UI backend surfaces read-only endpoints backed by `HistoryStore`.
 - `GET /runs/{run_id}/artifacts`: Enumerates persisted artifacts with `path`, optional label/description, and echoes the `runId`.
 
 Future phases may expose log streaming and artifact content helpers, but the MVP UI can poll the above resources without modifying the DualSPHysics CLI.
+
+
+
 
