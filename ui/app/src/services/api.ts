@@ -41,6 +41,9 @@ const runSummarySchema = z.object({
   startedAt: z.string().optional(),
   finishedAt: z.string().optional(),
   durationSeconds: z.number().optional(),
+  modelName: z.string().optional(),
+  reasoningLevel: z.string().optional(),
+  reasoningConfig: z.record(z.string()).optional(),
   summary: runSummaryDetailsSchema.optional(),
   stepStatus: z.array(stageStatusSchema).optional(),
   stageCheckpoints: z.array(stageStatusSchema).optional(),
@@ -274,7 +277,6 @@ export const __mocks = {
     return Object.assign(new ApiClient('/__mock__'), overrides);
   },
 };
-
 
 
 

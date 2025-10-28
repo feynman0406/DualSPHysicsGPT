@@ -17,6 +17,9 @@ export interface RunSummary {
   startedAt?: string;
   finishedAt?: string;
   durationSeconds?: number;
+  modelName?: string;
+  reasoningLevel?: string;
+  reasoningConfig?: Record<string, string>;
   summary?: {
     primaryOutput?: string;
     artifactCount?: number;

@@ -33,6 +33,9 @@ class RunRecord:
     exit_code: Optional[int] = None
     output_dir: Optional[str] = None
     command: Sequence[str] = field(default_factory=list)
+    model_name: Optional[str] = None
+    reasoning_config: Optional[dict[str, str]] = None
+    reasoning_level: Optional[str] = None
     artifacts: List[StoredArtifact] = field(default_factory=list)
     stage_checkpoints: List[RunStageStatus] = field(default_factory=list)
     metrics: List[ResourceUsageSnapshot] = field(default_factory=list)
@@ -166,6 +169,9 @@ def _record_to_dict(record: RunRecord) -> dict[str, object]:
         "exit_code": record.exit_code,
         "output_dir": record.output_dir,
         "command": list(record.command),
+        "model_name": record.model_name,
+        "reasoning_config": record.reasoning_config,
+        "reasoning_level": record.reasoning_level,
         "artifacts": [_serialize_artifact(item) for item in record.artifacts],
         "stage_checkpoints": [_serialize_stage(stage) for stage in record.stage_checkpoints],
         "metrics": [_serialize_metrics(snapshot) for snapshot in record.metrics],
@@ -180,6 +186,25 @@ def _dict_to_record(payload: dict[str, object]) -> RunRecord:
     stages = [_deserialize_stage(item) for item in payload.get("stage_checkpoints", []) or []]
     metrics = [_deserialize_metrics(item) for item in payload.get("metrics", []) or []]
 
+    raw_model = payload.get("model_name")
+    model_name = None
+    if isinstance(raw_model, str):
+        model_name = raw_model.strip() or None
+    elif raw_model is not None:
+        model_name = str(raw_model)
+
+    raw_reasoning = payload.get("reasoning_config")
+    reasoning_config = None
+    if isinstance(raw_reasoning, dict):
+        reasoning_config = {str(key): str(value) for key, value in raw_reasoning.items()}
+
+    raw_level = payload.get("reasoning_level")
+    reasoning_level = None
+    if isinstance(raw_level, str):
+        reasoning_level = raw_level.strip() or None
+    elif raw_level is not None:
+        reasoning_level = str(raw_level)
+
     return RunRecord(
         run_id=str(payload.get("run_id", "")),
         query=str(payload.get("query", "")),
@@ -189,6 +214,9 @@ def _dict_to_record(payload: dict[str, object]) -> RunRecord:
         exit_code=payload.get("exit_code"),
         output_dir=payload.get("output_dir"),
         command=list(payload.get("command", []) or []),
+        model_name=model_name,
+        reasoning_config=reasoning_config,
+        reasoning_level=reasoning_level,
         artifacts=artifacts,
         stage_checkpoints=stages,
         metrics=metrics,
@@ -398,8 +426,3 @@ __all__ = [
     "RunRecord",
     "StoredArtifact",
 ]
-
-
-
-
-

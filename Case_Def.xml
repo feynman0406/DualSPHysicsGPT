@@ -57,12 +57,13 @@
           <!-- Central obstacle -->
           <setnormalinvert invert="false"/>
           <setmkbound mk="1"/>
-          <drawbox>
-            <boxfill>all^bottom</boxfill>
-            <point x="#Boxpx1" y="#Boxpy1" z="#Tankpz1+Dpm"/>
-            <endpoint x="#Boxpx2" y="#Boxpy2" z="#Boxpz2"/>
-            <layers vdp="0.5"/>
-          </drawbox>
+          <drawfilestl advanced="true" autofill="true" file="ExternalGeometry.stl">
+            <drawmove>
+              <point x="#DefBoxpx" y="#DefBoxpy" z="#Tankpz1"/>
+            </drawmove>
+            <drawscale sx="1" sy="1" sz="1"/>
+            <drawrotate xang="0" yang="0" zang="0"/>
+          </drawfilestl>
           <shapeout file="hdp"/>
           <resetdraw/>
         </list>
@@ -115,12 +116,13 @@
           </drawbox>
           <!-- Central obstacle -->
           <setmkbound mk="1"/>
-          <drawbox>
-            <boxfill>all^bottom</boxfill>
-            <point x="#Boxpx1" y="#Boxpy1" z="#Tankpz1-Dp*2"/>
-            <endpoint x="#Boxpx2" y="#Boxpy2" z="#Boxpz2"/>
-            <layers vdp="0,-1,-2"/>
-          </drawbox>
+          <drawfilestl advanced="true" autofill="true" file="ExternalGeometry.stl">
+            <drawmove>
+              <point x="#DefBoxpx" y="#DefBoxpy" z="#Tankpz1"/>
+            </drawmove>
+            <drawscale sx="1" sy="1" sz="1"/>
+            <drawrotate xang="0" yang="0" zang="0"/>
+          </drawfilestl>
           <_shapeout file="parts"/>
           <!-- Fluid particles -->
           <setmkfluid mk="0"/>

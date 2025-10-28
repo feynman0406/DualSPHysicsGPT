@@ -5,7 +5,7 @@ import shutil
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
@@ -18,6 +18,13 @@ from .runner import run_mvp
 
 
 logger = logging.getLogger(__name__)
+
+try:
+    from llm.client import get_model_name as _llm_get_model_name, get_reasoning_config as _llm_get_reasoning_config
+except Exception as exc:  # pragma: no cover - helper optional
+    logger.debug('LLM helpers unavailable: %s', exc)
+    _llm_get_model_name = None
+    _llm_get_reasoning_config = None
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _RUN_OUTPUT_ROOT = _REPO_ROOT / "logs" / "ui_backend" / "runs"
@@ -61,6 +68,43 @@ def _parse_bool(value: object) -> bool:
         return normalized in {"1", "true", "yes", "on"}
     return False
 
+def _resolve_model_metadata() -> Tuple[Optional[str], Optional[dict[str, str]], Optional[str]]:
+    model_name: Optional[str] = None
+    reasoning_config: Optional[dict[str, str]] = None
+    reasoning_level: Optional[str] = None
+
+    if _llm_get_model_name is not None:
+        try:
+            candidate = _llm_get_model_name()
+        except Exception as exc:  # pragma: no cover - best-effort logging
+            logger.debug('Unable to resolve model name: %s', exc)
+        else:
+            if isinstance(candidate, str):
+                candidate = candidate.strip()
+                if candidate:
+                    model_name = candidate
+            elif candidate is not None:
+                model_name = str(candidate)
+
+    if _llm_get_reasoning_config is not None:
+        try:
+            raw_config = _llm_get_reasoning_config()
+        except Exception as exc:  # pragma: no cover - best-effort logging
+            logger.debug('Unable to resolve reasoning config: %s', exc)
+        else:
+            if isinstance(raw_config, dict):
+                cleaned: dict[str, str] = {}
+                for key, value in raw_config.items():
+                    cleaned[str(key)] = str(value).strip()
+                reasoning_config = cleaned or None
+                level_candidate = cleaned.get('effort') or cleaned.get('level') or cleaned.get('intensity')
+                if level_candidate is not None:
+                    candidate_str = str(level_candidate).strip()
+                    if candidate_str:
+                        reasoning_level = candidate_str
+
+    return model_name, reasoning_config, reasoning_level
+
 
 def _store_external_stl_upload(upload: UploadFile, run_output_dir: Path) -> Path:
     filename = upload.filename or 'external_geometry.stl'
@@ -93,13 +137,25 @@ def _store_external_stl_upload(upload: UploadFile, run_output_dir: Path) -> Path
     return target_path
 
 
-def _enqueue_run(history: HistoryStore, *, run_id: str, query: str, output_dir: Path) -> None:
+def _enqueue_run(
+    history: HistoryStore,
+    *,
+    run_id: str,
+    query: str,
+    output_dir: Path,
+    model_name: Optional[str] = None,
+    reasoning_config: Optional[dict[str, str]] = None,
+    reasoning_level: Optional[str] = None,
+) -> None:
     record = RunRecord(
         run_id=run_id,
         query=query,
         status="queued",
         started_at=datetime.now(timezone.utc),
         output_dir=str(output_dir),
+        model_name=model_name,
+        reasoning_config=reasoning_config,
+        reasoning_level=reasoning_level,
     )
     history.start_run(record)
 
@@ -294,6 +350,19 @@ def _serialize_run(record: RunRecord) -> dict[str, object]:
         "durationSeconds": _duration_seconds(record.started_at, record.finished_at),
     }
     payload = _omit_none(base)
+    if record.model_name:
+        payload["modelName"] = record.model_name
+    if record.reasoning_config:
+        payload["reasoningConfig"] = record.reasoning_config
+    reasoning_level = record.reasoning_level
+    if reasoning_level:
+        payload["reasoningLevel"] = reasoning_level
+    elif record.reasoning_config:
+        inferred_level = record.reasoning_config.get("effort") or record.reasoning_config.get("level") or record.reasoning_config.get("intensity")
+        if inferred_level:
+            candidate = str(inferred_level).strip()
+            if candidate:
+                payload["reasoningLevel"] = candidate
     summary = _serialize_summary(record)
     if summary:
         payload["summary"] = summary
@@ -388,8 +457,18 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
             external_stl=stored_external,
         )
 
+        model_name, reasoning_config, reasoning_level = _resolve_model_metadata()
+
         try:
-            _enqueue_run(history, run_id=run_id, query=query, output_dir=output_dir)
+            _enqueue_run(
+                history,
+                run_id=run_id,
+                query=query,
+                output_dir=output_dir,
+                model_name=model_name,
+                reasoning_config=reasoning_config,
+                reasoning_level=reasoning_level,
+            )
         except Exception:  # pragma: no cover - defensive guard
             logger.exception("Failed to persist queued record for run %s", run_id)
 

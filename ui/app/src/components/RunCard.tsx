@@ -37,6 +37,13 @@ const RunCard = ({ run }: RunCardProps) => {
     (stlSummary && typeof stlSummary === 'object') || run.summary?.externalStlAttached === true;
   const stlLabel =
     stlSummary && typeof stlSummary === 'object' ? stlSummary.filename : undefined;
+  const reasoningLabel =
+    run.reasoningLevel ??
+    run.reasoningConfig?.effort ??
+    run.reasoningConfig?.level ??
+    run.reasoningConfig?.intensity ??
+    undefined;
+
 
   return (
     <Link className="run-card" to={to} aria-label={`Open run ${run.runId}`}>
@@ -77,6 +84,18 @@ const RunCard = ({ run }: RunCardProps) => {
           <dt>Duration</dt>
           <dd>{formatDuration(run.durationSeconds)}</dd>
         </div>
+        {run.modelName && (
+          <div>
+            <dt>Model</dt>
+            <dd>{run.modelName}</dd>
+          </div>
+        )}
+        {reasoningLabel && (
+          <div>
+            <dt>Reasoning</dt>
+            <dd>{reasoningLabel}</dd>
+          </div>
+        )}
         <div>
           <dt>Artifacts</dt>
           <dd>{run.summary?.artifactCount ?? 'N/A'}</dd>

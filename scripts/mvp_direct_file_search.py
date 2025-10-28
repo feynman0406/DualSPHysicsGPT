@@ -28,11 +28,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
+from chains.mdbc_normals import enforce_mdbc_normals
 load_dotenv()
 
 # Repository locations and configurable limits for reference loading
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MAX_REFERENCE_FILES = int(os.environ.get("AGENT2_MAX_REFERENCE_FILES", "1"))
+DEFAULT_MAX_REFERENCE_FILES = int(os.environ.get("AGENT2_MAX_REFERENCE_FILES", "3"))
 DEFAULT_MAX_REFERENCE_CHARS = int(os.environ.get("AGENT2_REFERENCE_MAX_CHARS", "6000"))
 
 
@@ -862,6 +863,7 @@ def generate_xml_and_execute(
     with normalize_ctx:
         normalization = normalize_case_config(config_json)
     config = normalization.config
+    config = enforce_mdbc_normals(config)
 
     if normalization.warnings:
         print(f"Normalization warnings: {len(normalization.warnings)}")

@@ -23,6 +23,13 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
     stlSummary && typeof stlSummary === 'object' && typeof stlSummary.sizeBytes === 'number'
       ? formatFileSize(stlSummary.sizeBytes)
       : undefined;
+  const reasoningLabel =
+    run.reasoningLevel ??
+    run.reasoningConfig?.effort ??
+    run.reasoningConfig?.level ??
+    run.reasoningConfig?.intensity ??
+    undefined;
+
 
   return (
     <header className="run-metadata">
@@ -36,6 +43,12 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
           Started {formatRelativeTime(run.startedAt)} | Duration{' '}
           {formatDuration(run.durationSeconds)}
         </p>
+        {run.modelName && (
+          <p className="meta-line">Model: {run.modelName}</p>
+        )}
+        {reasoningLabel && (
+          <p className="meta-line">Reasoning: {reasoningLabel}</p>
+        )}
         {hasExternalStl && (
           <p className="meta-line">
             External STL: {stlName ?? 'Attached'}
