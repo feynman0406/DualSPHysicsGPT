@@ -872,29 +872,6 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
         if original_point_value is None:
             point_vec[axis] = _format_number(start)
 
-        fill_start = point_num
-        if fill_start is None:
-            fill_start = start
-        fill_end = fill_start + size_num
-        if fill_end <= fill_start:
-            attrs[axis] = _format_number(start)
-            continue
-
-        offset = min(0.1, size_num * 0.5)
-        margin = max(1e-6, size_num * 1e-3)
-
-        origin = fill_start + offset
-        lower = fill_start + margin
-        upper = fill_end - margin
-        if lower >= upper:
-            origin = (fill_start + fill_end) / 2.0
-        else:
-            origin = max(lower, min(origin, upper))
-
-        origin = max(min_bound + margin, min(origin, max_bound - margin))
-        origin = max(lower, min(origin, upper))
-        attrs[axis] = _format_number(origin)
-
 def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
     attrs = node.setdefault("attributes", {})
     children = node.setdefault("children", [])
