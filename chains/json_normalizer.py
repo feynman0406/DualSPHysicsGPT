@@ -869,7 +869,19 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
 
         size_vec[axis] = _format_number(size_num)
         point_vec[axis] = _format_number(start)
-        attrs[axis] = _format_number(start)
+
+        offset = 0.1
+        if size_num <= offset:
+            offset = size_num * 0.5
+        end = start + size_num
+        margin = max(1e-6, size_num * 1e-3)
+        origin = start + offset
+        if origin >= end - margin:
+            origin = end - margin
+        if origin <= start + margin:
+            origin = start + margin
+        origin = max(start + margin, min(origin, end - margin))
+        attrs[axis] = _format_number(origin)
 
 def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
     attrs = node.setdefault("attributes", {})
@@ -1803,3 +1815,4 @@ def promote_normals_from_execution(config: Dict[str, Any]) -> bool:
     collector: List[str] = []
     _promote_normals_from_execution(config, collector)
     return any(msg.startswith("Moved normals block from execution.special") for msg in collector)
+
