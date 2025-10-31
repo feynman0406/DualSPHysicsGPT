@@ -159,7 +159,9 @@ def test_geometry_fallback_support(tmp_path: Path) -> None:
     assert tags == ["setmkfluid", "setactive", "fillbox", "setmkbound", "drawbox"]
     fillbox = mainlist.find("fillbox")
     assert fillbox is not None
-    assert fillbox.attrib == {"x": "0", "y": "0", "z": "0"}
+    assert fillbox.attrib.get("x") == "0"
+    assert pytest.approx(float(fillbox.attrib.get("y", "nan")), abs=1e-9) == 0.0
+    assert fillbox.attrib.get("z") == "0"
 
 
 def test_fluid_fillbox_modefill_solid_becomes_void(tmp_path: Path) -> None:
@@ -643,3 +645,97 @@ def test_generate_case_requires_fluid_fill():
         generate_case_xml(config)
     assert "no fluid fill command" in str(excinfo.value)
 
+
+
+
+def test_fluid_fillbox_origin_outside_volume_raises_error() -> None:
+    config = {
+        "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 1, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "attributes": {"x": 2.0, "y": 0.5, "z": 0.5},
+                        "children": [
+                            {"tag": "modefill", "text": "void"},
+                            {"tag": "point", "vector": {"x": 0, "y": 0, "z": 0}},
+                            {"tag": "size", "vector": {"x": 1, "y": 1, "z": 1}},
+                        ],
+                    },
+                ],
+            },
+        },
+    }
+    with pytest.raises(ValueError, match=r"(fluid volume|geometry.definition bounds)"):
+        generate_case_xml(config)
+
+
+def test_fluid_fillbox_2d_geometry_plane_is_enforced() -> None:
+    config = {
+        "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0.2, "z": 0},
+                "pointmax": {"x": 1, "y": 0.2, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "attributes": {"x": 0.5, "y": 1.0, "z": 0.5},
+                        "children": [
+                            {"tag": "modefill", "text": "void"},
+                            {"tag": "point", "vector": {"x": 0, "y": 0.2, "z": 0}},
+                            {"tag": "size", "vector": {"x": 1, "y": 0.4, "z": 1}},
+                        ],
+                    },
+                ],
+            },
+        },
+    }
+    xml_string = generate_case_xml(config)
+    root = ET.fromstring(xml_string)
+    fillbox = root.find("casedef/geometry/commands/mainlist/fillbox")
+    assert fillbox is not None
+    assert fillbox.attrib.get("y") == "0.2"
+
+
+def test_fluid_fillbox_geometry_bounds_violation_raises_error() -> None:
+    config = {
+        "constants": {"rhop0": 1000},
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1.5, "y": 1, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "attributes": {"x": 1.8, "y": 0.5, "z": 0.5},
+                        "children": [
+                            {"tag": "modefill", "text": "void"},
+                            {"tag": "point", "vector": {"x": 1.0, "y": 0.0, "z": 0.0}},
+                            {"tag": "size", "vector": {"x": 1.0, "y": 1.0, "z": 1.0}},
+                        ],
+                    },
+                ],
+            },
+        },
+    }
+    with pytest.raises(ValueError, match="geometry.definition bounds"):
+        generate_case_xml(config)

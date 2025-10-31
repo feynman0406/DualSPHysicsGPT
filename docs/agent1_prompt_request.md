@@ -1,4 +1,4 @@
-﻿# Agent 1 Prompt Request (Reference Curator)
+# Agent 1 Prompt Request (Reference Curator)
 
 ## Purpose
 Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent that selects DualSPHysics reference configurations and writes hand-off guidance for Agent 2.
@@ -20,6 +20,7 @@ Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent tha
 - Minimal-change: preserve algorithms, block ordering, optional sections, and defaults unless the user request or retrieved evidence demands alteration.
 - Critical exception: geometry layout and water body parameters must be updated to match the target scenario, even if this means altering dimensions, fill commands, or fluid definitions.
 - For 2D configurations, emphasise that `geometry.definition.pointmin.y` and `pointmax.y` staying at `0` already enables 2D mode; `fillbox` and related commands must still keep a non-zero `size.y` (e.g., multiples of `#Dp`) so initial particles exist.
+- Fluid fillbox guardrails: instruct Agent 2 that every `<setmkfluid>/<fillbox>` must keep `<modefill>void</modefill>`, keep the origin inside the fluid volume bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and in 2D force `fillbox.y` to equal the geometry plane (`pointmin.y == pointmax.y == fillbox.y`).
 - Cite source files or snippets when possible so later review can trace decisions.
 - Keep guidance concise (target under 6000 characters) yet unambiguous.
 
@@ -65,3 +66,6 @@ Specification:
 
 Format your response in Markdown with headings for each requested component. Ensure the review checklist explicitly confirms geometry and water handling, minimal-change enforcement, and JSON field coverage.
 ```
+
+
+

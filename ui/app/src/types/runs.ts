@@ -12,6 +12,7 @@ export interface RunStepStatus {
 export interface RunSummary {
   runId: string;
   query: string;
+  model?: string;
   status: RunStatus;
   exitCode?: number | null;
   startedAt?: string;
@@ -109,6 +110,7 @@ export interface StepDetailPayload {
 
 export interface CreateRunRequest {
   query: string;
+  model?: string;
   pauseAfterAgent1?: boolean;
   execute?: boolean;
   externalStl?: File | null;

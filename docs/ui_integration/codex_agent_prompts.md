@@ -10,6 +10,8 @@ Repository root: `C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT`.
 ## Shared Agent Reminders
 - In 2D scenarios the geometry is activated by keeping `geometry.definition.pointmin.y` and `pointmax.y` at `0`, but every `fillbox`/`void` command must still provide a finite thickness in `size.y` (for example `#Dp*2`). Collapsing the box to zero thickness removes all initial particles, so even purely 2D requests should emit 3D-sized boxes.
 
+- Force fluid fillboxes to stay valid: inside any `<setmkfluid>` block, always emit `<modefill>void</modefill>`, keep the fillbox origin inside its fluid definition bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and when `pointmin.y == pointmax.y` (2D) snap `fillbox.y` to that plane.
+
 ## Kickoff Prompt
 ```
 You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT on branch <BRANCH_NAME>. Treat the following locations as read-only unless a later manifest explicitly allows changes: scripts/, chains/, logs/mvp/ (current contents), AutoXml_script/, api/, schemas/, CaseSloshingHR_Def_from_xml_out_direct/, Case_out/, metrics/, prompts/, rag/, tests/, tools/, and anything listed in docs/ui_integration/baseline_manifest.md. Never edit, move, or delete these assets. All new artifacts must live inside docs/ui_integration/, ui_backend/, ui/app/, tests/ui_backend/, ui/tests/, or other writable locations explicitly assigned in the phase prompts. Always run relevant tests before handoff, capture commands with summarized results, and update docs/ui_integration/progress_log.md when a phase ends. Do not check secrets into the repository.
@@ -319,4 +321,5 @@ Before closing the phase, output a handoff summary:
 
 Wait for approval before merging or starting the next phase.
 ```
+
 

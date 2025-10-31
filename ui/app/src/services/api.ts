@@ -208,6 +208,9 @@ export class ApiClient {
       form.append('query', payload.query);
       appendFormBoolean(form, 'pauseAfterAgent1', payload.pauseAfterAgent1);
       appendFormBoolean(form, 'execute', payload.execute);
+      if (payload.model) {
+        form.append('model', payload.model);
+      }
       form.append('externalStl', externalStl, externalStl.name || 'external.stl');
       response = await fetch(`${this.baseUrl}/runs`, {
         method: 'POST',

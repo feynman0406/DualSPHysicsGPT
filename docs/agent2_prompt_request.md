@@ -1,4 +1,4 @@
-﻿# Agent 2 Prompt Request (Strict Schema Generator)
+# Agent 2 Prompt Request (Strict Schema Generator)
 
 ## Purpose
 Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts Agent 1 guidance into strict-schema DualSPHysics configuration JSON.
@@ -19,6 +19,7 @@ Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts
 ## Constraints and principles
 - Strict schema: no extra keys, types must match (numbers, booleans as specified).
 - In 2D layouts the geometry definition uses `pointmin.y = pointmax.y = 0` to trigger 2D mode, but every `fillbox` or `modefill` block must retain a non-zero `size.y` (for example `#Dp*2`) so particles are generated; never collapse the Y thickness to zero.
+- Fluid fillbox guardrails: whenever Agent 2 emits a `<setmkfluid>` block, ensure every child `<fillbox>` sets `<modefill>void</modefill>`, keeps its origin within the fluid bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and if `pointmin.y == pointmax.y` then set `fillbox.y` to that plane.
 - Place floating bodies under the top-level `floatings` list using simple `<floating>` nodes and mirror them in `casedef_children` by ensuring {"type": "section", "key": "floatings"} is present. Do not use `execution.special` for floaters; other floating-body mechanisms are out of scope. When references include Chrono couplings (`bodyfloating`, `schemescale`, etc.), omit them instead of copying them. Keep floatings minimal-emit exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child; no extra geometry or chrono helpers.
 - Keep `casedef_children` aligned with every emitted top-level section so the generator plan stays synchronized.
 - Maintain ordering and structure mirroring references (e.g., geometry command order) unless geometry edits necessitate targeted replacements.
@@ -70,6 +71,9 @@ Specification:
 
 Format your response in Markdown with separate sections for system prompt, user template, checklist, and guardrails. Ensure the checklist explicitly calls out geometry and water handling, minimal-change enforcement, and schema validation.
 ```
+
+
+
 
 
 

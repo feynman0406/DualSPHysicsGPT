@@ -69,6 +69,8 @@ Ldom_axis ??max( 2?L_axis , L_axis + 4?Dp )嚗蒂隞?AABB_all 銝剖?撠�
 
 FluidBlock ??銋?撠???gap ??1?Dp嚗蝳?漲?桅畾潘????STL/??嚗?
 
+Fluid fillbox guardrails: whenever you emit `<setmkfluid>`, require each child `<fillbox>` to set `<modefill>void</modefill>`, keep the fillbox origin within its point/size slab (`point.axis <= fillbox.axis <= point.axis + size.axis`), and when `geometry.definition.pointmin.y == pointmax.y` force the fillbox `y` coordinate to that plane. Reject the configuration (raise a blocking check) if any guardrail is violated.
+
 2.4 mDBC ??????
 
 隞颱????銋???mk嚗iston/flap/??蝑?嚗??<geometry>/<commands> ??<waves>/<wavepaddles> ??憭?隞???<execution>/<motion> 撠? mk 閮?mov="1" ??蝘餃?嚗DBC 銝敺?閬???

@@ -1,0 +1,310 @@
+diff --git a/AutoXml_script/generate_xml.py b/AutoXml_script/generate_xml.py
+index 44e2efbd..4039a028 100644
+--- a/AutoXml_script/generate_xml.py
++++ b/AutoXml_script/generate_xml.py
+@@ -4,7 +4,7 @@ import argparse
+ import json
+ import re
+ from pathlib import Path
+-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
++from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+ from lxml import etree as ET
+ 
+ VectorDict = Dict[str, Any]
+@@ -58,13 +58,13 @@ DEFAULT_CONSTANT_META: Dict[str, Dict[str, Any]] = {
+ }
+ 
+ 
+-PLACEHOLDER_STL_FILENAMES: Set[str] = {
+-    "external.stl",
+-    "duck.stl",
+-    "sampleexternal.stl",
+-    "file.stl",
+-}
+-
++PLACEHOLDER_STL_FILENAMES: Set[str] = {
++    "external.stl",
++    "duck.stl",
++    "sampleexternal.stl",
++    "file.stl",
++}
++
+ def load_config(path: Path) -> Dict[str, Any]:
+     with path.open(encoding="utf-8") as handle:
+         return json.load(handle)
+@@ -779,75 +779,75 @@ class CaseBuilder:
+             if value is not None:
+                 command_node.set(axis, value)
+ 
+-    def _apply_external_stl_filename(self, geometry_node: ET.Element) -> None:
+-        filename = self._external_stl_filename
+-        if not filename:
+-            return
+-        for draw_node in geometry_node.findall('.//drawfilestl'):
+-            file_attr = draw_node.attrib.get('file')
+-            if not file_attr:
+-                continue
+-            current_name = Path(str(file_attr)).name.lower()
+-            if current_name in PLACEHOLDER_STL_FILENAMES:
+-                draw_node.set('file', filename)
+-
+-    def _resolve_external_stl_filename(self) -> Optional[str]:
+-        candidates: List[Any] = []
+-        direct = self.config.get('external_stl')
+-        if direct:
+-            candidates.append(direct)
+-        geometry_cfg = self.config.get('geometry')
+-        if isinstance(geometry_cfg, dict):
+-            geometry_external = geometry_cfg.get('external_stl')
+-            if geometry_external:
+-                candidates.append(geometry_external)
+-        try:
+-            from external_stl import get_external_stl_context  # type: ignore
+-        except Exception:
+-            context = None
+-        else:
+-            context = get_external_stl_context()
+-            if context:
+-                candidates.append(context)
+-        for candidate in candidates:
+-            name = self._extract_external_stl_filename(candidate)
+-            if name:
+-                return name
+-        return None
+-
+-    @staticmethod
+-    def _extract_external_stl_filename(source: Any) -> Optional[str]:
+-        if source is None:
+-            return None
+-        candidates: List[Any] = []
+-        if isinstance(source, str):
+-            candidates.append(source)
+-        elif isinstance(source, dict):
+-            for key in (
+-                'stored_filename',
+-                'original_filename',
+-                'filename',
+-                'name',
+-                'stored_relative_path',
+-                'relative_path',
+-                'stored_path',
+-                'source_path',
+-                'path',
+-            ):
+-                value = source.get(key)
+-                if value is not None:
+-                    candidates.append(value)
+-        else:
+-            return None
+-        for candidate in candidates:
+-            candidate_str = str(candidate).strip()
+-            if not candidate_str:
+-                continue
+-            name = Path(candidate_str).name
+-            if not name or not name.lower().endswith('.stl'):
+-                continue
+-            return name
+-        return None
++    def _apply_external_stl_filename(self, geometry_node: ET.Element) -> None:
++        filename = self._external_stl_filename
++        if not filename:
++            return
++        for draw_node in geometry_node.findall('.//drawfilestl'):
++            file_attr = draw_node.attrib.get('file')
++            if not file_attr:
++                continue
++            current_name = Path(str(file_attr)).name.lower()
++            if current_name in PLACEHOLDER_STL_FILENAMES:
++                draw_node.set('file', filename)
++
++    def _resolve_external_stl_filename(self) -> Optional[str]:
++        candidates: List[Any] = []
++        direct = self.config.get('external_stl')
++        if direct:
++            candidates.append(direct)
++        geometry_cfg = self.config.get('geometry')
++        if isinstance(geometry_cfg, dict):
++            geometry_external = geometry_cfg.get('external_stl')
++            if geometry_external:
++                candidates.append(geometry_external)
++        try:
++            from external_stl import get_external_stl_context  # type: ignore
++        except Exception:
++            context = None
++        else:
++            context = get_external_stl_context()
++            if context:
++                candidates.append(context)
++        for candidate in candidates:
++            name = self._extract_external_stl_filename(candidate)
++            if name:
++                return name
++        return None
++
++    @staticmethod
++    def _extract_external_stl_filename(source: Any) -> Optional[str]:
++        if source is None:
++            return None
++        candidates: List[Any] = []
++        if isinstance(source, str):
++            candidates.append(source)
++        elif isinstance(source, dict):
++            for key in (
++                'stored_filename',
++                'original_filename',
++                'filename',
++                'name',
++                'stored_relative_path',
++                'relative_path',
++                'stored_path',
++                'source_path',
++                'path',
++            ):
++                value = source.get(key)
++                if value is not None:
++                    candidates.append(value)
++        else:
++            return None
++        for candidate in candidates:
++            candidate_str = str(candidate).strip()
++            if not candidate_str:
++                continue
++            name = Path(candidate_str).name
++            if not name or not name.lower().endswith('.stl'):
++                continue
++            return name
++        return None
+     def _build_section_list(self, section_key: str) -> Optional[ET.Element]:
+         specs_config = self.config.get(section_key)
+         if not specs_config:
+@@ -1188,6 +1188,16 @@ FILL_COMMAND_TAGS = {
+ }
+ 
+ THIN_AXIS_TOLERANCE = 1e-9
++_SYMBOLIC_VALUE_PATTERN = re.compile(r"[#A-Za-z]")
++
++
++def _is_symbolic_value(value: Any) -> bool:
++    if value is None:
++        return False
++    text = str(value).strip()
++    if not text:
++        return False
++    return bool(_SYMBOLIC_VALUE_PATTERN.search(text))
+ 
+ def _parse_float_value(value: Any) -> Optional[float]:
+     if value is None:
+@@ -1207,9 +1217,96 @@ def _parse_int_value(value: Any) -> Optional[int]:
+         return None
+ 
+ 
++def _validate_fluid_fillbox_guardrails(
++    node: ET.Element,
++    geometry_bounds: Dict[str, Tuple[float, float]],
++    errors: List[str],
++) -> None:
++    modefill = None
++    point_node = None
++    size_node = None
++    for child in list(node):
++        tag = str(child.tag or "").lower()
++        if tag == "modefill":
++            modefill = child
++        elif tag == "point":
++            point_node = child
++        elif tag == "size":
++            size_node = child
++    if modefill is None or (modefill.text or "").strip().lower() != "void":
++        errors.append("Fluid fillbox requires <modefill>void</modefill>")
++    if point_node is None or size_node is None:
++        errors.append("Fluid fillbox missing <point> or <size> child elements")
++        return
++    for axis in ("x", "y", "z"):
++        origin_text = node.attrib.get(axis)
++        point_text = point_node.attrib.get(axis)
++        size_text = size_node.attrib.get(axis)
++        origin = _parse_float_value(origin_text)
++        point_val = _parse_float_value(point_text)
++        size_val = _parse_float_value(size_text)
++        if any(
++            value is None and not _is_symbolic_value(raw)
++            for value, raw in (
++                (origin, origin_text),
++                (point_val, point_text),
++                (size_val, size_text),
++            )
++        ):
++            errors.append(
++                f"Fluid fillbox axis {axis} requires numeric origin/point/size values"
++            )
++            continue
++        if origin is None or point_val is None or size_val is None:
++            continue
++        end = point_val + size_val
++        lower = min(point_val, end) - THIN_AXIS_TOLERANCE
++        upper = max(point_val, end) + THIN_AXIS_TOLERANCE
++        if origin < lower or origin > upper:
++            errors.append(
++                f"Fluid fillbox {axis}-coordinate {origin} lies outside the fluid volume [{point_val}, {end}]"
++            )
++    if not geometry_bounds:
++        return
++    y_bounds = geometry_bounds.get("y")
++    if y_bounds is not None:
++        min_y, max_y = y_bounds
++        origin_y_text = node.attrib.get("y")
++        origin_y = _parse_float_value(origin_y_text)
++        if origin_y is None:
++            if not _is_symbolic_value(origin_y_text):
++                errors.append("Fluid fillbox missing numeric y-coordinate")
++        elif abs(max_y - min_y) <= THIN_AXIS_TOLERANCE:
++            if abs(origin_y - min_y) > THIN_AXIS_TOLERANCE:
++                errors.append(
++                    f"Fluid fillbox y-coordinate {origin_y} must equal geometry.definition plane {min_y}"
++                )
++        elif origin_y < min_y - THIN_AXIS_TOLERANCE or origin_y > max_y + THIN_AXIS_TOLERANCE:
++            errors.append(
++                f"Fluid fillbox y-coordinate {origin_y} lies outside geometry.definition bounds [{min_y}, {max_y}]"
++            )
++    for axis in ("x", "z"):
++        bounds = geometry_bounds.get(axis)
++        if bounds is None:
++            continue
++        min_val, max_val = bounds
++        origin_text = node.attrib.get(axis)
++        origin_val = _parse_float_value(origin_text)
++        if origin_val is None:
++            if not _is_symbolic_value(origin_text):
++                errors.append(f"Fluid fillbox missing numeric {axis}-coordinate")
++            continue
++        if origin_val < min_val - THIN_AXIS_TOLERANCE or origin_val > max_val + THIN_AXIS_TOLERANCE:
++            errors.append(
++                f"Fluid fillbox {axis}-coordinate {origin_val} lies outside geometry.definition bounds [{min_val}, {max_val}]"
++            )
++
++
+ def validate_case_tree(root: ET.Element) -> List[str]:
+     errors: List[str] = []
+ 
++    geometry_bounds: Dict[str, Tuple[float, float]] = {}
++
+     casedef = root.find("casedef")
+     if casedef is None:
+         errors.append("missing <casedef> block")
+@@ -1240,6 +1337,7 @@ def validate_case_tree(root: ET.Element) -> List[str]:
+                 if min_val is None or max_val is None:
+                     errors.append(f"geometry.definition point{axis} missing numeric value")
+                     continue
++                geometry_bounds[axis] = (min_val, max_val)
+                 if max_val < min_val:
+                     errors.append(f"geometry.definition {axis}-axis has pointmax < pointmin")
+                 elif abs(max_val - min_val) <= THIN_AXIS_TOLERANCE:
+@@ -1278,6 +1376,8 @@ def validate_case_tree(root: ET.Element) -> List[str]:
+             elif tag in FILL_COMMAND_TAGS:
+                 if current_role == "fluid":
+                     fluid_fill_found = True
++                    if tag == "fillbox":
++                        _validate_fluid_fillbox_guardrails(child, geometry_bounds, errors)
+                 elif current_role is None:
+                     errors.append(f"{tag} command appears without an active setmkfluid context")
+             elif tag.startswith("draw"):

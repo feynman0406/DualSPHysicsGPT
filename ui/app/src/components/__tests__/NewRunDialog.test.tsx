@@ -31,4 +31,30 @@ describe('NewRunDialog', () => {
     expect(screen.getByText('geometry.stl')).toBeInTheDocument();
     expect(screen.getByText(/Binary or ASCII/i)).toBeInTheDocument();
   });
+
+  it('submits selected model option', () => {
+    const handleSubmit = vi.fn();
+    render(
+      <NewRunDialog
+        open
+        onClose={() => undefined}
+        onSubmit={handleSubmit}
+        errorMessage={null}
+      />,
+    );
+
+    const queryField = screen.getByLabelText(/query/i) as HTMLTextAreaElement;
+    const modelSelect = screen.getByLabelText(/model/i) as HTMLSelectElement;
+
+    fireEvent.change(queryField, { target: { value: 'Test model selection' } });
+    fireEvent.change(modelSelect, { target: { value: 'gpt-5' } });
+    fireEvent.click(screen.getByRole('button', { name: /trigger run/i }));
+
+    expect(handleSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: 'Test model selection',
+        model: 'gpt-5',
+      }),
+    );
+  });
 });

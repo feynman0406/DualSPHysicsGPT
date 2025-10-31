@@ -11,9 +11,11 @@ import {
 } from 'react';
 import './NewRunDialog.css';
 import { formatFileSize } from '../utils/files';
+import { DEFAULT_MODEL, MODEL_OPTIONS, type ModelOption } from '../constants/models';
 
 export interface NewRunFormValues {
   query: string;
+  model: ModelOption;
   pauseAfterAgent1: boolean;
   execute: boolean;
   externalStl: File | null;
@@ -31,6 +33,7 @@ const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
 const defaultValues: NewRunFormValues = {
   query: '',
+  model: DEFAULT_MODEL,
   pauseAfterAgent1: false,
   execute: false,
   externalStl: null,
@@ -180,6 +183,22 @@ const NewRunDialog = ({ open, onClose, onSubmit, busy, errorMessage }: NewRunDia
               placeholder='Describe the DualSPHysics scenario to run'
               onChange={event => setValues(prev => ({ ...prev, query: event.target.value }))}
             />
+          </label>
+          <label className='field'>
+            <span>Model</span>
+            <select
+              value={values.model}
+              onChange={event =>
+                setValues(prev => ({ ...prev, model: event.target.value as ModelOption }))
+              }
+              disabled={busy}
+            >
+              {MODEL_OPTIONS.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </label>
           <div className='field file-field'>
             <label className='field-label' htmlFor={fileInputId}>

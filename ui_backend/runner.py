@@ -77,6 +77,8 @@ def _merge_env(request: RunRequest, repo_root: Path, output_dir: Path) -> dict[s
     env.setdefault("PYTHONIOENCODING", "utf-8")
     env["MVP_REPO_ROOT"] = str(repo_root)
     env["MVP_REDIRECT_ROOT"] = str(output_dir)
+    if request.model_name:
+        env["OPENAI_MODEL"] = request.model_name
     if request.run_id:
         env["MVP_RUN_ID"] = request.run_id
     if request.external_stl:
@@ -190,6 +192,7 @@ def run_mvp(request: RunRequest, *, store: HistoryStore | None = None) -> RunRes
             started_at=started_at,
             output_dir=str(output_dir),
             command=command,
+            model_name=request.model_name,
             stage_checkpoints=initial_stage_list,
             metrics=[initial_snapshot],
         )
@@ -329,6 +332,10 @@ def run_mvp(request: RunRequest, *, store: HistoryStore | None = None) -> RunRes
         stage_checkpoints=_stage_sequence(stage_map),
         metrics=metrics_snapshots,
     )
+
+
+
+
 
 
 

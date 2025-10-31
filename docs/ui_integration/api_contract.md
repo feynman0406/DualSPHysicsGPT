@@ -15,6 +15,7 @@ request = RunRequest(
     query="Create a 2D dambreak simulation with water height 2 meters",
     pause_after_agent1=False,
     execute=False,
+    model_name="gpt-5-mini",
     output_dir=Path("logs/ui_backend/example_run"),
 )
 response = run_mvp(request)
@@ -32,13 +33,14 @@ artifacts in `logs/mvp/` remain untouched.
 | `output_dir` | `Path` | Yes | Destination directory for log capture and redirected MVP artifacts. Created automatically. |
 | `pause_after_agent1` | `bool` | No | Mirrors `--pause-after-agent1`; pauses after Agent 1 when `True`. Defaults to `False`. |
 | `execute` | `bool` | No | Mirrors `--execute`; runs GenCase when `True`. Defaults to `False`. |
+| `model_name` | `str | None` | No | Optional model override propagated via `OPENAI_MODEL`. UI posts `model` when set. |
 | `timeout` | `float | None` | No | Optional wall-clock timeout passed to `subprocess.run`. |
 | `env` | `dict[str, str] | None` | No | Additional environment variables merged into the subprocess environment. |
 | `external_stl` | `Path \| None` | No | Optional resolved path to the uploaded STL copied into the run workspace. |
 
 All requests must ensure `OPENAI_API_KEY` and `OPENAI_RAG_VS_DESIGN_ID` are available via the current
 process environment or the optional `env` override.
-When the UI uploads an external STL, `/api/runs` expects a `multipart/form-data` payload with the `externalStl` file field alongside the JSON fields (`query`, `pauseAfterAgent1`, `execute`).
+When the UI uploads an external STL, `/api/runs` expects a `multipart/form-data` payload with the `externalStl` file field alongside the JSON fields (`query`, `pauseAfterAgent1`, `execute`, optional `model`).
 
 ## Response Schema (`RunResponse`)
 
@@ -48,6 +50,7 @@ When the UI uploads an external STL, `/api/runs` expects a `multipart/form-data`
 | `exit_code` | `int` | Raw exit code returned by the MVP CLI. Negative values indicate termination by signal. |
 | `started_at` / `finished_at` | `datetime` | UTC timestamps captured immediately before and after the subprocess execution. |
 | `command` | `Sequence[str]` | Exact command that was executed (`python -m ui_backend._mvp_entry ?`). |
+| `modelName` | `str | None` | Model recorded with the run (UI selection or backend default). |
 | `log_path` | `Path` | Location of the combined stdout/stderr log (`mvp_run.log`). |
 | `output_dir` | `Path` | Folder containing the redirected MVP artifacts and log. |
 | `produced_files` | `list[ProducedFile]` | Discovered output files (recursively) excluding the log file. Each record includes the absolute `Path` and an optional friendly description. |
@@ -133,6 +136,7 @@ The UI backend surfaces read-only endpoints backed by `HistoryStore`.
 - `GET /runs/{run_id}/artifacts`: Enumerates persisted artifacts with `path`, optional label/description, and echoes the `runId`.
 
 Future phases may expose log streaming and artifact content helpers, but the MVP UI can poll the above resources without modifying the DualSPHysics CLI.
+
 
 
 

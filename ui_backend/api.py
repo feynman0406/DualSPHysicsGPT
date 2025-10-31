@@ -10,10 +10,11 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from .history_store import HistoryStore, RunRecord, StoredArtifact
 from .models import ResourceUsageSnapshot, RunRequest, RunStageStatus
+from . import model_options
 from .runner import run_mvp
 
 
@@ -35,6 +36,7 @@ class CreateRunPayload(BaseModel):
     query: str = Field(..., min_length=1)
     pause_after_agent1: bool = Field(default=False, alias="pauseAfterAgent1")
     execute: bool = False
+    model: str | None = Field(default=None, validation_alias=AliasChoices("model", "modelName"))
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -68,12 +70,12 @@ def _parse_bool(value: object) -> bool:
         return normalized in {"1", "true", "yes", "on"}
     return False
 
-def _resolve_model_metadata() -> Tuple[Optional[str], Optional[dict[str, str]], Optional[str]]:
-    model_name: Optional[str] = None
+def _resolve_model_metadata(preferred_model: Optional[str] = None) -> Tuple[Optional[str], Optional[dict[str, str]], Optional[str]]:
+    model_name: Optional[str] = preferred_model.strip() if preferred_model else None
     reasoning_config: Optional[dict[str, str]] = None
     reasoning_level: Optional[str] = None
 
-    if _llm_get_model_name is not None:
+    if model_name is None and _llm_get_model_name is not None:
         try:
             candidate = _llm_get_model_name()
         except Exception as exc:  # pragma: no cover - best-effort logging
@@ -104,7 +106,6 @@ def _resolve_model_metadata() -> Tuple[Optional[str], Optional[dict[str, str]], 
                         reasoning_level = candidate_str
 
     return model_name, reasoning_config, reasoning_level
-
 
 def _store_external_stl_upload(upload: UploadFile, run_output_dir: Path) -> Path:
     filename = upload.filename or 'external_geometry.stl'
@@ -401,6 +402,7 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
         pause_after_agent1 = False
         execute = False
         external_upload: UploadFile | None = None
+        requested_model: str | None = None
 
         if "multipart/form-data" in content_type:
             form = await request.form()
@@ -410,6 +412,9 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Query is required")
             pause_after_agent1 = _parse_bool(form.get("pauseAfterAgent1") or form.get("pause_after_agent1"))
             execute = _parse_bool(form.get("execute"))
+            model_value = form.get("model") or form.get("modelName")
+            if model_value is not None:
+                requested_model = str(model_value).strip() or None
             values = form.getlist("externalStl")
             candidate = values[0] if values else form.get("externalStl")
 
@@ -440,6 +445,17 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
             query = payload.query
             pause_after_agent1 = payload.pause_after_agent1
             execute = payload.execute
+            requested_model = payload.model.strip() if payload.model else None
+
+        selected_model: str | None = None
+        if requested_model:
+            selected_model = model_options.coerce_model(requested_model)
+            if selected_model is None:
+                allowed = ", ".join(model_options.ALLOWED_MODELS)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unsupported model '{requested_model}'. Choose one of: {allowed}",
+                )
 
         run_id = _generate_run_id()
         output_dir = _prepare_output_dir(run_id)
@@ -454,10 +470,13 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
             pause_after_agent1=pause_after_agent1,
             execute=execute,
             run_id=run_id,
+            model_name=selected_model,
             external_stl=stored_external,
         )
 
-        model_name, reasoning_config, reasoning_level = _resolve_model_metadata()
+        model_name, reasoning_config, reasoning_level = _resolve_model_metadata(selected_model)
+        if model_name and request_model.model_name is None:
+            request_model.model_name = model_name
 
         try:
             _enqueue_run(
@@ -589,3 +608,5 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
 
 
 __all__ = ["create_router"]
+
+

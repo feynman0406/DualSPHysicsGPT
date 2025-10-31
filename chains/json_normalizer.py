@@ -573,6 +573,7 @@ def _normalize_geometry_commands(entry: Any) -> Dict[str, Any]:
     mainlist = entry.get("mainlist")
     if mainlist is not None:
         mainlist_commands = [_normalize_command(cmd) for cmd in mainlist]
+        _enforce_fluid_fillbox_defaults(mainlist_commands)
         mainlist_node: Dict[str, Any] = {
             "tag": "mainlist",
             "children": mainlist_commands
@@ -660,6 +661,40 @@ def _normalize_command(entry: Any) -> Dict[str, Any]:
         command_spec["children"] = children
     return command_spec
 
+def _enforce_fluid_fillbox_defaults(commands: List[Dict[str, Any]]) -> None:
+    current_role: Optional[str] = None
+    for entry in commands:
+        cmd_type = str(entry.get("type") or entry.get("tag") or "").lower()
+        if cmd_type == "setmkfluid":
+            current_role = "fluid"
+            continue
+        if cmd_type.startswith("setmk"):
+            current_role = None if cmd_type == "setmkvoid" else "other"
+            continue
+        if cmd_type != "fillbox":
+            continue
+        if current_role != "fluid":
+            continue
+        children = entry.setdefault("children", [])
+        modefill = None
+        point_vec = None
+        for child in children:
+            tag = str(child.get("tag") or "").lower()
+            if tag == "modefill":
+                modefill = child
+            elif tag == "point":
+                vector = child.get("vector")
+                if isinstance(vector, dict):
+                    point_vec = vector
+        if modefill is None:
+            modefill = {"tag": "modefill"}
+            children.insert(0, modefill)
+        modefill["text"] = "void"
+        if isinstance(point_vec, dict):
+            attrs = entry.setdefault("attributes", {})
+            for axis in ("x", "y", "z"):
+                if axis in point_vec and axis not in attrs:
+                    attrs[axis] = point_vec[axis]
 
 def _canonicalize_execution_key(name: Any) -> Tuple[str, bool]:
     if not isinstance(name, str):
@@ -1167,6 +1202,67 @@ def _prune_unsupported_floating_children(floating: Dict[str, Any], warnings: Lis
             floating.pop("children", None)
 
 
+def _enforce_single_floating_descriptor(floating: Dict[str, Any], warnings: List[str]) -> None:
+    """Ensure a floating entry exposes at most one descriptor (massbody, relativeweight, rhopbody)."""
+    attrs = floating.get("attributes")
+    if not isinstance(attrs, dict):
+        attrs = {}
+        floating["attributes"] = attrs
+
+    children_obj = floating.get("children")
+    children_list = children_obj if isinstance(children_obj, list) else None
+
+    massbody_nodes: List[Dict[str, Any]] = []
+    if children_list:
+        for child in children_list:
+            if not isinstance(child, dict):
+                continue
+            tag = child.get("tag") or child.get("type")
+            if isinstance(tag, str) and tag.lower() == "massbody":
+                massbody_nodes.append(child)
+
+    preferred = None
+    if massbody_nodes:
+        preferred = "massbody"
+    elif "relativeweight" in attrs:
+        preferred = "relativeweight"
+    elif "rhopbody" in attrs:
+        preferred = "rhopbody"
+
+    if preferred is None:
+        return
+
+    removed_notes: List[str] = []
+
+    if preferred == "massbody":
+        if len(massbody_nodes) > 1 and children_list is not None:
+            for extra in massbody_nodes[1:]:
+                if extra in children_list:
+                    children_list.remove(extra)
+            removed_notes.append("duplicate massbody entries")
+        for key in ("relativeweight", "rhopbody"):
+            if key in attrs:
+                attrs.pop(key, None)
+                removed_notes.append(key)
+    else:
+        if massbody_nodes and children_list is not None:
+            for node in massbody_nodes:
+                if node in children_list:
+                    children_list.remove(node)
+            removed_notes.append("massbody")
+        other_key = "relativeweight" if preferred == "rhopbody" else "rhopbody"
+        if other_key in attrs:
+            attrs.pop(other_key, None)
+            removed_notes.append(other_key)
+
+    if children_list is not None and not children_list:
+        floating.pop("children", None)
+
+    if removed_notes:
+        removed_text = ", ".join(removed_notes)
+        warnings.append(f"Floating entry had multiple descriptors; kept {preferred} and removed {removed_text}")
+
+
 def _ensure_floatings_have_descriptor(config: Dict[str, Any], warnings: List[str]) -> None:
     floatings = config.get("floatings")
     if not isinstance(floatings, list):
@@ -1175,8 +1271,11 @@ def _ensure_floatings_have_descriptor(config: Dict[str, Any], warnings: List[str
     for floating in floatings:
         if not isinstance(floating, dict):
             continue
+        _enforce_single_floating_descriptor(floating, warnings)
         attrs = floating.get("attributes")
-        attrs = attrs if isinstance(attrs, dict) else {}
+        if not isinstance(attrs, dict):
+            attrs = {}
+            floating["attributes"] = attrs
         has_rhop = any(key in attrs for key in ("rhopbody", "relativeweight"))
         children = floating.get("children")
         has_massbody = False
@@ -1195,7 +1294,6 @@ def _ensure_floatings_have_descriptor(config: Dict[str, Any], warnings: List[str
             warnings.append("Added rhopbody to floating because no massbody or relativeweight was provided")
         else:
             warnings.append("Floating entry missing massbody, relativeweight, or rhopbody")
-
 
 def _extract_default_rhop_value(config: Dict[str, Any]) -> Optional[float]:
     constants = config.get("constants")
@@ -1404,10 +1502,3 @@ def promote_normals_from_execution(config: Dict[str, Any]) -> bool:
     collector: List[str] = []
     _promote_normals_from_execution(config, collector)
     return any(msg.startswith("Moved normals block from execution.special") for msg in collector)
-
-
-
-
-
-
-

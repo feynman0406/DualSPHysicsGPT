@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,6 +35,7 @@ class RunRequest:
     timeout: Optional[float] = None
     env: Optional[dict[str, str]] = None
     run_id: Optional[str] = None
+    model_name: Optional[str] = None
     external_stl: Optional[Path] = None
 
     def as_argv(self) -> List[str]:
@@ -125,3 +126,4 @@ class RunResponse:
         """Return total elapsed time in seconds."""
 
         return (self.finished_at - self.started_at).total_seconds()
+

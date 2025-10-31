@@ -212,10 +212,20 @@ def test_floatings_preserved_top_level():
     }
 
     result = normalize_case_config(payload)
-    assert result.config["floatings"] == floatings_input
+    floating_entry = result.config["floatings"][0]
+    attrs = floating_entry.get("attributes", {})
+    assert attrs.get("mkbound") == 3
+    assert "rhopbody" not in attrs
+    children = floating_entry.get("children", [])
+    assert any(
+        isinstance(child, dict)
+        and (child.get("tag") or child.get("type")) == "massbody"
+        for child in children
+    )
+    assert any("multiple descriptors" in warning for warning in result.warnings)
 
     floatings_input[0]["attributes"]["mkbound"] = 7
-    assert result.config["floatings"][0]["attributes"]["mkbound"] == 3
+    assert floating_entry["attributes"]["mkbound"] == 3
     assert "execution" not in result.config or "special" not in result.config.get("execution", {})
 
 
@@ -434,3 +444,98 @@ def test_floatings_missing_descriptor_without_rhop_warns():
 
 
 
+
+
+def test_floatings_multiple_descriptors_prefers_massbody():
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
+            }
+        },
+        "floatings": [
+            {
+                "type": "floating",
+                "attributes": {"mkbound": 4, "rhopbody": 1050.0},
+                "children": [
+                    {"type": "massbody", "attributes": {"value": 1.8}},
+                ],
+            }
+        ],
+    }
+
+    result = normalize_case_config(payload)
+    floating = result.config["floatings"][0]
+    attrs = floating.get("attributes", {})
+    assert "rhopbody" not in attrs
+    children = floating.get("children", [])
+    mass_nodes = [
+        child
+        for child in children
+        if isinstance(child, dict)
+        and (child.get("tag") or child.get("type")) == "massbody"
+    ]
+    assert len(mass_nodes) == 1
+    assert any("multiple descriptors" in warning for warning in result.warnings)
+
+
+def test_floatings_multiple_attributes_prefers_relativeweight():
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
+            }
+        },
+        "floatings": [
+            {
+                "type": "floating",
+                "attributes": {"mkbound": 6, "rhopbody": 1020.0, "relativeweight": 0.5},
+            }
+        ],
+    }
+
+    result = normalize_case_config(payload)
+    floating = result.config["floatings"][0]
+    attrs = floating.get("attributes", {})
+    assert "relativeweight" in attrs
+    assert "rhopbody" not in attrs
+    assert any("multiple descriptors" in warning for warning in result.warnings)
+
+def test_normalize_fluid_fillbox_forces_void_and_coordinates() -> None:
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 1, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"setmkfluid": {"mk": 0}},
+                    {
+                        "fillbox": {
+                            "modefill": "solid",
+                            "point": {"x": 0.5, "y": 0.3, "z": 0.2},
+                            "size": {"x": 0.2, "y": 0.1, "z": 0.1},
+                        }
+                    },
+                ]
+            },
+        },
+    }
+    result = normalize_case_config(payload)
+    mainlist = result.config["geometry"]["commands"]["children"][0]
+    fillbox = mainlist["children"][1]
+    modefill_entry = next(child for child in fillbox["children"] if child.get("tag") == "modefill")
+    assert modefill_entry["text"] == "void"
+    attrs = fillbox.get("attributes") or {}
+    assert attrs.get("x") == 0.5
+    assert attrs.get("y") == 0.3
+    assert attrs.get("z") == 0.2
