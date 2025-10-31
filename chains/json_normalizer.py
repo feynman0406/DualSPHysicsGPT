@@ -4,10 +4,11 @@ expected by AutoXml_script.generate_xml."""
 from __future__ import annotations
 
 import copy
+import math
 
 from dataclasses import dataclass, field
 from chains.mdbc_normals import normalize_geometryfile_target
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 CANONICAL_CONFIG_KEYS = {
@@ -69,6 +70,7 @@ EXECUTION_SPECIAL_CHILD_KEYS = {
     "special",
 }
 
+DEFAULT_COLLAPSED_AXIS_THICKNESS = "2"
 
 @dataclass
 class NormalizationResult:
@@ -225,6 +227,13 @@ def _normalize_geometry(block: Any) -> Dict[str, Any]:
 
     if "commands" in block:
         geometry["commands"] = _normalize_geometry_commands(block["commands"])
+
+    if (
+        isinstance(geometry.get("definition"), dict)
+        and isinstance(geometry.get("commands"), dict)
+    ):
+        _enforce_collapsed_axis_guardrails(geometry["definition"], geometry["commands"])
+        _ensure_fluid_fillboxes_within_volume(geometry["definition"], geometry["commands"])
 
     if "predefinition" in block:
         geometry["predefinition"] = block["predefinition"]
@@ -661,6 +670,298 @@ def _normalize_command(entry: Any) -> Dict[str, Any]:
         command_spec["children"] = children
     return command_spec
 
+def _values_equivalent(a: Any, b: Any) -> bool:
+    a_str = str(a).strip()
+    b_str = str(b).strip()
+    if a_str == b_str:
+        return True
+    try:
+        return float(a_str) == float(b_str)
+    except ValueError:
+        return False
+
+def _stringify_plane(value: Any) -> str:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped if stripped else value
+    return str(value)
+
+def _coerce_float(value: Any) -> Optional[float]:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return float(stripped)
+        except ValueError:
+            return None
+    return None
+
+def _format_number(value: float) -> str:
+    if not math.isfinite(value):
+        return str(value)
+    rounded = round(value)
+    if abs(value - rounded) < 1e-9:
+        return str(int(rounded))
+    return f"{value:.6g}"
+
+def _compose_offset_expression(base: str, offset: float) -> str:
+    base_str = base.strip() if isinstance(base, str) else str(base)
+    if abs(offset) < 1e-9:
+        return base_str
+    magnitude = _format_number(abs(offset))
+    operator = '-' if offset > 0 else '+'
+    return f"({base_str}) {operator} {magnitude}"
+
+def _walk_geometry_nodes(nodes: Iterable[Any]) -> Iterable[Dict[str, Any]]:
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        yield node
+        child_nodes = node.get("children")
+        if isinstance(child_nodes, list):
+            yield from _walk_geometry_nodes(child_nodes)
+
+def _enforce_collapsed_axis_guardrails(definition: Dict[str, Any], commands: Dict[str, Any]) -> None:
+    pointmin = definition.get("pointmin")
+    pointmax = definition.get("pointmax")
+    if not isinstance(pointmin, dict) or not isinstance(pointmax, dict):
+        return
+
+    planes: Dict[str, str] = {}
+    for axis in ("x", "y", "z"):
+        if axis not in pointmin or axis not in pointmax:
+            continue
+        if _values_equivalent(pointmin[axis], pointmax[axis]):
+            planes[axis] = _stringify_plane(pointmin[axis])
+    if not planes:
+        return
+
+    command_children = commands.get("children")
+    if not isinstance(command_children, list):
+        return
+
+    for node in _walk_geometry_nodes(command_children):
+        cmd = str(node.get("type") or node.get("tag") or "").lower()
+        if cmd == "fillbox":
+            _enforce_fillbox_collapsed_axis(node, planes)
+        elif cmd == "drawextrude":
+            _enforce_drawextrude_collapsed_axis(node, planes)
+
+def _ensure_fluid_fillboxes_within_volume(definition: Dict[str, Any], commands: Dict[str, Any]) -> None:
+    """Shift fluid fillboxes into the declared fluid volume when needed."""
+    pointmin = definition.get("pointmin")
+    pointmax = definition.get("pointmax")
+    if not isinstance(pointmin, dict) or not isinstance(pointmax, dict):
+        return
+
+    bounds: Dict[str, Tuple[float, float]] = {}
+    for axis in ("x", "y", "z"):
+        min_val = _coerce_float(pointmin.get(axis))
+        max_val = _coerce_float(pointmax.get(axis))
+        if min_val is None or max_val is None:
+            continue
+        if min_val > max_val:
+            min_val, max_val = max_val, min_val
+        bounds[axis] = (min_val, max_val)
+    if not bounds:
+        return
+
+    command_children = commands.get("children")
+    if not isinstance(command_children, list):
+        return
+
+    for node in command_children:
+        if not isinstance(node, dict):
+            continue
+        tag = str(node.get("tag") or node.get("type") or "").lower()
+        if tag == "mainlist":
+            sequence = node.get("children")
+            if isinstance(sequence, list):
+                _relocate_fluid_fillboxes(sequence, bounds)
+
+def _relocate_fluid_fillboxes(commands: List[Dict[str, Any]], bounds: Dict[str, Tuple[float, float]]) -> None:
+    current_role: Optional[str] = None
+    for entry in commands:
+        if not isinstance(entry, dict):
+            continue
+        cmd_type = str(entry.get("type") or entry.get("tag") or "").lower()
+        if cmd_type == "setmkfluid":
+            current_role = "fluid"
+            continue
+        if cmd_type.startswith("setmk"):
+            current_role = None if cmd_type == "setmkvoid" else "other"
+            continue
+        if cmd_type == "fillbox" and current_role == "fluid":
+            _clamp_fillbox_to_volume(entry, bounds)
+
+def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[float, float]]) -> None:
+    attrs = fillbox.get("attributes")
+    if not isinstance(attrs, dict):
+        attrs = {}
+        fillbox["attributes"] = attrs
+    children = fillbox.get("children")
+    if not isinstance(children, list):
+        children = []
+        fillbox["children"] = children
+
+    point_child = None
+    size_child = None
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        tag = str(child.get("tag") or "").lower()
+        if tag == "point" and point_child is None:
+            point_child = child
+        elif tag == "size" and size_child is None:
+            size_child = child
+
+    if point_child is None:
+        point_child = {"tag": "point", "vector": {}}
+        children.append(point_child)
+    if size_child is None:
+        size_child = {"tag": "size", "vector": {}}
+        children.append(size_child)
+
+    point_vec = point_child.setdefault("vector", {})
+    if not isinstance(point_vec, dict):
+        point_vec = {}
+        point_child["vector"] = point_vec
+    size_vec = size_child.setdefault("vector", {})
+    if not isinstance(size_vec, dict):
+        size_vec = {}
+        size_child["vector"] = size_vec
+
+    for axis in ("x", "y", "z"):
+        if axis not in bounds:
+            continue
+        min_bound, max_bound = bounds[axis]
+        axis_span = max_bound - min_bound
+        if axis_span <= 1e-9:
+            plane_str = _format_number(min_bound)
+            attrs[axis] = plane_str
+            existing_point = point_vec.get(axis)
+            if existing_point is None or (isinstance(existing_point, str) and not existing_point.strip()):
+                point_vec[axis] = plane_str
+            continue
+
+        size_num = _coerce_float(size_vec.get(axis))
+        if size_num is None or size_num <= 0:
+            continue
+
+        point_num = _coerce_float(point_vec.get(axis))
+        if point_num is None:
+            point_num = _coerce_float(attrs.get(axis))
+        if point_num is None:
+            point_num = min_bound
+
+        if size_num > axis_span:
+            size_num = axis_span
+
+        start = point_num
+        if start < min_bound:
+            start = min_bound
+        if start + size_num > max_bound:
+            start = max_bound - size_num
+        start = max(min_bound, min(start, max_bound - size_num))
+
+        size_vec[axis] = _format_number(size_num)
+        point_vec[axis] = _format_number(start)
+        attrs[axis] = _format_number(start)
+
+def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
+    attrs = node.setdefault("attributes", {})
+    children = node.setdefault("children", [])
+
+    point_child = None
+    size_child = None
+    for child in children:
+        tag = str(child.get("tag") or "").lower()
+        if tag == "point" and point_child is None:
+            point_child = child
+        elif tag == "size" and size_child is None:
+            size_child = child
+
+    if point_child is None:
+        point_child = {"tag": "point", "vector": {}}
+        children.append(point_child)
+    point_vec = point_child.setdefault("vector", {})
+    if not isinstance(point_vec, dict):
+        point_vec = {}
+        point_child["vector"] = point_vec
+
+    if size_child is None:
+        size_child = {"tag": "size", "vector": {}}
+        children.append(size_child)
+    size_vec = size_child.setdefault("vector", {})
+    if not isinstance(size_vec, dict):
+        size_vec = {}
+        size_child["vector"] = size_vec
+
+    for axis, plane in planes.items():
+        plane_str = _stringify_plane(plane)
+
+        raw_size = size_vec.get(axis)
+        if raw_size is None or (isinstance(raw_size, str) and not raw_size.strip()):
+            raw_size = DEFAULT_COLLAPSED_AXIS_THICKNESS
+
+        thickness_num = _coerce_float(raw_size)
+        if thickness_num is None or thickness_num <= 0:
+            raw_size = DEFAULT_COLLAPSED_AXIS_THICKNESS
+            thickness_num = _coerce_float(raw_size)
+
+        if thickness_num is not None:
+            size_vec[axis] = _format_number(thickness_num)
+        else:
+            size_vec[axis] = _stringify_plane(raw_size)
+
+        plane_num = _coerce_float(plane_str)
+        if plane_num is not None and thickness_num is not None:
+            point_val = plane_num - thickness_num / 2.0
+            point_str = _format_number(point_val)
+            attrs[axis] = point_str
+            point_vec[axis] = point_str
+        else:
+            fallback_thickness = thickness_num if thickness_num is not None else _coerce_float(DEFAULT_COLLAPSED_AXIS_THICKNESS) or 1.0
+            point_expr = _compose_offset_expression(plane_str, fallback_thickness / 2.0)
+            attrs[axis] = point_expr
+            point_vec[axis] = point_expr
+
+def _enforce_drawextrude_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
+    children = node.get("children")
+    if not isinstance(children, list):
+        return
+
+    extrude_child = None
+    for child in children:
+        if str(child.get("tag") or "").lower() == "extrude":
+            extrude_child = child
+            break
+    if extrude_child is None:
+        extrude_child = {"tag": "extrude", "vector": {}}
+        children.insert(0, extrude_child)
+
+    extrude_vec = extrude_child.setdefault("vector", {})
+    if not isinstance(extrude_vec, dict):
+        extrude_vec = {}
+        extrude_child["vector"] = extrude_vec
+
+    for axis in planes:
+        extrude_vec[axis] = DEFAULT_COLLAPSED_AXIS_THICKNESS
+
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        tag = str(child.get("tag") or "").lower()
+        if tag in {"point", "point0", "point1", "point2", "pointref", "endpoint"}:
+            vec = child.setdefault("vector", {})
+            if not isinstance(vec, dict):
+                vec = {}
+                child["vector"] = vec
+            for axis, plane in planes.items():
+                vec[axis] = plane
 def _enforce_fluid_fillbox_defaults(commands: List[Dict[str, Any]]) -> None:
     current_role: Optional[str] = None
     for entry in commands:
