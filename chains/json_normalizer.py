@@ -839,11 +839,11 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
             continue
         min_bound, max_bound = bounds[axis]
         axis_span = max_bound - min_bound
+        original_point_value = point_vec.get(axis)
         if axis_span <= 1e-9:
             plane_str = _format_number(min_bound)
             attrs[axis] = plane_str
-            existing_point = point_vec.get(axis)
-            if existing_point is None or (isinstance(existing_point, str) and not existing_point.strip()):
+            if original_point_value is None or (isinstance(original_point_value, str) and not original_point_value.strip()):
                 point_vec[axis] = plane_str
             continue
 
@@ -851,7 +851,7 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
         if size_num is None or size_num <= 0:
             continue
 
-        point_num = _coerce_float(point_vec.get(axis))
+        point_num = _coerce_float(original_point_value)
         if point_num is None:
             point_num = _coerce_float(attrs.get(axis))
         if point_num is None:
@@ -868,19 +868,31 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
         start = max(min_bound, min(start, max_bound - size_num))
 
         size_vec[axis] = _format_number(size_num)
-        point_vec[axis] = _format_number(start)
 
-        offset = 0.1
-        if size_num <= offset:
-            offset = size_num * 0.5
-        end = start + size_num
+        if original_point_value is None:
+            point_vec[axis] = _format_number(start)
+
+        fill_start = point_num
+        if fill_start is None:
+            fill_start = start
+        fill_end = fill_start + size_num
+        if fill_end <= fill_start:
+            attrs[axis] = _format_number(start)
+            continue
+
+        offset = min(0.1, size_num * 0.5)
         margin = max(1e-6, size_num * 1e-3)
-        origin = start + offset
-        if origin >= end - margin:
-            origin = end - margin
-        if origin <= start + margin:
-            origin = start + margin
-        origin = max(start + margin, min(origin, end - margin))
+
+        origin = fill_start + offset
+        lower = fill_start + margin
+        upper = fill_end - margin
+        if lower >= upper:
+            origin = (fill_start + fill_end) / 2.0
+        else:
+            origin = max(lower, min(origin, upper))
+
+        origin = max(min_bound + margin, min(origin, max_bound - margin))
+        origin = max(lower, min(origin, upper))
         attrs[axis] = _format_number(origin)
 
 def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
