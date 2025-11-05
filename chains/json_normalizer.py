@@ -71,6 +71,7 @@ EXECUTION_SPECIAL_CHILD_KEYS = {
 }
 
 DEFAULT_COLLAPSED_AXIS_THICKNESS = "2"
+FILLBOX_OVERSHOOT_MARGIN = 1.0
 
 @dataclass
 class NormalizationResult:
@@ -847,6 +848,10 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
                 point_vec[axis] = plane_str
             continue
 
+        allowed_min = min_bound - FILLBOX_OVERSHOOT_MARGIN
+        allowed_max = max_bound + FILLBOX_OVERSHOOT_MARGIN
+        allowed_span = allowed_max - allowed_min
+
         size_num = _coerce_float(size_vec.get(axis))
         if size_num is None or size_num <= 0:
             continue
@@ -854,23 +859,41 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
         point_num = _coerce_float(original_point_value)
         if point_num is None:
             point_num = _coerce_float(attrs.get(axis))
+        inferred_point = False
         if point_num is None:
             point_num = min_bound
-
-        if size_num > axis_span:
-            size_num = axis_span
+            inferred_point = True
 
         start = point_num
-        if start < min_bound:
-            start = min_bound
-        if start + size_num > max_bound:
-            start = max_bound - size_num
-        start = max(min_bound, min(start, max_bound - size_num))
+        start_changed = False
+
+        if size_num > allowed_span:
+            size_num = allowed_span
+
+        if start < allowed_min:
+            start = allowed_min
+            start_changed = True
+
+        if start + size_num > allowed_max:
+            start = allowed_max - size_num
+            start_changed = True
+
+        if start < allowed_min:
+            start = allowed_min
+            start_changed = True
+
+        end = start + size_num
+        if end > allowed_max:
+            end = allowed_max
+            size_num = end - start
 
         size_vec[axis] = _format_number(size_num)
 
-        if original_point_value is None:
-            point_vec[axis] = _format_number(start)
+        if start_changed or inferred_point or original_point_value is None:
+            formatted_start = _format_number(start)
+            point_vec[axis] = formatted_start
+            attrs[axis] = formatted_start
+
 
 def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
     attrs = node.setdefault("attributes", {})
