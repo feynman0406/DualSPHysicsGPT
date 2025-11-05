@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import io
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from lxml import etree as ET
@@ -11,6 +12,57 @@ from lxml import etree as ET
 VECTOR_KEYS = {"x", "y", "z"}
 GAUGE_POINT_MAP = {"point0": "start", "point1": "mid", "point2": "end"}
 
+
+
+def _extract_prolog_comments(xml_text: str) -> List[str]:
+    comments: List[str] = []
+    buffer: List[str] = []
+    capturing = False
+    for raw_line in xml_text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            if capturing:
+                buffer.append('')
+            continue
+        if stripped.startswith('<?xml'):
+            continue
+        if stripped.startswith('<!--'):
+            capturing = True
+            content = stripped[4:]
+            if content.endswith('-->'):
+                content = content[:-3]
+                buffer.append(content.strip())
+                comment = " ".join(part.strip() for part in buffer if part.strip())
+                if comment:
+                    comments.append(comment)
+                buffer.clear()
+                capturing = False
+            else:
+                buffer.append(content)
+            continue
+        if capturing:
+            if stripped.endswith('-->'):
+                buffer.append(stripped[:-3])
+                comment = " ".join(part.strip() for part in buffer if part.strip())
+                if comment:
+                    comments.append(comment)
+                buffer.clear()
+                capturing = False
+            else:
+                buffer.append(stripped)
+            continue
+        if stripped.startswith('<'):
+            break
+    return comments
+
+
+def _strip_xml_declaration(xml_text: str) -> str:
+    idx = xml_text.find('<?xml')
+    if idx != -1:
+        end = xml_text.find('?>', idx)
+        if end != -1:
+            return xml_text[:idx] + xml_text[end + 2:]
+    return xml_text
 
 def _convert_value(text: str) -> Any:
     value = text.strip()
@@ -438,16 +490,20 @@ def _merge_execution_parts(base: Dict[str, Any], special_cfg: Dict[str, Any]) ->
 
 
 def parse_case_xml(xml_text: str) -> Dict[str, Any]:
-    parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False, strip_cdata=False)
+    prolog_comments = _extract_prolog_comments(xml_text)
+    normalized_xml = _strip_xml_declaration(xml_text)
+    parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False, strip_cdata=False, remove_comments=False)
     try:
-        root = ET.fromstring(xml_text.encode("utf-8"), parser=parser)
+        root = ET.fromstring(normalized_xml.encode("utf-8"), parser=parser)
     except ET.XMLSyntaxError:
-        root = ET.fromstring(xml_text, parser=parser)
+        root = ET.fromstring(normalized_xml, parser=parser)
 
     if root.tag != "case":
         raise ValueError("Root element must be <case>")
 
     config: Dict[str, Any] = {}
+    if prolog_comments:
+        config["case_comments"] = prolog_comments
     case_attrs = _convert_attrib(root.attrib)
     if case_attrs:
         config["case_attributes"] = case_attrs

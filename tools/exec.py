@@ -1,4 +1,4 @@
-import os
+﻿import os
 import pathlib
 import shutil
 import subprocess
@@ -35,9 +35,14 @@ DUALSPHYSICS_BINARIES = (
 )
 
 ALLOWED_COPY_MODES = {"off", "warn", "strict"}
-DATA_FILE_SUFFIXES = (".dat", ".txt", ".csv")
+# Recognized data/geometry asset suffixes for dependency collection
+DATA_FILE_SUFFIXES = (".dat", ".txt", ".csv", ".vtk", ".vtp", ".vtu", ".vtm", ".stl", ".obj")
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_ASSET_DIRS = [PROJECT_ROOT / "AutoXml_script", PROJECT_ROOT]
+DEFAULT_ASSET_DIRS = [
+    PROJECT_ROOT / "AutoXml_script" / "external_assets",
+    PROJECT_ROOT / "AutoXml_script",
+    PROJECT_ROOT,
+]
 
 def _get_copy_mode() -> str:
     mode = os.environ.get("DSPH_COPY_DATA", "warn").strip().lower()

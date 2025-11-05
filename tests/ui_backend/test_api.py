@@ -4,6 +4,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from io import BytesIO
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
@@ -93,6 +97,7 @@ def _prepare_store(tmp_path: Path) -> HistoryStore:
         finished_at=started + timedelta(minutes=7, seconds=40),
         exit_code=0,
         artifacts=[StoredArtifact(path=str(artifact_file), description="Generated XML case")],
+        dependency_manifest={"files": [{"path": "generated_case.xml", "status": "copied"}], "warnings": []},
     )
 
     run2_output = tmp_path / "out2"
@@ -138,6 +143,7 @@ def test_list_runs_returns_serialized_history(tmp_path: Path) -> None:
     second = payload[1]
     assert second["runId"] == "RUN-1"
     assert len(second["stageCheckpoints"]) == 3
+    assert second.get("summary", {}).get("dependencyCount") == 1
 
 
 def test_get_run_detail_includes_stage_checkpoints(tmp_path: Path) -> None:
@@ -148,6 +154,8 @@ def test_get_run_detail_includes_stage_checkpoints(tmp_path: Path) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["runId"] == "RUN-1"
+    assert payload.get("dependencyManifest")
+    assert payload["dependencyManifest"]["files"][0]["path"] == "generated_case.xml"
     stages = payload["stageCheckpoints"]
     assert stages[0]["step"] == "init"
     assert stages[0]["state"] == StageState.COMPLETED.value
@@ -187,6 +195,7 @@ def test_get_artifacts_returns_history_entries(tmp_path: Path) -> None:
     assert artifacts[0]["label"] == "Generated XML case"
     assert artifacts[0]["sizeBytes"] > 0
     assert artifacts[0]["previewAvailable"] is True
+    assert artifacts[0]["downloadUrl"] == "/api/runs/RUN-1/artifacts/download?path=generated_case.xml"
 
 
 
@@ -197,6 +206,17 @@ def test_get_artifact_content_returns_text(tmp_path: Path) -> None:
     response = client.get("/api/runs/RUN-1/artifacts/content", params={"path": "generated_case.xml"})
     assert response.status_code == 200
     assert "example" in response.text
+
+def test_download_artifact_returns_file(tmp_path: Path) -> None:
+    store = _prepare_store(tmp_path)
+    client = _client_with_store(store)
+
+    response = client.get('/api/runs/RUN-1/artifacts/download', params={'path': 'generated_case.xml'})
+    assert response.status_code == 200
+    disposition = response.headers.get('content-disposition', '')
+    assert 'attachment' in disposition
+    assert b'example' in response.content
+
 
 def test_runs_endpoint_does_not_redirect(tmp_path: Path) -> None:
     store = _prepare_store(tmp_path)
@@ -401,3 +421,14 @@ def test_delete_run_endpoint_returns_not_found(tmp_path: Path) -> None:
 
     response = client.delete("/api/runs/DOES-NOT-EXIST")
     assert response.status_code == 404
+def test_get_run_dependencies_endpoint(tmp_path: Path) -> None:
+    store = _prepare_store(tmp_path)
+    client = _client_with_store(store)
+
+    response = client.get("/api/runs/RUN-1/dependencies")
+    assert response.status_code == 200
+    manifest = response.json()
+    assert manifest["files"][0]["path"] == "generated_case.xml"
+
+    response_empty = client.get("/api/runs/RUN-2/dependencies")
+    assert response_empty.status_code == 204

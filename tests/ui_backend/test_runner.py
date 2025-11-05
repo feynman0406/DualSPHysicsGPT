@@ -4,7 +4,11 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import json
 import pytest
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from ui_backend import runner
 from ui_backend.history_store import HistoryStore
@@ -76,6 +80,24 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
         copied_target.write_text("copied", encoding="utf-8")
         (output_dir / "agent1_output.json").write_text("{}", encoding="utf-8")
         (output_dir / "generated_case.xml").write_text("<case />", encoding="utf-8")
+        external_dir = output_dir / "external_files" / "AutoXml_script"
+        external_dir.mkdir(parents=True, exist_ok=True)
+        (external_dir / "dataset.txt").write_text("fixture", encoding="utf-8")
+        manifest = {
+            "run_id": run_id,
+            "generated_at": "2025-11-03T19:08:02Z",
+            "files": [
+                {
+                    "path": "AutoXml_script/dataset.txt",
+                    "purpose": "unit test dataset",
+                    "source": "declared",
+                    "status": "copied",
+                    "copied_path": "external_files/AutoXml_script/dataset.txt",
+                }
+            ],
+            "warnings": [],
+        }
+        (output_dir / "dependency_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, stdout="all good", stderr="")
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
@@ -101,11 +123,15 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     assert response.run_id == run_id
 
     produced_names = {item.path.name for item in response.produced_files}
-    assert {"agent1_output.json", "generated_case.xml"} <= produced_names
+    assert {"agent1_output.json", "generated_case.xml", "dependency_manifest.json"} <= produced_names
     stl_files = [item for item in response.produced_files if item.path.suffix.lower() == ".stl"]
     assert stl_files
     assert all(file.description == "Uploaded STL file" for file in stl_files)
     assert any(run_id in file.path.parts for file in stl_files)
+
+    assert response.dependency_manifest is not None
+    assert response.dependency_manifest.get("files")
+    assert response.dependency_manifest["files"][0]["path"] == "AutoXml_script/dataset.txt"
 
     stages = {stage.stage: stage for stage in response.stage_checkpoints}
     assert set(stages.keys()) == {"init", "sim", "post"}
@@ -122,6 +148,9 @@ def test_run_mvp_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     assert len(stored.metrics) == len(response.metrics)
     assert stored.stage_checkpoints[1].state == StageState.COMPLETED.value
     assert any(artifact.path.endswith(".stl") for artifact in stored.artifacts)
+    assert stored.dependency_manifest is not None
+    assert stored.dependency_manifest.get("files")
+    assert stored.dependency_manifest["files"][0]["path"] == "AutoXml_script/dataset.txt"
 
 
 
@@ -153,6 +182,3 @@ def test_run_mvp_missing_env_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert stored.status == "failed"
     assert stored.error is not None
     assert "Missing required" in (stored.error.get("details") or "")
-
-
-

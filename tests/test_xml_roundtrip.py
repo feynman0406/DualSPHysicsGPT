@@ -2,15 +2,58 @@
 Tests the fidelity of the XML -> JSON -> XML roundtrip conversion.
 """
 import unittest
+from typing import List
 from pathlib import Path
 from lxml import etree as ET
 
-from AutoXml_script.xml_to_json import parse_case_xml
+from AutoXml_script.xml_to_json import parse_case_xml, _strip_xml_declaration
 from AutoXml_script.generate_xml import generate_case_xml
 
 # Define paths relative to the project root
 ROOT = Path(__file__).resolve().parents[1]
 XML_SOURCE_DIR = ROOT / "AutoXml_script"
+
+
+def extract_prolog_comments(xml_text: str) -> List[str]:
+    comments: List[str] = []
+    buffer: List[str] = []
+    capturing = False
+    for raw_line in xml_text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            if capturing:
+                buffer.append('')
+            continue
+        if stripped.startswith('<?xml'):
+            continue
+        if stripped.startswith('<!--'):
+            capturing = True
+            content = stripped[4:]
+            if content.endswith('-->'):
+                content = content[:-3]
+                buffer.append(content.strip())
+                comment = " ".join(part.strip() for part in buffer if part.strip())
+                if comment:
+                    comments.append(comment)
+                buffer.clear()
+                capturing = False
+            else:
+                buffer.append(content)
+            continue
+        if capturing:
+            if stripped.endswith('-->'):
+                buffer.append(stripped[:-3])
+                comment = " ".join(part.strip() for part in buffer if part.strip())
+                if comment:
+                    comments.append(comment)
+                buffer.clear()
+                capturing = False
+            else:
+                buffer.append(stripped)
+            continue
+        if stripped.startswith('<'):
+            break
+    return comments
 
 
 def are_elements_equal(elem1, elem2, path=""):
@@ -85,12 +128,18 @@ class TestXmlRoundtrip(unittest.TestCase):
             with self.subTest(file=xml_path.name):
                 # Step 1: Read original XML
                 original_xml_text = xml_path.read_text(encoding="utf-8")
+                original_comments = extract_prolog_comments(original_xml_text)
+                normalized_original = _strip_xml_declaration(original_xml_text)
                 parser = ET.XMLParser(remove_blank_text=True, resolve_entities=False)
-                original_root = ET.fromstring(original_xml_text.encode("utf-8"), parser=parser)
-
+                original_root = ET.fromstring(normalized_original.encode("utf-8"), parser=parser)
                 # Step 2: XML -> JSON
                 try:
                     json_config = parse_case_xml(original_xml_text)
+                    config_comments = json_config.get("case_comments") or []
+                    if isinstance(config_comments, str):
+                        config_comments = [config_comments]
+                    config_comments = [str(value).strip() for value in config_comments if str(value).strip()]
+                    self.assertEqual(config_comments, original_comments, f"{xml_path.name}: case comment mismatch")
                 except Exception as e:
                     failures.append(f"{xml_path.name}: Failed during XML->JSON conversion: {e}")
                     continue
@@ -99,6 +148,8 @@ class TestXmlRoundtrip(unittest.TestCase):
                 try:
                     roundtrip_xml_text = generate_case_xml(json_config, pretty=False)
                     roundtrip_root = ET.fromstring(roundtrip_xml_text.encode("utf-8"), parser=parser)
+                    roundtrip_comments = extract_prolog_comments(roundtrip_xml_text)
+                    self.assertEqual(roundtrip_comments, original_comments, f"{xml_path.name}: prolog comments changed")
                 except Exception as e:
                     failures.append(f"{xml_path.name}: Failed during JSON->XML conversion: {e}")
                     continue

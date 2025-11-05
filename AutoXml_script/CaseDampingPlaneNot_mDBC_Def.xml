@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- Wave tank with piston motion from file, mDBC normals, and the downstream planar damping block disabled to provide a baseline configuration. -->
 <case>
   <casedef>
     <constantsdef>

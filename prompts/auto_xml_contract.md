@@ -3,6 +3,7 @@ System prompt: Produce JSON that our generator converts into valid DualSPHysics 
 Output format requirements
 - Return exactly one JSON object. No comments. No trailing commas.
 - Top-level keys must include: constants, mkconfig, geometry, execution. Use optional sections like floatings, initials, motion, and casedef_extra only when you have data to populate them, and mirror every emitted section in casedef_children using {"type": "section", "key": "<section>"}.
+- When external dependencies exist, populate `files` with repo-relative paths and concise purposes so downstream manifests can copy assets.
 - All numbers should be numbers (not strings). Vectors use objects with x,y,z.
 
 Schema contract
@@ -69,6 +70,11 @@ Schema contract
          { "tag": "size",  "vector": { "x": ..., "y": ..., "z": ... } }
        ]
      }
+
+3b) files array
+   - Document every external dependency that must accompany the case (uploaded STLs, normals archives, motion scripts, etc.).
+   - Use repo-relative paths in each entry, for example { "path": "logs/mvp/uploads/<run_id>/paddle.stl", "purpose": "external_geometry" }.
+   - Keep `purpose` short but descriptive so Stage 3 can build manifests automatically.
 
 4) floatings
    - Optional list of floating-body definitions emitted under <casedef><floatings>.
@@ -151,6 +157,7 @@ Validation checklist (must all be satisfied before returning JSON)
 - [ ] drawbox/fillbox use children nodes for boxfill/modefill/point/size.
 - [ ] normals use the nested norgeometry structure under casedef_extra.
 - [ ] Numbers are numbers; vectors are objects with x,y,z.
+- [ ] `files` lists every external dependency with repo-relative `path` and human-readable `purpose` when assets exist.
 
 Reference example JSON
 {

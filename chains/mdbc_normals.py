@@ -16,6 +16,14 @@ DEFAULT_SVSHAPES_VALUE = True
 DEFAULT_SVSHAPES_COMMENT = "Saves VTK with geometry in triangles and quads with its normals for debug (default=false)"
 DEFAULT_GEOMETRYFILE_COMMENT = "File with boundary geometry (VTK format)"
 
+PLACEHOLDER_NORMALS_COMMENT = (
+    "Boundary=2 (mDBC) uses normals; set active=true and provide norgeometry to enable normals generation."
+)
+AUTO_ENABLED_NORMALS_COMMENT = (
+    "Normals auto-enabled for mDBC; edit norgeometry to customise normal generation."
+)
+
+
 
 PLACEHOLDER_GEOMETRYFILE = "[CaseName]_hdp_Actual.vtk"  # DualSPHysics expects this placeholder; downstream tools replace [CaseName].
 
@@ -230,9 +238,24 @@ def _ensure_normals_section(geometry: Dict[str, Any], shapeout_target: str) -> b
 
     normals = geometry["normals"]
 
-    if "active" not in normals:
+    active_value = normals.get("active")
+    if active_value is None:
         normals["active"] = True
         modified = True
+    else:
+        if isinstance(active_value, str):
+            active_normalized = active_value.strip().lower()
+            is_active = active_normalized in {"true", "1", "yes", "on"}
+        else:
+            is_active = bool(active_value)
+
+        if not is_active:
+            normals["active"] = True
+            modified = True
+
+            comment_value = normals.get("comment")
+            if comment_value == PLACEHOLDER_NORMALS_COMMENT:
+                normals["comment"] = AUTO_ENABLED_NORMALS_COMMENT
 
     if "norgeometry" not in normals:
         normals["norgeometry"] = {}

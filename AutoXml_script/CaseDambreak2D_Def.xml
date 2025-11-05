@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- 2D dam-break in a rectangular tank: initializes a tall water column, builds full solid boundaries, and sets surface-level gauges while running a Wendland-kernel simulation with density diffusion controls. -->
 <case>
   <casedef>
     <constantsdef>

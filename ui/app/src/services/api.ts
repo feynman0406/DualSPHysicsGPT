@@ -32,7 +32,39 @@ const runSummaryDetailsSchema = z.object({
     .nullable()
     .optional(),
   externalStlAttached: z.boolean().optional(),
+  dependencyCount: z.number().optional(),
+  dependencyWarnings: z.number().optional(),
 });
+
+const dependencyFileSchema = z
+  .object({
+    path: z.string(),
+    purpose: z.string().optional(),
+    source: z.string().optional(),
+    status: z.string().optional(),
+    copied_path: z.string().optional(),
+    notes: z.union([z.array(z.string()), z.string()]).optional(),
+  })
+  .passthrough()
+  .transform(({ copied_path, notes, ...rest }) => ({
+    ...rest,
+    copiedPath: copied_path,
+    notes: typeof notes === "string" ? [notes] : notes ?? undefined,
+  }));
+
+const dependencyManifestSchema = z
+  .object({
+    run_id: z.string().optional(),
+    generated_at: z.string().optional(),
+    files: z.array(dependencyFileSchema).default([]),
+    warnings: z.array(z.string()).default([]),
+  })
+  .passthrough()
+  .transform(({ run_id, generated_at, ...rest }) => ({
+    ...rest,
+    runId: run_id,
+    generatedAt: generated_at,
+  }));
 const runSummarySchema = z.object({
   runId: z.string(),
   query: z.string().default(''),
@@ -45,6 +77,7 @@ const runSummarySchema = z.object({
   reasoningLevel: z.string().optional(),
   reasoningConfig: z.record(z.string()).optional(),
   summary: runSummaryDetailsSchema.optional(),
+  dependencyManifest: dependencyManifestSchema.optional(),
   stepStatus: z.array(stageStatusSchema).optional(),
   stageCheckpoints: z.array(stageStatusSchema).optional(),
 });
@@ -175,18 +208,27 @@ const appendFormBoolean = (form: FormData, key: string, value: boolean | undefin
 export class ApiClient {
   constructor(private readonly baseUrl: string = API_BASE_URL) {}
 
-  private resolveArtifactUrl(artifact: ArtifactMetadata, runIdOverride?: string): string {
-    if (artifact.downloadUrl) {
-      return artifact.downloadUrl;
-    }
+  private buildArtifactContentUrl(artifact: ArtifactMetadata, runIdOverride?: string): string {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
     const effectiveRunId = artifact.runId ?? runIdOverride;
     if (!effectiveRunId) {
       throw new Error('Artifact runId is not available for preview.');
     }
     const url = new URL(`${this.baseUrl}/runs/${effectiveRunId}/artifacts/content`, origin);
-    url.searchParams.set('path', artifact.path);
+    const normalizedPath = (artifact.path ?? '').split('\\').join('/');
+    url.searchParams.set('path', normalizedPath);
     return url.toString();
+  }
+
+  private buildArtifactDownloadUrl(runId: string, relativePath: string): string {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const url = new URL(`${this.baseUrl}/runs/${runId}/artifacts/download`, origin);
+    url.searchParams.set('path', relativePath.split('\\').join('/'));
+    return url.toString();
+  }
+
+  buildDependencyDownloadUrl(runId: string, relativePath: string): string {
+    return this.buildArtifactDownloadUrl(runId, relativePath);
   }
 
   async listRuns(): Promise<RunSummary[]> {
@@ -255,7 +297,20 @@ export class ApiClient {
 
   async getRunArtifacts(runId: string): Promise<ArtifactMetadata[]> {
     const response = await fetch(`${this.baseUrl}/runs/${runId}/artifacts`);
-    return parseJson(response, zArray(artifactSchema)) as Promise<ArtifactMetadata[]>;
+    const artifacts = (await parseJson(response, zArray(artifactSchema))) as ArtifactMetadata[];
+    return artifacts.map(artifact => {
+      const baseDownload = this.buildArtifactDownloadUrl(artifact.runId ?? runId, artifact.path);
+      const normalizedDownload = artifact.downloadUrl
+        ? new URL(
+            artifact.downloadUrl,
+            typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
+          ).toString()
+        : baseDownload;
+      return {
+        ...artifact,
+        downloadUrl: normalizedDownload,
+      };
+    });
   }
 
   async getStepDetail(runId: string, step: string): Promise<StepDetailPayload> {
@@ -264,7 +319,7 @@ export class ApiClient {
   }
 
   async fetchArtifactContent(artifact: ArtifactMetadata, runIdOverride?: string): Promise<string> {
-    const target = this.resolveArtifactUrl(artifact, runIdOverride);
+    const target = this.buildArtifactContentUrl(artifact, runIdOverride);
     const response = await fetch(target);
     if (!response.ok) {
       throw new Error(await response.text());

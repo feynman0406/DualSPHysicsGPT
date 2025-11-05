@@ -1,3 +1,4 @@
+﻿import clsx from 'clsx';
 import { Link } from 'react-router-dom';
 import type { RunSummary, RunStepStatus } from '../types/runs';
 import { formatDuration, formatRelativeTime } from '../utils/time';
@@ -43,19 +44,53 @@ const RunCard = ({ run }: RunCardProps) => {
     run.reasoningConfig?.level ??
     run.reasoningConfig?.intensity ??
     undefined;
-
+  const dependencyCount = run.summary?.dependencyCount;
+  const dependencyWarnings = run.summary?.dependencyWarnings ?? 0;
+  const hasDependencySummary =
+    (typeof dependencyCount === 'number' && dependencyCount > 0) || dependencyWarnings > 0;
+  const dependencyBadgeTitle = hasDependencySummary
+    ? `Dependencies: ${dependencyCount ?? 0}${
+        dependencyWarnings > 0
+          ? ` (${dependencyWarnings} warning${dependencyWarnings > 1 ? 's' : ''})`
+          : ''
+      }`
+    : 'Dependencies not reported';
+  const dependencyMetaValue =
+    typeof dependencyCount === 'number'
+      ? `${dependencyCount}${dependencyWarnings > 0 ? ` (${dependencyWarnings}⚠)` : ''}`
+      : dependencyWarnings > 0
+        ? `${dependencyWarnings}⚠`
+        : '—';
 
   return (
     <Link className="run-card" to={to} aria-label={`Open run ${run.runId}`}>
       <div className="run-card-header">
         <RunStatusBadge status={run.status} />
-        {hasExternalStl && (
-          <span className="stl-badge" title={stlLabel ? `External STL: ${stlLabel}` : 'External STL attached'}>
-            STL
-          </span>
-        )}
         <span className="run-id">{run.runId}</span>
       </div>
+
+      {(hasDependencySummary || hasExternalStl) && (
+        <div className="run-card-flags">
+          {hasDependencySummary && (
+            <span
+              className={clsx('dependency-badge', { warning: dependencyWarnings > 0 })}
+              title={dependencyBadgeTitle}
+            >
+              Deps {dependencyCount ?? 0}
+              {dependencyWarnings > 0 ? ` • ${dependencyWarnings}⚠` : ''}
+            </span>
+          )}
+          {hasExternalStl && (
+            <span
+              className="stl-badge"
+              title={stlLabel ? `External STL: ${stlLabel}` : 'External STL attached'}
+            >
+              STL
+            </span>
+          )}
+        </div>
+      )}
+
       <p className="run-query">{run.query}</p>
 
       {stages.length > 0 && (
@@ -99,6 +134,10 @@ const RunCard = ({ run }: RunCardProps) => {
         <div>
           <dt>Artifacts</dt>
           <dd>{run.summary?.artifactCount ?? 'N/A'}</dd>
+        </div>
+        <div>
+          <dt>Dependencies</dt>
+          <dd>{dependencyMetaValue}</dd>
         </div>
       </dl>
     </Link>

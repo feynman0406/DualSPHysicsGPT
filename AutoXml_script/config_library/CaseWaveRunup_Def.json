@@ -1,0 +1,1059 @@
+{
+  "case_comments": [
+    "Wave run-up case: piston basin feeding STL slope and armor blocks with extensive surface-level gauges to monitor overtopping."
+  ],
+  "constants": {
+    "gravity": {
+      "x": "0",
+      "y": "0",
+      "z": "-9.81",
+      "comment": "Gravitational acceleration",
+      "units_comment": "m/s^2",
+      "tag": "gravity"
+    },
+    "rhop0": {
+      "value": "1000",
+      "comment": "Reference density of the fluid",
+      "units_comment": "kg/m^3",
+      "tag": "rhop0"
+    },
+    "rhopgradient": {
+      "value": "3",
+      "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+      "tag": "rhopgradient"
+    },
+    "hswl": {
+      "value": "0",
+      "auto": true,
+      "comment": "Maximum still water level to calculate speedofsound using coefsound",
+      "units_comment": "metres (m)",
+      "tag": "hswl"
+    },
+    "gamma": {
+      "value": "7",
+      "comment": "Polytropic constant for water used in the state equation",
+      "tag": "gamma"
+    },
+    "speedsystem": {
+      "value": "0",
+      "auto": true,
+      "comment": "Maximum system speed (by default the dam-break propagation is used)",
+      "tag": "speedsystem"
+    },
+    "coefsound": {
+      "value": "20",
+      "comment": "Coefficient to multiply speedsystem",
+      "tag": "coefsound"
+    },
+    "speedsound": {
+      "value": "0",
+      "auto": true,
+      "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+      "tag": "speedsound"
+    },
+    "coefh": {
+      "value": "1.5",
+      "comment": "Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)",
+      "tag": "coefh"
+    },
+    "cflnumber": {
+      "value": "0.2",
+      "comment": "Coefficient to multiply dt",
+      "tag": "cflnumber"
+    }
+  },
+  "mkconfig": {
+    "boundcount": "230",
+    "fluidcount": "9",
+    "orientations": [
+      {
+        "type": "fluid",
+        "mk": "0",
+        "orient": "Xyz"
+      }
+    ]
+  },
+  "geometry": {
+    "definition": {
+      "dp": "0.008",
+      "pointmin": {
+        "x": "-1",
+        "y": "0",
+        "z": "-0.2"
+      },
+      "pointmax": {
+        "x": "12",
+        "y": "0.37",
+        "z": "0.7"
+      },
+      "children": [
+        {
+          "tag": "pointref",
+          "vector": {
+            "x": "0",
+            "y": "0",
+            "z": "0"
+          }
+        }
+      ]
+    },
+    "commands": {
+      "children": [
+        {
+          "tag": "mainlist",
+          "children": [
+            {
+              "type": "setshapemode",
+              "text": "dp | actual | bound"
+            },
+            {
+              "type": "setdrawmode",
+              "attributes": {
+                "mode": "solid"
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "10"
+              }
+            },
+            {
+              "type": "drawbox",
+              "attributes": {
+                "cmt": "piston"
+              },
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "solid"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-0.02",
+                    "y": "-0.01",
+                    "z": "0"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "0.02",
+                    "y": "0.39",
+                    "z": "0.55"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "piston",
+                "reset": true
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "bottom"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-0.5",
+                    "y": "-0.01",
+                    "z": "0"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "7.5",
+                    "y": "0.39",
+                    "z": "0.55"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "bottom",
+                "reset": true
+              }
+            },
+            {
+              "type": "setdrawmode",
+              "attributes": {
+                "mode": "full"
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "40"
+              }
+            },
+            {
+              "type": "drawfilestl",
+              "attributes": {
+                "file": "Slope.stl"
+              },
+              "children": [
+                {
+                  "tag": "drawmove",
+                  "vector": {
+                    "x": "5.95",
+                    "y": "0.37",
+                    "z": "0.0"
+                  }
+                },
+                {
+                  "tag": "drawrotate",
+                  "angx": "0",
+                  "angy": "0",
+                  "angz": "-90"
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "slope",
+                "reset": true
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "50"
+              }
+            },
+            {
+              "type": "drawfilestl",
+              "attributes": {
+                "file": "Blocks_3D_scaled.stl"
+              },
+              "children": [
+                {
+                  "tag": "drawmove",
+                  "vector": {
+                    "x": "5.95",
+                    "y": "0.37",
+                    "z": "0.0"
+                  }
+                },
+                {
+                  "tag": "drawrotate",
+                  "angx": "0",
+                  "angy": "0",
+                  "angz": "-90"
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "blocks",
+                "reset": true
+              }
+            },
+            {
+              "type": "setmkfluid",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "fillbox",
+              "attributes": {
+                "x": "2",
+                "y": "0.18",
+                "z": "0.1"
+              },
+              "children": [
+                {
+                  "tag": "modefill",
+                  "text": "void"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-1",
+                    "y": "-0.01",
+                    "z": "-0.5"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "11",
+                    "y": "0.39",
+                    "z": "0.75"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "motion": [
+    {
+      "ref": "10",
+      "children": [
+        {
+          "tag": "begin",
+          "mov": "1",
+          "start": "0.00",
+          "finish": "100"
+        },
+        {
+          "tag": "mvpredef",
+          "id": "1",
+          "duration": "15",
+          "children": [
+            {
+              "tag": "file",
+              "name": "Mov_piston.dat",
+              "fields": "2",
+              "fieldtime": "0",
+              "fieldx": "1"
+            }
+          ]
+        }
+      ],
+      "type": "objreal"
+    }
+  ],
+  "casedef_children": [
+    {
+      "type": "section",
+      "key": "constants"
+    },
+    {
+      "type": "section",
+      "key": "mkconfig"
+    },
+    {
+      "type": "section",
+      "key": "geometry"
+    },
+    {
+      "type": "section",
+      "key": "motion"
+    }
+  ],
+  "execution": {
+    "children_order": [
+      "special",
+      "parameters"
+    ],
+    "gauges": [
+      {
+        "type": "default",
+        "children": [
+          {
+            "tag": "savevtkpart",
+            "value": true,
+            "comment": "Creates VTK files for each PART (default=false)"
+          },
+          {
+            "tag": "_computedt",
+            "value": "0.001",
+            "comment": "Time between measurements. 0:all steps (default=TimeOut)",
+            "units_comment": "s"
+          },
+          {
+            "tag": "_computetime",
+            "start": "0.1",
+            "end": "0.2",
+            "comment": "Start and end of measures. (default=simulation time)",
+            "units_comment": "s"
+          },
+          {
+            "tag": "output",
+            "value": true,
+            "comment": "Creates CSV files of measurements (default=false)"
+          },
+          {
+            "tag": "_outputdt",
+            "value": "0",
+            "comment": "Time between output measurements. 0:all steps (default=TimeOut)",
+            "units_comment": "s"
+          },
+          {
+            "tag": "_outputtime",
+            "start": "0",
+            "end": "10",
+            "comment": "Start and end of output measures. (default=simulation time)",
+            "units_comment": "s"
+          }
+        ],
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "savevtkpart",
+              "value": true,
+              "comment": "Creates VTK files for each PART (default=false)"
+            }
+          },
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "_computedt",
+              "value": "0.001",
+              "comment": "Time between measurements. 0:all steps (default=TimeOut)",
+              "units_comment": "s"
+            }
+          },
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "_computetime",
+              "start": "0.1",
+              "end": "0.2",
+              "comment": "Start and end of measures. (default=simulation time)",
+              "units_comment": "s"
+            }
+          },
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "output",
+              "value": true,
+              "comment": "Creates CSV files of measurements (default=false)"
+            }
+          },
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "_outputdt",
+              "value": "0",
+              "comment": "Time between output measurements. 0:all steps (default=TimeOut)",
+              "units_comment": "s"
+            }
+          },
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "_outputtime",
+              "start": "0",
+              "end": "10",
+              "comment": "Start and end of output measures. (default=simulation time)",
+              "units_comment": "s"
+            }
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up1",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.03",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.03",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up2",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.08",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.08",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up3",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.12",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.12",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up4",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.18",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.18",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up5",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.23",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.23",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up6",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.28",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.28",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      },
+      {
+        "type": "swl",
+        "name": "Run-up7",
+        "children": [
+          {
+            "tag": "pointdp",
+            "coefdp": "0.2",
+            "comment": "Distance between check points (value=coefdp*Dp)"
+          }
+        ],
+        "start": {
+          "x": "5.72",
+          "y": "0.33",
+          "z": "0.04",
+          "comment": "Initial point",
+          "units_comment": "m"
+        },
+        "end": {
+          "x": "6.81",
+          "y": "0.33",
+          "z": "0.62",
+          "comment": "Final point",
+          "units_comment": "m"
+        },
+        "children_plan": [
+          {
+            "type": "generic",
+            "spec": {
+              "tag": "pointdp",
+              "coefdp": "0.2",
+              "comment": "Distance between check points (value=coefdp*Dp)"
+            }
+          },
+          {
+            "type": "mapped",
+            "key": "start",
+            "tag": "point0"
+          },
+          {
+            "type": "mapped",
+            "key": "end",
+            "tag": "point2"
+          }
+        ]
+      }
+    ],
+    "special_children": [
+      {
+        "type": "known",
+        "key": "gauges",
+        "tag": "gauges"
+      }
+    ],
+    "parameters": {
+      "SavePosDouble": {
+        "value": "0",
+        "comment": "Saves particle position using double precision (default=0)"
+      },
+      "StepAlgorithm": {
+        "value": "2",
+        "comment": "Step Algorithm 1:Verlet, 2:Symplectic (default=1)"
+      },
+      "VerletSteps": {
+        "value": "40",
+        "comment": "Verlet only: Number of steps to apply Euler timestepping (default=40)"
+      },
+      "Kernel": {
+        "value": "2",
+        "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"
+      },
+      "ViscoTreatment": {
+        "value": "1",
+        "comment": "Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"
+      },
+      "Visco": {
+        "value": "0.01",
+        "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
+      },
+      "ViscoBoundFactor": {
+        "value": "0",
+        "comment": "Multiply viscosity value with boundary (default=1)"
+      },
+      "DensityDT": {
+        "value": "2",
+        "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
+      },
+      "DensityDTvalue": {
+        "value": "0.1",
+        "comment": "DDT value (default=0.1)"
+      },
+      "Shifting": {
+        "value": "0",
+        "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
+      },
+      "ShiftCoef": {
+        "value": "-2",
+        "comment": "Coefficient for shifting computation (default=-2)"
+      },
+      "ShiftTFS": {
+        "value": "0",
+        "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
+      },
+      "RigidAlgorithm": {
+        "value": "1",
+        "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
+      },
+      "FtPause": {
+        "value": "0.0",
+        "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
+        "units_comment": "seconds"
+      },
+      "CoefDtMin": {
+        "value": "0.05",
+        "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
+      },
+      "DtIni": {
+        "value": "0",
+        "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtMin": {
+        "value": "0",
+        "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtFixed": {
+        "value": "0",
+        "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
+        "units_comment": "seconds"
+      },
+      "DtFixedFile": {
+        "value": "NONE",
+        "comment": "Dt values are loaded from file. Use NONE to disable (default=disabled)",
+        "units_comment": "milliseconds (ms)"
+      },
+      "DtAllParticles": {
+        "value": "0",
+        "comment": "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"
+      },
+      "TimeMax": {
+        "value": "20",
+        "comment": "Time of simulation",
+        "units_comment": "seconds"
+      },
+      "TimeOut": {
+        "value": "0.02",
+        "comment": "Time out data",
+        "units_comment": "seconds"
+      },
+      "PartsOutMax": {
+        "value": "1",
+        "comment": "%/100 of fluid particles allowed to be excluded from domain (default=1)",
+        "units_comment": "decimal"
+      },
+      "RhopOutMin": {
+        "value": "700",
+        "comment": "Minimum rhop valid (default=700)",
+        "units_comment": "kg/m^3"
+      },
+      "RhopOutMax": {
+        "value": "1300",
+        "comment": "Maximum rhop valid (default=1300)",
+        "units_comment": "kg/m^3"
+      },
+      "YPeriodicIncZ": {
+        "value": "0.0",
+        "comment": "Increase of Z with periodic BC",
+        "units_comment": "metres (m)"
+      }
+    },
+    "parameters_order": [
+      "SavePosDouble",
+      "StepAlgorithm",
+      "VerletSteps",
+      "Kernel",
+      "ViscoTreatment",
+      "Visco",
+      "ViscoBoundFactor",
+      "DensityDT",
+      "DensityDTvalue",
+      "Shifting",
+      "ShiftCoef",
+      "ShiftTFS",
+      "RigidAlgorithm",
+      "FtPause",
+      "CoefDtMin",
+      "DtIni",
+      "DtMin",
+      "DtFixed",
+      "DtFixedFile",
+      "DtAllParticles",
+      "TimeMax",
+      "TimeOut",
+      "PartsOutMax",
+      "RhopOutMin",
+      "RhopOutMax",
+      "YPeriodicIncZ"
+    ],
+    "parameters_children": [
+      {
+        "type": "parameter",
+        "key": "SavePosDouble"
+      },
+      {
+        "type": "parameter",
+        "key": "StepAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "VerletSteps"
+      },
+      {
+        "type": "parameter",
+        "key": "Kernel"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoTreatment"
+      },
+      {
+        "type": "parameter",
+        "key": "Visco"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoBoundFactor"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDT"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDTvalue"
+      },
+      {
+        "type": "parameter",
+        "key": "Shifting"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftCoef"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftTFS"
+      },
+      {
+        "type": "parameter",
+        "key": "RigidAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "FtPause"
+      },
+      {
+        "type": "parameter",
+        "key": "CoefDtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtIni"
+      },
+      {
+        "type": "parameter",
+        "key": "DtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixed"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixedFile"
+      },
+      {
+        "type": "parameter",
+        "key": "DtAllParticles"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeMax"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeOut"
+      },
+      {
+        "type": "parameter",
+        "key": "PartsOutMax"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMin"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMax"
+      },
+      {
+        "type": "parameter",
+        "key": "YPeriodicIncZ"
+      },
+      {
+        "type": "generic",
+        "spec": {
+          "tag": "simulationdomain",
+          "comment": "Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)",
+          "children": [
+            {
+              "tag": "posmin",
+              "x": "default",
+              "y": "default",
+              "z": "default",
+              "comment": "e.g.: x=0.5, y=default-1, z=default-10%"
+            },
+            {
+              "tag": "posmax",
+              "vector": {
+                "x": "default",
+                "y": "default",
+                "z": "default + 50%"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

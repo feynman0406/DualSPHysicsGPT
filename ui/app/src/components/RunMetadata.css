@@ -53,3 +53,9 @@
     width: 100%;
   }
 }
+
+.meta-line.warning {
+  color: #b45309;
+  font-weight: 600;
+}
+

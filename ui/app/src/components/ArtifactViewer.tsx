@@ -173,6 +173,7 @@ const ArtifactViewer = ({
   }, [preview]);
 
   const selectedArtifact = sortedArtifacts.find(item => item.path === selectedPath) ?? null;
+  const downloadName = selectedArtifact?.path ? selectedArtifact.path.split(/[\/]/).pop() ?? undefined : undefined;
   const canCopyPreview = Boolean(
     selectedArtifact &&
       !isPreviewLoading &&
@@ -246,8 +247,7 @@ const ArtifactViewer = ({
                   <a
                     className="ghost compact"
                     href={selectedArtifact.downloadUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    download={downloadName}
                   >
                     Download
                   </a>

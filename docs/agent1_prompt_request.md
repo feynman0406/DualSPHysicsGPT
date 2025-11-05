@@ -12,15 +12,19 @@ Guide ChatGPT to draft the production prompt for the Stage 1 retrieval agent tha
 1. Interpret the user query and repository metadata to rank and pick the best 2-3 references.
 2. Summarise for each reference why it fits, what elements must be changed, and what should remain verbatim.
 3. Highlight geometry shape and water-body definitions as mandatory modification areas whenever the user query requires them; these cannot be skipped even under the minimal-change principle.
-4. Flag missing data or conflicts explicitly rather than inventing values.
-5. Emit a machine-readable JSON payload that Agent 2 can consume (per-reference guidance plus global directives and open issues).
-6. When external STL metadata is provided, instruct Agent 2 to replace placeholder STL filenames (External.stl, Duck.stl, etc.) with the user-supplied name in both `<list>` and `<mainlist>` blocks and warn if the path is missing.
+4. Select and label the reference whose geometry domain already matches (or most closely matches) the requested scenario as the primary template for minimal-change work. When no reference matches directly, explain the required domain edits (pointmin/pointmax, tank extents, fillbox volume) and justify why the chosen file is still the least-disruptive starting point.
+5. Flag missing data or conflicts explicitly rather than inventing values.
+6. Emit a machine-readable JSON payload that Agent 2 can consume (per-reference guidance plus global directives and open issues).
+7. When external STL metadata is provided, instruct Agent 2 to replace placeholder STL filenames (External.stl, Duck.stl, etc.) with the user-supplied name in both `<list>` and `<mainlist>` blocks and warn if the path is missing.
+8. Identify every external dependency (uploaded STLs, auxiliary assets, environment files) mentioned in the user query or retrieved references and instruct Agent 2 to surface each one, mapping it to a repo-relative `files` entry that records its purpose.
 
 ## Constraints and principles
+- Coordination log discipline: The prompt must require Agent 1 to read `docs/ui_integration/agent_coordination_log.md` before analysing the request and to append an ISO-8601 Progress Timeline entry (including surfaced dependencies) before handoff.
 - Minimal-change: preserve algorithms, block ordering, optional sections, and defaults unless the user request or retrieved evidence demands alteration.
 - Critical exception: geometry layout and water body parameters must be updated to match the target scenario, even if this means altering dimensions, fill commands, or fluid definitions.
-- For 2D configurations, emphasise that `geometry.definition.pointmin.y` and `pointmax.y` staying at `0` already enables 2D mode; `fillbox` and related commands must still keep a non-zero `size.y` (e.g., multiples of `#Dp`) so initial particles exist.
+- For 2D configurations, instruct the agent to collapse the geometry definition along the thin axis: set `geometry.definition.pointmin.y` and `pointmax.y` to the same value (typically 0) instead of merely 'thinning' boxes. Downstream drawbox/fillbox commands must still keep a non-zero `size.y` (e.g., the default thickness `2`) so particles are generated.
 - Fluid fillbox guardrails: instruct Agent 2 that every `<setmkfluid>/<fillbox>` must keep `<modefill>void</modefill>`, keep the origin inside the fluid volume bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and in 2D force `fillbox.y` to equal the geometry plane (`pointmin.y == pointmax.y == fillbox.y`).
+- In the per-reference analysis, call out the exact geometry domain (pointmin/pointmax, tank extents, fillbox dimensions) and which pieces can be reused without change so Agent 2 understands how to reproduce the field with minimal edits.
 - Cite source files or snippets when possible so later review can trace decisions.
 - Keep guidance concise (target under 6000 characters) yet unambiguous.
 
@@ -35,6 +39,7 @@ Ask ChatGPT to produce:
 - A user message template (with placeholders) that the orchestrator will fill at runtime.
 - A JSON output schema or example detailing keys such as `selected_references`, `required_changes`, `preserve_sections`, `warnings`.
 - Guardrail notes (for example refusal policy, when to emit missing-fields warnings).
+- Explicit instructions covering coordination-log updates (read on start, append ISO timestamped completion entry) and dependency reporting expectations for the `files` array.
 Return everything in Markdown with distinct headings per component.
 
 ## Tone and style expectations for the generated prompt
@@ -44,8 +49,10 @@ Return everything in Markdown with distinct headings per component.
 
 ## Review checklist to include in ChatGPT's response
 - Confirm the prompt forces geometry and water adjustments when needed.
+- Confirm it designates a primary reference for geometry reuse and captures the domain reproduction steps (pointmin/pointmax, tank extents, fillbox volume).
 - Confirm it forbids unnecessary structural edits.
-- Confirm the JSON keys are fully enumerated.
+- Confirm the JSON keys are fully enumerated, including `files` with repo-relative paths and purposes.
+- Confirm the prompt compels agents to read and update `docs/ui_integration/agent_coordination_log.md` at both kickoff and completion.
 
 ## Ready-to-send ChatGPT request
 ```
@@ -61,11 +68,10 @@ Specification:
 - Minimal-change principle for the overall configuration, except geometry shapes and water-body definitions, which must ALWAYS be updated to match the requested scenario.
 - Agent 1 must highlight geometry and water edits as mandatory when adapting references.
 - Agent 1 must cite sources or snippets when available and flag unknown values instead of hallucinating.
+- Agent 1 must surface every external dependency and describe how Agent 2 should encode repo-relative `files` entries with purposes.
+- The prompt must direct the agent to read `docs/ui_integration/agent_coordination_log.md` before working and to append an ISO-timestamped completion note summarizing dependencies and outstanding questions.
 - Guidance must stay under 6000 characters while remaining precise.
 - Style: engineering-focused, with clear bullet lists and numbered steps.
 
 Format your response in Markdown with headings for each requested component. Ensure the review checklist explicitly confirms geometry and water handling, minimal-change enforcement, and JSON field coverage.
 ```
-
-
-

@@ -1,0 +1,831 @@
+{
+  "case_comments": [
+    "Case name: CaseFloating",
+    "Bathymetry tank enclosed by walls: imports Bathymetry.xyz, pads the seabed with redraws, and installs piston wavemaker plus full-depth water for wave-impact testing."
+  ],
+  "constants": {
+    "lattice": {
+      "bound": "1",
+      "fluid": "1",
+      "tag": "lattice"
+    },
+    "gravity": {
+      "x": "0",
+      "y": "0",
+      "z": "-9.81",
+      "comment": "Gravitational acceleration",
+      "units_comment": "m/s^2",
+      "tag": "gravity"
+    },
+    "rhop0": {
+      "value": "1000.0",
+      "comment": "Reference density of the fluid",
+      "units_comment": "kg/m^3",
+      "tag": "rhop0"
+    },
+    "rhopgradient": {
+      "value": "3",
+      "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+      "tag": "rhopgradient"
+    },
+    "hswl": {
+      "value": "0",
+      "auto": true,
+      "comment": "Maximum still water level to calculate speedofsound using coefsound",
+      "units_comment": "metres (m)",
+      "tag": "hswl"
+    },
+    "gamma": {
+      "value": "7",
+      "comment": "Polytropic constant for water used in the state equation",
+      "tag": "gamma"
+    },
+    "speedsystem": {
+      "value": "0",
+      "auto": true,
+      "comment": "Maximum system speed (by default the dam-break propagation is used)",
+      "tag": "speedsystem"
+    },
+    "coefsound": {
+      "value": "20",
+      "comment": "Coefficient to multiply speedsystem",
+      "tag": "coefsound"
+    },
+    "speedsound": {
+      "value": "0",
+      "auto": true,
+      "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+      "tag": "speedsound"
+    },
+    "coefh": {
+      "value": "1.2",
+      "comment": "Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)",
+      "tag": "coefh"
+    },
+    "_hdp": {
+      "value": "2",
+      "comment": "Alternative option to calculate the smoothing length (h=hdp*dp)",
+      "tag": "_hdp"
+    },
+    "cflnumber": {
+      "value": "0.2",
+      "comment": "Coefficient to multiply dt",
+      "tag": "cflnumber"
+    }
+  },
+  "mkconfig": {
+    "boundcount": "241",
+    "fluidcount": "9"
+  },
+  "geometry": {
+    "definition": {
+      "dp": "0.2",
+      "pointmin": {
+        "x": "-5",
+        "y": "-10",
+        "z": "-10"
+      },
+      "pointmax": {
+        "x": "158",
+        "y": "60",
+        "z": "10"
+      },
+      "meta": {
+        "comment": "Initial inter-particle distance",
+        "units_comment": "metres (m)"
+      },
+      "children": [
+        {
+          "tag": "pointref",
+          "vector": {
+            "x": "0",
+            "y": "0",
+            "z": "0"
+          }
+        }
+      ]
+    },
+    "commands": {
+      "children": [
+        {
+          "tag": "mainlist",
+          "children": [
+            {
+              "type": "setshapemode",
+              "text": "actual| bound"
+            },
+            {
+              "type": "setdrawmode",
+              "attributes": {
+                "mode": "full"
+              }
+            },
+            {
+              "type": "comment",
+              "text": " Bathymetry from file XYZ "
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "drawbathymetry",
+              "children": [
+                {
+                  "tag": "zpoints",
+                  "file": "Bathymetry.xyz",
+                  "children": [
+                    {
+                      "tag": "move",
+                      "vector": {
+                        "x": "-439998.30",
+                        "y": "-1148505.00",
+                        "z": "0"
+                      }
+                    },
+                    {
+                      "tag": "rotate",
+                      "angx": "0",
+                      "angy": "0",
+                      "angz": "0"
+                    },
+                    {
+                      "tag": "scale",
+                      "vector": {
+                        "x": "1",
+                        "y": "1",
+                        "z": "1.8"
+                      }
+                    },
+                    {
+                      "tag": "selection",
+                      "children": [
+                        {
+                          "tag": "point",
+                          "vector": {
+                            "x": "170",
+                            "y": "20"
+                          }
+                        },
+                        {
+                          "tag": "size",
+                          "vector": {
+                            "x": "110",
+                            "y": "70"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "grid",
+                  "dp": "2",
+                  "children": [
+                    {
+                      "tag": "initdomain",
+                      "children": [
+                        {
+                          "tag": "point",
+                          "vector": {
+                            "x": "200",
+                            "y": "30"
+                          }
+                        },
+                        {
+                          "tag": "size",
+                          "vector": {
+                            "x": "60",
+                            "y": "40"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "expands",
+                      "children": [
+                        {
+                          "tag": "xmin",
+                          "size": "10",
+                          "z": "15",
+                          "size2": "8",
+                          "_z2": "15"
+                        },
+                        {
+                          "tag": "xmax",
+                          "size": "20",
+                          "z": "28",
+                          "_size2": "0.1",
+                          "_z2": "24"
+                        },
+                        {
+                          "tag": "ymin",
+                          "size": "1",
+                          "z": "28",
+                          "_size2": "10",
+                          "_z2": "24"
+                        },
+                        {
+                          "tag": "ymax",
+                          "size": "1",
+                          "z": "28",
+                          "_size2": "20",
+                          "_z2": "34"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "finalmove",
+                      "vector": {
+                        "x": "-185",
+                        "y": "-30",
+                        "z": "-21"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "savepoints",
+                  "value": true,
+                  "comment": "Saves VTK with final for debug (default=0)"
+                },
+                {
+                  "tag": "savegrid",
+                  "value": true,
+                  "comment": "Saves VTK with final grid cells for debug (default=0)"
+                }
+              ]
+            },
+            {
+              "type": "comment",
+              "text": " Increases bathymetry thickness "
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "1"
+              }
+            },
+            {
+              "type": "fillbox",
+              "attributes": {
+                "x": "88",
+                "y": "10",
+                "z": "0"
+              },
+              "children": [
+                {
+                  "tag": "modefill",
+                  "text": "void"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-3",
+                    "y": "-5",
+                    "z": "-10"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "100",
+                    "y": "50",
+                    "z": "16.4"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "redrawnear",
+              "attributes": {
+                "targettp": "bound",
+                "targetmk": "1",
+                "bordertp": "bound",
+                "bordermk": "0",
+                "times": "3"
+              }
+            },
+            {
+              "type": "setmkvoid"
+            },
+            {
+              "type": "redraw",
+              "attributes": {
+                "mkbound": "1"
+              }
+            },
+            {
+              "type": "comment",
+              "text": " Piston "
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "10"
+              }
+            },
+            {
+              "type": "fillbox",
+              "attributes": {
+                "x": "0.5",
+                "y": "2",
+                "z": "-2"
+              },
+              "children": [
+                {
+                  "tag": "modefill",
+                  "text": "void"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "0",
+                    "y": "-2",
+                    "z": "-10"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "1",
+                    "y": "54",
+                    "z": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "comment",
+              "text": " Water "
+            },
+            {
+              "type": "setmkfluid",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "fillbox",
+              "attributes": {
+                "x": "4",
+                "y": "4",
+                "z": "-2"
+              },
+              "children": [
+                {
+                  "tag": "modefill",
+                  "text": "void"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "0",
+                    "y": "-2",
+                    "z": "-10"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "150",
+                    "y": "54",
+                    "z": "10"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": ""
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "motion": [
+    {
+      "ref": "10",
+      "children": [
+        {
+          "tag": "begin",
+          "mov": "1",
+          "start": "0"
+        },
+        {
+          "tag": "mvnull",
+          "id": "1"
+        }
+      ],
+      "type": "objreal"
+    }
+  ],
+  "casedef_children": [
+    {
+      "type": "section",
+      "key": "constants"
+    },
+    {
+      "type": "section",
+      "key": "mkconfig"
+    },
+    {
+      "type": "section",
+      "key": "geometry"
+    },
+    {
+      "type": "section",
+      "key": "motion"
+    }
+  ],
+  "execution": {
+    "children_order": [
+      "special",
+      "parameters"
+    ],
+    "wavepaddles": {
+      "entries": [
+        {
+          "tag": "piston",
+          "children": [
+            {
+              "tag": "mkbound",
+              "value": "10",
+              "comment": "Mk-Bound of selected particles"
+            },
+            {
+              "tag": "waveorder",
+              "value": "2",
+              "comment": "Order wave generation 1:1st order, 2:2nd order (def=1)"
+            },
+            {
+              "tag": "start",
+              "value": "0",
+              "comment": "Start time (def=0)"
+            },
+            {
+              "tag": "duration",
+              "value": "0",
+              "comment": "Movement duration, Zero is the end of simulation (def=0)"
+            },
+            {
+              "tag": "depth",
+              "value": "5.5",
+              "comment": "Fluid depth (def=0)"
+            },
+            {
+              "tag": "pistondir",
+              "x": "1",
+              "y": "0",
+              "z": "0",
+              "comment": "Movement direction (def=(1,0,0))"
+            },
+            {
+              "tag": "waveheight",
+              "value": "1.5",
+              "comment": "Wave height"
+            },
+            {
+              "tag": "waveperiod",
+              "value": "4",
+              "comment": "Wave period"
+            },
+            {
+              "tag": "gainstroke",
+              "value": "1.1",
+              "comment": "Gain factor to amplify/reduce the paddle stroke (default=1)"
+            },
+            {
+              "tag": "phase",
+              "value": "0",
+              "comment": "Initial wave phase in function of PI (def=0)"
+            },
+            {
+              "tag": "ramp",
+              "value": "1",
+              "comment": "Periods of ramp (def=0)"
+            },
+            {
+              "tag": "savemotion",
+              "periods": "20",
+              "periodsteps": "20",
+              "xpos": "6.0",
+              "zpos": "-0.26",
+              "comment": "Saves motion data. xpos and zpos are optional. zpos=-depth of the measuring point"
+            }
+          ]
+        }
+      ]
+    },
+    "special_children": [
+      {
+        "type": "known",
+        "key": "wavepaddles",
+        "tag": "wavepaddles"
+      }
+    ],
+    "parameters": {
+      "SavePosDouble": {
+        "value": "1",
+        "comment": "Saves particle position using double precision (default=0)"
+      },
+      "Boundary": {
+        "value": "1",
+        "comment": "Boundary method 1:DBC, 2:mDBC (default=1)"
+      },
+      "StepAlgorithm": {
+        "value": "2",
+        "comment": "Step Algorithm 1:Verlet, 2:Symplectic (default=1)"
+      },
+      "VerletSteps": {
+        "value": "40",
+        "comment": "Verlet only: Number of steps to apply Euler timestepping (default=40)"
+      },
+      "Kernel": {
+        "value": "2",
+        "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"
+      },
+      "ViscoTreatment": {
+        "value": "1",
+        "comment": "Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"
+      },
+      "Visco": {
+        "value": "0.01",
+        "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
+      },
+      "ViscoBoundFactor": {
+        "value": "0",
+        "comment": "Multiply viscosity value with boundary (default=1)"
+      },
+      "DensityDT": {
+        "value": "3",
+        "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
+      },
+      "DensityDTvalue": {
+        "value": "0.1",
+        "comment": "DDT value (default=0.1)"
+      },
+      "Shifting": {
+        "value": "0",
+        "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
+      },
+      "ShiftCoef": {
+        "value": "-2",
+        "comment": "Coefficient for shifting computation (default=-2)"
+      },
+      "ShiftTFS": {
+        "value": "0",
+        "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
+      },
+      "RigidAlgorithm": {
+        "value": "1",
+        "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
+      },
+      "FtPause": {
+        "value": "0.0",
+        "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
+        "units_comment": "seconds"
+      },
+      "FtIgnoreRadius": {
+        "value": "0",
+        "comment": "Ignores floating body radius with periodic conditions (default=0)"
+      },
+      "CoefDtMin": {
+        "value": "0.05",
+        "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
+      },
+      "DtIni": {
+        "value": "0",
+        "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtMin": {
+        "value": "0",
+        "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtFixed": {
+        "value": "0",
+        "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
+        "units_comment": "seconds"
+      },
+      "DtFixedFile": {
+        "value": "NONE",
+        "comment": "Dt values are loaded from file. Use NONE to disable (default=disabled)",
+        "units_comment": "milliseconds (ms)"
+      },
+      "DtAllParticles": {
+        "value": "0",
+        "comment": "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"
+      },
+      "TimeMax": {
+        "value": "30",
+        "comment": "Time of simulation",
+        "units_comment": "seconds"
+      },
+      "TimeOut": {
+        "value": "0.1",
+        "comment": "Time out data",
+        "units_comment": "seconds"
+      },
+      "PartsOutMax": {
+        "value": "1.0",
+        "comment": "%/100 of fluid particles allowed to be excluded from domain (default=1)",
+        "units_comment": "decimal"
+      },
+      "RhopOutMin": {
+        "value": "700",
+        "comment": "Minimum rhop valid (default=700)",
+        "units_comment": "kg/m^3"
+      },
+      "RhopOutMax": {
+        "value": "1300",
+        "comment": "Maximum rhop valid (default=1300)",
+        "units_comment": "kg/m^3"
+      },
+      "WrnPartsOut": {
+        "value": "1",
+        "comment": "Active warning according to number of out particles (default=1)"
+      }
+    },
+    "parameters_order": [
+      "SavePosDouble",
+      "Boundary",
+      "StepAlgorithm",
+      "VerletSteps",
+      "Kernel",
+      "ViscoTreatment",
+      "Visco",
+      "ViscoBoundFactor",
+      "DensityDT",
+      "DensityDTvalue",
+      "Shifting",
+      "ShiftCoef",
+      "ShiftTFS",
+      "RigidAlgorithm",
+      "FtPause",
+      "FtIgnoreRadius",
+      "CoefDtMin",
+      "DtIni",
+      "DtMin",
+      "DtFixed",
+      "DtFixedFile",
+      "DtAllParticles",
+      "TimeMax",
+      "TimeOut",
+      "PartsOutMax",
+      "RhopOutMin",
+      "RhopOutMax",
+      "WrnPartsOut"
+    ],
+    "parameters_children": [
+      {
+        "type": "parameter",
+        "key": "SavePosDouble"
+      },
+      {
+        "type": "parameter",
+        "key": "Boundary"
+      },
+      {
+        "type": "parameter",
+        "key": "StepAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "VerletSteps"
+      },
+      {
+        "type": "parameter",
+        "key": "Kernel"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoTreatment"
+      },
+      {
+        "type": "parameter",
+        "key": "Visco"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoBoundFactor"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDT"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDTvalue"
+      },
+      {
+        "type": "parameter",
+        "key": "Shifting"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftCoef"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftTFS"
+      },
+      {
+        "type": "parameter",
+        "key": "RigidAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "FtPause"
+      },
+      {
+        "type": "parameter",
+        "key": "FtIgnoreRadius"
+      },
+      {
+        "type": "parameter",
+        "key": "CoefDtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtIni"
+      },
+      {
+        "type": "parameter",
+        "key": "DtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixed"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixedFile"
+      },
+      {
+        "type": "parameter",
+        "key": "DtAllParticles"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeMax"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeOut"
+      },
+      {
+        "type": "parameter",
+        "key": "PartsOutMax"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMin"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMax"
+      },
+      {
+        "type": "parameter",
+        "key": "WrnPartsOut"
+      },
+      {
+        "type": "generic",
+        "spec": {
+          "tag": "simulationdomain",
+          "comment": "Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)",
+          "children": [
+            {
+              "tag": "posmin",
+              "x": "default",
+              "y": "default",
+              "z": "default",
+              "comment": "e.g.: x=0.5, y=default-1, z=default-10%"
+            },
+            {
+              "tag": "posmax",
+              "vector": {
+                "x": "default",
+                "y": "default",
+                "z": "default"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
@@ -16,6 +16,7 @@ vi.mock('../src/services/api', async () => {
     getRunArtifacts: vi.fn(),
     deleteRun: vi.fn(),
     fetchArtifactContent: vi.fn(),
+    buildDependencyDownloadUrl: vi.fn((runId: string, path: string) => `/__mock__/runs/${runId}/artifacts/content?path=${encodeURIComponent(path)}`),
   } satisfies Partial<typeof actual.apiClient>;
   return { ...actual, apiClient: mockClient };
 });
@@ -58,6 +59,32 @@ describe('UI smoke flow', () => {
       { step: 'config_generation', state: 'completed' },
       { step: 'execution', state: 'skipped' },
     ],
+    summary: {
+      artifactCount: 1,
+      dependencyCount: 2,
+      dependencyWarnings: 1,
+    },
+    dependencyManifest: {
+      runId: 'RUN-1',
+      generatedAt: '2025-10-21T14:12:44Z',
+      files: [
+        {
+          path: 'external_files/config.ini',
+          purpose: 'Runtime configuration',
+          source: 'declared',
+          status: 'copied',
+          copiedPath: 'external_files/config.ini',
+          notes: ['copied successfully'],
+        },
+        {
+          path: 'logs/resources/missing.txt',
+          source: 'xml',
+          status: 'missing',
+          notes: ['not available in search paths'],
+        },
+      ],
+      warnings: ['logs/resources/missing.txt not found'],
+    },
   };
   const sampleLogs: LogEntry[] = [
     { runId: 'RUN-1', sequence: 1, message: 'start' },
@@ -110,7 +137,7 @@ describe('UI smoke flow', () => {
     vi.clearAllMocks();
   });
 
-  test('displays run progress and resources', async () => {
+  test('displays run progress, dependencies, and resources', async () => {
     render(
       React.createElement(
         QueryClientProvider,
@@ -125,11 +152,20 @@ describe('UI smoke flow', () => {
 
     const runCard = await screen.findByRole('link', { name: /open run run-1/i });
     expect(runCard).toBeInTheDocument();
+    expect(runCard).toHaveTextContent(/Deps 2/i);
     fireEvent.click(runCard);
 
     await waitFor(() => expect(screen.getByText(/Initialization/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('tab', { name: /Metrics/i }));
     expect(await screen.findByText(/Resource Usage/i)).toBeInTheDocument();
     expect(await screen.findByText(/CPU 55.0%/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Artifacts/i }));
+    expect(await screen.findByText(/Dependency Manifest/i)).toBeInTheDocument();
+    const dependencyRow = screen.getByText(/external_files\/config.ini/i).closest('tr');
+    expect(dependencyRow).not.toBeNull();
+    if (dependencyRow) {
+      expect(within(dependencyRow).getByRole('link', { name: /Download/i })).toBeInTheDocument();
+    }
   });
 });

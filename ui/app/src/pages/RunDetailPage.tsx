@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import RunMetadata from '../components/RunMetadata';
 import RunStepper from '../components/RunStepper';
@@ -8,6 +8,7 @@ import OverviewPanel from '../components/OverviewPanel';
 import LogViewer from '../components/LogViewer';
 import MetricsPanel from '../components/MetricsPanel';
 import ArtifactViewer from '../components/ArtifactViewer';
+import DependencyList from '../components/DependencyList';
 import { apiClient } from '../services/api';
 import type { RunStepStatus } from '../types/runs';
 import { useCreateRun, useDeleteRun, useRun } from '../hooks/useRuns';
@@ -200,19 +201,29 @@ const RunDetailPage = ({ initialTab = 'overview' }: RunDetailPageProps) => {
       )}
 
       {activeTab === 'artifacts' && (
-        <ArtifactViewer
-          artifacts={artifactsQuery.data ?? []}
-          isLoading={artifactsQuery.isLoading}
-          error={artifactsQuery.error}
-          onRefresh={() => artifactsQuery.refetch()}
-          loadContent={artifact => apiClient.fetchArtifactContent(artifact, run.runId)}
-        />
+        <div className="artifact-and-dependencies">
+          <ArtifactViewer
+            artifacts={artifactsQuery.data ?? []}
+            isLoading={artifactsQuery.isLoading}
+            error={artifactsQuery.error}
+            onRefresh={() => artifactsQuery.refetch()}
+            loadContent={artifact => apiClient.fetchArtifactContent(artifact, run.runId)}
+          />
+          <DependencyList
+            runId={run.runId}
+            manifest={run.dependencyManifest}
+            summaryCount={run.summary?.dependencyCount}
+            summaryWarnings={run.summary?.dependencyWarnings}
+            buildDownloadUrl={(id, path) => apiClient.buildDependencyDownloadUrl(id, path)}
+          />
+        </div>
       )}
     </section>
   );
 };
 
 export default RunDetailPage;
+
 
 
 

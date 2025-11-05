@@ -1,4 +1,4 @@
-# MVP Runner API Contract
+﻿# MVP Runner API Contract
 
 The UI backend exposes the MVP DualSPHysics pipeline through the `ui_backend.runner` module. The
 contract focuses on a single entry point that wraps `scripts/mvp_direct_file_search.py` without
@@ -54,10 +54,13 @@ When the UI uploads an external STL, `/api/runs` expects a `multipart/form-data`
 | `log_path` | `Path` | Location of the combined stdout/stderr log (`mvp_run.log`). |
 | `output_dir` | `Path` | Folder containing the redirected MVP artifacts and log. |
 | `produced_files` | `list[ProducedFile]` | Discovered output files (recursively) excluding the log file. Each record includes the absolute `Path` and an optional friendly description. |
+| `dependency_manifest` | `dict[str, object] | None` | Normalized dependency manifest for the run; see *Dependency Manifest* below. |
 | `error` | `ErrorInfo | None` | Present when `status != success`; contains human-readable message, raw details, and remediation hint. |
 | `duration_seconds` (property) | `float` | Convenience accessor returning the elapsed duration in seconds. |
 
-- Summaries returned by `/api/runs` now expose `summary.externalStl` (filename + size metadata) and a boolean `summary.externalStlAttached` flag so the UI can highlight runs that included user geometry.
+- Summaries returned by `/api/runs` include:
+  - `summary.externalStl` (filename + size metadata) and `summary.externalStlAttached` so the UI can highlight runs that included user geometry.
+  - `summary.dependencyCount` and `summary.dependencyWarnings` derived from the dependency manifest.
 
 ### Produced File Descriptions
 
@@ -69,6 +72,25 @@ When present, the following artifacts receive canned descriptions:
 - `agent2_input.json` ??"Agent 2 normalized prompt"
 
 Any additional files are surfaced without a predefined description. Directory entries are ignored.
+
+### Dependency Manifest
+
+Every run writes `dependency_manifest.json` next to the redirected MVP artifacts and mirrors referenced files under `external_files/`. The manifest captures:
+
+- `run_id` and `generated_at` metadata for traceability.
+- `files[]` entries describing each dependency. Entries are sorted by `path` and expose:
+  - `path`: repo-relative or run-relative location reported by the agents or inferred from XML.
+  - `purpose`: optional description supplied by Agent 2.
+  - `source`: `declared`, `xml`, or `external_stl`.
+  - `status`: `copied`, `available`, or `missing`.
+  - `copied_path`: run-relative path when the file was copied into `external_files/`.
+  - `notes`: optional list capturing copy warnings.
+- `warnings`: aggregate issues (e.g., missing assets).
+
+The UI now renders dependency badges using `summary.dependencyCount`/`summary.dependencyWarnings` and builds download links from `files[].copied_path` via `/api/runs/{run_id}/artifacts/content`. Repo-managed assets should live under AutoXml_script/external_assets/ (or other repo-relative paths) so the collector can resolve and copy them into each run's workspace.
+
+
+The backend persists the manifest in run history and surfaces it via `RunResponse.dependency_manifest` and the `/runs/{run_id}/dependencies` endpoint.
 
 ## Error Translation
 
@@ -130,12 +152,15 @@ Client integrations should prefer `stage_checkpoints` for rendering segmented pr
 
 The UI backend surfaces read-only endpoints backed by `HistoryStore`.
 
-- `GET /runs`: List recent runs (sorted by `startedAt` descending). Each entry includes run metadata, optional summary (artifact count, primary output), and `stageCheckpoints` for the init/sim/post lifecycle.
+- `GET /runs`: List recent runs (sorted by `startedAt` descending). Each entry includes run metadata, optional summary (artifact count, primary output, dependency counts/warnings), and `stageCheckpoints` for the init/sim/post lifecycle.
 - `GET /runs/{run_id}`: Retrieve a single run summary using the same shape as the list endpoint. Returns 404 when the identifier is unknown.
+- `GET /runs/{run_id}/dependencies`: Return the persisted dependency manifest as JSON or HTTP 204 when no manifest is available.
 - `GET /runs/{run_id}/metrics`: Returns `{runId, capturedAt, durationSeconds, resourceUsage[]}` and responds with HTTP 204 when telemetry snapshots are unavailable.
 - `GET /runs/{run_id}/artifacts`: Enumerates persisted artifacts with `path`, optional label/description, and echoes the `runId`.
 
 Future phases may expose log streaming and artifact content helpers, but the MVP UI can poll the above resources without modifying the DualSPHysics CLI.
+
+
 
 
 

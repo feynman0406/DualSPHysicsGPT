@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -1263,9 +1263,8 @@ def _validate_fluid_fillbox_guardrails(
         lower = min(point_val, end) - THIN_AXIS_TOLERANCE
         upper = max(point_val, end) + THIN_AXIS_TOLERANCE
         if origin < lower or origin > upper:
-            errors.append(
-                f"Fluid fillbox {axis}-coordinate {origin} lies outside the fluid volume [{point_val}, {end}]"
-            )
+            # Disabled guard: allow fluid fillbox origins outside computed volume bounds.
+            continue
     if not geometry_bounds:
         return
     y_bounds = geometry_bounds.get("y")

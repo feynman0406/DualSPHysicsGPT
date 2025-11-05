@@ -1,4 +1,4 @@
-# UI + MVP Execution Guide
+﻿# UI + MVP Execution Guide
 
 Use this checklist whenever you need to drive the protected MVP pipeline from the web UI.
 
@@ -40,6 +40,7 @@ Use this checklist whenever you need to drive the protected MVP pipeline from th
    - STL uploads are validated client-side for extension and size. The dialog surfaces inline errors and shows the selected filename and size so you can remove or replace the file before triggering the run.
    - The selected model is forwarded to the backend and appears in run metadata alongside history.
 5. On completion, download artifacts (e.g. `generated_case.xml`, `agent1_output.json`) from the UI or directly from `logs/ui_backend/runs/<run-id>/`.
+6. Review dependency badges on the run card and detail header; the Artifacts tab now includes a Dependencies panel with manifest entries and download links for any file copied into `external_files/` (place shared source assets under `AutoXml_script/external_assets/` so the collector can mirror them automatically).
 
 ## 5. Regression & Validation (recommended)
 - Credential-free dry run:
@@ -51,6 +52,7 @@ Use this checklist whenever you need to drive the protected MVP pipeline from th
   scripts/run_full_regression.ps1
   ```
 - Mac/Linux equivalent: `bash scripts/run_full_regression.sh [--skip-mvp]`. CMD wrapper: `scripts\run_full_regression.bat`.
+- UI smoke: `npm test` (Vitest) exercises dependency badges, manifest parsing, and artifact download helpers.
 
 ## 6. Troubleshooting
 - **Missing OpenAI credentials**: backend emits "Missing OPENAI_API_KEY"; export both variables and rerun.
@@ -59,10 +61,4 @@ Use this checklist whenever you need to drive the protected MVP pipeline from th
 - **Stale history**: delete `logs/ui_backend/data/run_history.json` to reset the list (artifacts remain safe under `logs/ui_backend/runs`).
 
 Keep this guide in sync when backend ports change or new governance requirements land.
-
-
-
-
-
-
 

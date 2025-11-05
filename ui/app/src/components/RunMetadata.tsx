@@ -1,4 +1,4 @@
-import { formatDuration, formatRelativeTime, formatUtc } from '../utils/time';
+﻿import { formatDuration, formatRelativeTime, formatUtc } from '../utils/time';
 import { formatFileSize } from '../utils/files';
 import type { RunSummary } from '../types/runs';
 import RunStatusBadge from './RunStatusBadge';
@@ -29,7 +29,14 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
     run.reasoningConfig?.level ??
     run.reasoningConfig?.intensity ??
     undefined;
-
+  const dependencyCount = run.summary?.dependencyCount;
+  const dependencyWarnings = run.summary?.dependencyWarnings ?? 0;
+  const dependencyLabel =
+    typeof dependencyCount === 'number'
+      ? `${dependencyCount}${dependencyWarnings > 0 ? ` (${dependencyWarnings} warning${dependencyWarnings > 1 ? 's' : ''})` : ''}`
+      : dependencyWarnings > 0
+        ? `${dependencyWarnings} warning${dependencyWarnings > 1 ? 's' : ''}`
+        : 'none reported';
 
   return (
     <header className="run-metadata">
@@ -40,8 +47,7 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
           <RunStatusBadge status={run.status} />
         </div>
         <p className="meta-line">
-          Started {formatRelativeTime(run.startedAt)} | Duration{' '}
-          {formatDuration(run.durationSeconds)}
+          Started {formatRelativeTime(run.startedAt)} | Duration {formatDuration(run.durationSeconds)}
         </p>
         {run.modelName && (
           <p className="meta-line">Model: {run.modelName}</p>
@@ -49,6 +55,9 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
         {reasoningLabel && (
           <p className="meta-line">Reasoning: {reasoningLabel}</p>
         )}
+        <p className={`meta-line${dependencyWarnings > 0 ? ' warning' : ''}`}>
+          Dependencies: {dependencyLabel}
+        </p>
         {hasExternalStl && (
           <p className="meta-line">
             External STL: {stlName ?? 'Attached'}
@@ -77,5 +86,3 @@ const RunMetadata = ({ run, onRerun, onDownloadLog, onDelete, rerunDisabled, del
 };
 
 export default RunMetadata;
-
-

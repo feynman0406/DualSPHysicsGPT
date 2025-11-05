@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- Wave tank with mDBC piston normals: reuses the motion file while activating a downstream damping zone to absorb outgoing waves. -->
 <case>
   <casedef>
     <constantsdef>

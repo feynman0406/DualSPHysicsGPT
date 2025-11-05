@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- 3D dam-break with mDBC boundaries: generates geometry at dp/2, writes normals, and runs a symplectic Wendland case with slip-mode 1 and density diffusion. -->
 <case>
   <casedef>
     <constantsdef>

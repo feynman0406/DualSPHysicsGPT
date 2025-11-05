@@ -40,6 +40,7 @@ class RunRecord:
     stage_checkpoints: List[RunStageStatus] = field(default_factory=list)
     metrics: List[ResourceUsageSnapshot] = field(default_factory=list)
     error: Optional[dict[str, Optional[str]]] = None
+    dependency_manifest: Optional[dict[str, object]] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -176,6 +177,7 @@ def _record_to_dict(record: RunRecord) -> dict[str, object]:
         "stage_checkpoints": [_serialize_stage(stage) for stage in record.stage_checkpoints],
         "metrics": [_serialize_metrics(snapshot) for snapshot in record.metrics],
         "error": record.error,
+        "dependency_manifest": record.dependency_manifest,
         "created_at": _serialize_datetime(record.created_at),
         "updated_at": _serialize_datetime(record.updated_at),
     }
@@ -205,6 +207,9 @@ def _dict_to_record(payload: dict[str, object]) -> RunRecord:
     elif raw_level is not None:
         reasoning_level = str(raw_level)
 
+    manifest_payload = payload.get("dependency_manifest")
+    dependency_manifest = manifest_payload if isinstance(manifest_payload, dict) else None
+
     return RunRecord(
         run_id=str(payload.get("run_id", "")),
         query=str(payload.get("query", "")),
@@ -221,6 +226,7 @@ def _dict_to_record(payload: dict[str, object]) -> RunRecord:
         stage_checkpoints=stages,
         metrics=metrics,
         error=payload.get("error"),
+        dependency_manifest=dependency_manifest,
         created_at=_parse_datetime(payload.get("created_at")) or _now(),
         updated_at=_parse_datetime(payload.get("updated_at")) or _now(),
     )
@@ -361,6 +367,7 @@ class HistoryStore:
         finished_at: Optional[datetime],
         exit_code: Optional[int],
         artifacts: Iterable[ProducedFile | StoredArtifact],
+        dependency_manifest: Optional[dict[str, object]] = None,
         error: Optional[dict[str, Optional[str]]] = None,
     ) -> None:
         materialized = [_as_stored_artifact(item) for item in artifacts]
@@ -370,6 +377,8 @@ class HistoryStore:
             record.finished_at = finished_at or record.finished_at
             record.exit_code = exit_code
             record.error = error
+            if dependency_manifest is not None:
+                record.dependency_manifest = dependency_manifest
             record.artifacts = materialized or record.artifacts
 
         self._mutate_run(run_id, mutator)

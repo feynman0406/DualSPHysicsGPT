@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+﻿import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '../api';
 
 const originalFetch = global.fetch;
@@ -60,3 +60,53 @@ describe('ApiClient createRun', () => {
     expect(form.get('externalStl')).toBeInstanceOf(File);
   });
 });
+describe('ApiClient getRun', () => {
+  it('parses dependency metadata and manifest', async () => {
+    const payload = {
+      runId: 'RUN-DEPS',
+      query: 'dependency demo',
+      status: 'success',
+      summary: {
+        artifactCount: 2,
+        dependencyCount: 3,
+        dependencyWarnings: 1,
+      },
+      dependencyManifest: {
+        run_id: 'RUN-DEPS',
+        generated_at: '2025-11-03T12:20:00Z',
+        files: [
+          {
+            path: 'logs/resources/asset.txt',
+            purpose: 'Config reference',
+            source: 'declared',
+            status: 'copied',
+            copied_path: 'external_files/logs/resources/asset.txt',
+            notes: ['copied successfully'],
+          },
+        ],
+        warnings: ['Missing backup asset'],
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(payload));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const run = await apiClient.getRun('RUN-DEPS');
+
+    expect(run.summary?.dependencyCount).toBe(3);
+    expect(run.summary?.dependencyWarnings).toBe(1);
+    expect(run.dependencyManifest?.runId).toBe('RUN-DEPS');
+    expect(run.dependencyManifest?.files).toHaveLength(1);
+    const file = run.dependencyManifest?.files?.[0];
+    expect(file?.copiedPath).toBe('external_files/logs/resources/asset.txt');
+    expect(file?.notes).toEqual(['copied successfully']);
+    expect(run.dependencyManifest?.warnings).toEqual(['Missing backup asset']);
+  });
+
+  it('builds dependency download URLs using the artifact endpoint', () => {
+    const url = apiClient.buildDependencyDownloadUrl('RUN-123', 'external_files/foo.stl');
+    const parsed = new URL(url);
+    expect(parsed.pathname).toContain('/api/runs/RUN-123/artifacts/download');
+    expect(parsed.searchParams.get('path')).toBe('external_files/foo.stl');
+  });
+});
+

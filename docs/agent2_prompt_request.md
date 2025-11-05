@@ -15,12 +15,14 @@ Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts
 4. Populate every required schema field; use null or defaults only when explicitly allowed and noted.
 5. Validate consistency (e.g., mkconfig counts vs. geometry commands) and surface unresolved issues in warnings if schema allows.
 6. When external STL metadata is provided, update the JSON to use the stored relative path and filename instead of placeholders (External.stl, Duck.stl, etc.) and emit a warning if the path is missing.
+7. Gather every external dependency referenced by Agent 1 or the user (STLs, normals, motion profiles, auxiliary data) and ensure each is represented in the `files` array with a repo-relative `path` and concise `purpose` description.
 
 ## Constraints and principles
+- Coordination log discipline: The prompt must instruct Agent 2 to read `docs/ui_integration/agent_coordination_log.md` before beginning work and to append an ISO-8601 Progress Timeline entry summarising results and dependencies before handing off.
 - Strict schema: no extra keys, types must match (numbers, booleans as specified).
 - In 2D layouts the geometry definition uses `pointmin.y = pointmax.y = 0` to trigger 2D mode, but every `fillbox` or `modefill` block must retain a non-zero `size.y` (for example `#Dp*2`) so particles are generated; never collapse the Y thickness to zero.
-- Fluid fillbox guardrails: whenever Agent 2 emits a `<setmkfluid>` block, ensure every child `<fillbox>` sets `<modefill>void</modefill>`, keeps its origin within the fluid bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and if `pointmin.y == pointmax.y` then set `fillbox.y` to that plane.
-- Place floating bodies under the top-level `floatings` list using simple `<floating>` nodes and mirror them in `casedef_children` by ensuring {"type": "section", "key": "floatings"} is present. Do not use `execution.special` for floaters; other floating-body mechanisms are out of scope. When references include Chrono couplings (`bodyfloating`, `schemescale`, etc.), omit them instead of copying them. Keep floatings minimal-emit exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child; no extra geometry or chrono helpers.
+- Fluid fillbox guardrails: whenever Agent 2 emits a `<setmkfluid>` block, ensure every child `<fillbox>` sets `<modefill>void</modefill>`, keeps its origin within the fluid bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and if `pointmin.y == pointmax.y` then set `fillbox.y` to that plane. The generator no longer hard-fails if the value differs, but `json_normalizer` will coerce it to `void` before XML is written¡Xtreat that as a safety net, not the default workflow.
+- Place floating bodies under the top-level `floatings` list using simple `<floating>` nodes and mirror them in `casedef_children` by ensuring {"type": "section", "key": "floatings"} is present. Do not use `execution.special` for floaters; other floating-body mechanisms are out of scope. When references include Chrono couplings (`bodyfloating`, `schemescale`, etc.), omit them instead of copying them. Keep floatings minimal¡Xemit exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child; no extra geometry or Chrono helpers.
 - Keep `casedef_children` aligned with every emitted top-level section so the generator plan stays synchronized.
 - Maintain ordering and structure mirroring references (e.g., geometry command order) unless geometry edits necessitate targeted replacements.
 - Avoid inventing unsupported physics features; follow Agent 1's instructions or state missing data.
@@ -35,8 +37,9 @@ Equip ChatGPT to draft the production prompt for the Stage 2 agent that converts
 Ask ChatGPT to return:
 - A system prompt for Agent 2 emphasising strict-schema compliance and minimal-change with geometry and water priorities.
 - A user message template that nests the user query, schema summary or identifier, and Agent 1 instructions.
-- A checklist or inference procedure describing how Agent 2 should apply geometry and water edits, honour preserve directives, and validate mkconfig or geometry consistency before emitting JSON.
+- A checklist or inference procedure describing how Agent 2 should apply geometry and water edits, honour preserve directives, validate mkconfig or geometry consistency, and ensure dependency coverage before emitting JSON.
 - Optional fallback or warning policy when required data is missing.
+- Explicit instructions mandating coordination-log updates (read on start, append ISO timestamped completion entry) and repo-relative `files` reporting for every external asset.
 Format output in Markdown with clear section headings.
 
 ## Tone and style expectations for the generated prompt
@@ -50,6 +53,7 @@ Format output in Markdown with clear section headings.
 - Confirms `casedef_children` enumerates every emitted section and adds {"type": "section", "key": "floatings"} whenever a floatings block is present.
 - Confirms Chrono-only data (e.g., `execution.special.chrono`, `bodyfloating`) is dropped rather than migrated into `floatings`, and that floatings stay minimal (exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child).
 - Confirms strict schema validation and error handling steps.
+- Confirms the prompt enforces repo-relative `files` entries for all dependencies and requires coordination-log start/finish updates.
 
 ## Ready-to-send ChatGPT request
 ```
@@ -64,16 +68,12 @@ Please deliver:
 Specification:
 - Minimal-change principle, but geometry shape and water-body definition from the user or Agent 1 are mandatory changes.
 - Strict adherence to `schemas/dualsphysics_config_schema.json` (no extra keys; correct types).
-- Mirror every emitted section in `casedef_children`; insert {"type": "section", "key": "floatings"} when floatings are present (after initials when available, otherwise immediately after geometry/normals). Skip any Chrono/`bodyfloating` nodes altogether and prefer the minimal floating format-mk attribute plus exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child.
+- Mirror every emitted section in `casedef_children`; insert {"type": "section", "key": "floatings"} when floatings are present (after initials when available, otherwise immediately after geometry/normals). Skip any Chrono/`bodyfloating` nodes altogether and prefer the minimal floating format¡Xmk attribute plus exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child.
 - Use Agent 1's `required_changes` to drive edits; keep other sections exactly as instructed.
+- Capture every external dependency in the `files` array using repo-relative paths and clear purposes, matching the assets Agent 1 highlighted.
+- Direct the agent to read `docs/ui_integration/agent_coordination_log.md` before starting and to append an ISO-8601 completion entry summarising changes, dependencies, and unresolved issues.
 - Emit warnings or TODO notes only in designated schema fields (or explain how to handle if none exist).
 - Style: engineering-focused, concise, reproducible.
 
-Format your response in Markdown with separate sections for system prompt, user template, checklist, and guardrails. Ensure the checklist explicitly calls out geometry and water handling, minimal-change enforcement, and schema validation.
+Format your response in Markdown with separate sections for system prompt, user template, checklist, and guardrails. Ensure the checklist explicitly calls out geometry and water handling, minimal-change enforcement, dependency reporting, coordination-log duties, and schema validation.
 ```
-
-
-
-
-
-

@@ -79,6 +79,41 @@ def test_normalize_nested_casedef_payload():
     # Check simulationdomain is also in the plan
     assert any(entry["type"] == "generic" and entry["spec"]["tag"] == "simulationdomain" for entry in param_plan)
 
+def test_normalize_dependency_files_sanitizes_inputs() -> None:
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
+            },
+            "commands": {
+                "mainlist": [
+                    {"setmkfluid": {"mk": 0}},
+                    {"drawbox": {"boxfill": "solid", "point": {"x": 0, "y": 0, "z": 0}}},
+                ]
+            },
+        },
+        "files": [
+            {"path": "data/sample.csv", "purpose": "fixture"},
+            {"path": "/tmp/global.dat"},
+            {"path": "../escape.txt"},
+        ],
+    }
+
+    result = normalize_case_config(payload)
+    dependency_files = result.dependency_files
+    assert dependency_files == [
+        {"path": "data/sample.csv", "purpose": "fixture", "source": "declared"}
+    ]
+    assert result.config.get("files") == dependency_files
+    warning_text = " ".join(result.warnings)
+    assert "absolute" in warning_text
+    assert "parent traversal" in warning_text
+
+
+
 def test_execution_special_sections_preserved_and_ordered():
     payload = {
         "constants": {"rhop0": {"value": 1000}},
@@ -446,6 +481,33 @@ def test_floatings_missing_descriptor_without_rhop_warns():
 
 
 
+
+def test_floatings_top_level_descriptor_migrated():
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "geometry": {
+            "definition": {
+                "dp": 0.02,
+                "pointmin": {"x": 0, "y": 0, "z": 0},
+                "pointmax": {"x": 1, "y": 0, "z": 1},
+            }
+        },
+        "floatings": [
+            {
+                "type": "floating",
+                "attributes": {"mkbound": 50},
+                "relativeweight": 0.5,
+            }
+        ],
+    }
+
+    result = normalize_case_config(payload)
+    floating = result.config["floatings"][0]
+    attrs = floating.get("attributes", {})
+    assert attrs.get("relativeweight") == 0.5
+    assert "relativeweight" not in floating
+    assert "rhopbody" not in attrs
+    assert not any("Added rhopbody" in warning for warning in result.warnings)
 def test_floatings_multiple_descriptors_prefers_massbody():
     payload = {
         "constants": {"rhop0": {"value": 1000}},
@@ -539,3 +601,35 @@ def test_normalize_fluid_fillbox_forces_void_and_coordinates() -> None:
     assert attrs.get("x") == 0.5
     assert attrs.get("y") == 0.3
     assert attrs.get("z") == 0.2
+
+def test_normalize_fluid_fillbox_collapsed_axis_sets_default_thickness() -> None:
+    payload = {
+        "constants": {"rhop0": {"value": 1000}},
+        "mkconfig": {"boundcount": 1, "fluidcount": 1},
+        "geometry": {
+            "definition": {
+                "dp": 0.01,
+                "pointmin": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "pointmax": {"x": 1.0, "y": 0.0, "z": 1.0},
+            },
+            "commands": {
+                "mainlist": [
+                    {"type": "setmkfluid", "attributes": {"mk": 0}},
+                    {
+                        "type": "fillbox",
+                        "attributes": {"x": 0.0, "y": 0.1, "z": 0.0},
+                        "children": [
+                            {"tag": "point", "vector": {"x": 0.0, "y": 0.0, "z": 0.0}},
+                            {"tag": "size", "vector": {"x": 0.5, "y": 0.05, "z": 0.5}},
+                            {"tag": "modefill", "text": "solid"},
+                        ],
+                    },
+                ]
+            },
+        },
+    }
+    result = normalize_case_config(payload)
+    commands = result.config["geometry"]["commands"]["children"][0]["children"]
+    fillbox = next(entry for entry in commands if entry.get("type") == "fillbox")
+    size_child = next(child for child in fillbox["children"] if child.get("tag") == "size")
+    assert size_child["vector"].get("y") == "2"

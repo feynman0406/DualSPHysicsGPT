@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -59,6 +60,20 @@ def _collect_produced_files(output_dir: Path, log_path: Path) -> List[ProducedFi
                 description = "Uploaded STL file"
         produced.append(ProducedFile(path=path, description=description))
     return produced
+
+
+def _load_dependency_manifest(manifest_path: Path) -> dict[str, object] | None:
+    if not manifest_path.exists():
+        return None
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Failed to read dependency manifest %s: %s", manifest_path, exc)
+        return None
+    if isinstance(data, dict):
+        return data
+    logger.warning("Dependency manifest at %s is not a JSON object", manifest_path)
+    return None
 
 
 def _build_command(request: RunRequest) -> List[str]:
@@ -289,6 +304,7 @@ def run_mvp(request: RunRequest, *, store: HistoryStore | None = None) -> RunRes
         history_store.update_stage(run_id, stage_map["post"])
 
     produced_files = _collect_produced_files(output_dir, log_path)
+    dependency_manifest = _load_dependency_manifest(output_dir / "dependency_manifest.json")
 
     post_finished = datetime.now(timezone.utc)
     post_state = StageState.COMPLETED.value
@@ -315,6 +331,7 @@ def run_mvp(request: RunRequest, *, store: HistoryStore | None = None) -> RunRes
             finished_at=post_finished,
             exit_code=completed.returncode,
             artifacts=produced_files,
+            dependency_manifest=dependency_manifest,
             error=_as_error_dict(error),
         )
 
@@ -331,15 +348,5 @@ def run_mvp(request: RunRequest, *, store: HistoryStore | None = None) -> RunRes
         error=error,
         stage_checkpoints=_stage_sequence(stage_map),
         metrics=metrics_snapshots,
+        dependency_manifest=dependency_manifest,
     )
-
-
-
-
-
-
-
-
-
-
-

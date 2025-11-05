@@ -120,10 +120,10 @@ class RunResponse:
     error: Optional[ErrorInfo] = None
     stage_checkpoints: List[RunStageStatus] = field(default_factory=list)
     metrics: List[ResourceUsageSnapshot] = field(default_factory=list)
+    dependency_manifest: Optional[dict[str, object]] = None
 
     @property
     def duration_seconds(self) -> float:
         """Return total elapsed time in seconds."""
 
         return (self.finished_at - self.started_at).total_seconds()
-

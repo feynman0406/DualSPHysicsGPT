@@ -1,3 +1,34 @@
+export interface DependencyFile {
+  path: string;
+  purpose?: string;
+  source?: string;
+  status?: string;
+  copiedPath?: string;
+  notes?: string[];
+  [key: string]: unknown;
+}
+
+export interface DependencyManifest {
+  runId?: string;
+  generatedAt?: string;
+  files: DependencyFile[];
+  warnings?: string[];
+  [key: string]: unknown;
+}
+
+export interface RunSummaryDetails {
+  primaryOutput?: string;
+  artifactCount?: number;
+  hasFailures?: boolean;
+  externalStl?: {
+    filename: string;
+    sizeBytes?: number;
+  } | null;
+  externalStlAttached?: boolean;
+  dependencyCount?: number;
+  dependencyWarnings?: number;
+}
+
 export type RunStatus = 'queued' | 'running' | 'success' | 'failed' | 'interrupted';
 
 export interface RunStepStatus {
@@ -21,16 +52,8 @@ export interface RunSummary {
   modelName?: string;
   reasoningLevel?: string;
   reasoningConfig?: Record<string, string>;
-  summary?: {
-    primaryOutput?: string;
-    artifactCount?: number;
-    hasFailures?: boolean;
-    externalStl?: {
-      filename: string;
-      sizeBytes?: number;
-    } | null;
-    externalStlAttached?: boolean;
-  };
+  summary?: RunSummaryDetails;
+  dependencyManifest?: DependencyManifest;
   stepStatus?: RunStepStatus[];
   stageCheckpoints?: RunStepStatus[];
 }

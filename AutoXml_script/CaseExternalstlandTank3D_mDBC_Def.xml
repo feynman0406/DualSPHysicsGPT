@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- 3D tank importing External.stl duck geometry twice (normals and particles) to float an mDBC body inside a boxed basin with water fill. -->
 <case>
     <casedef>
         <constantsdef>

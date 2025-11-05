@@ -5,16 +5,17 @@ Repository root: `C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT`.
 ## How to Use
 - Pick the block that matches the step you want the agent to own, replace placeholders (for example `<BRANCH_NAME>`), and send it as the only prompt.
 - Do not mix prompts; each block repeats the global constraints and is self-contained.
-- Keep `docs/ui_integration/progress_log.md` up to date and ensure agents attach test results with every handoff.
+- Keep `docs/ui_integration/progress_log.md` up to date and ensure agents attach test results with every handoff while maintaining `docs/ui_integration/agent_coordination_log.md` (read before starting, log ISO-8601 start/finish entries).
 
 ## Shared Agent Reminders
+- Read `docs/ui_integration/agent_coordination_log.md` before touching the repo, and append ISO-8601 start/finish entries (with dependency notes) to the Progress Timeline for every assignment.
 - In 2D scenarios the geometry is activated by keeping `geometry.definition.pointmin.y` and `pointmax.y` at `0`, but every `fillbox`/`void` command must still provide a finite thickness in `size.y` (for example `#Dp*2`). Collapsing the box to zero thickness removes all initial particles, so even purely 2D requests should emit 3D-sized boxes.
 
 - Force fluid fillboxes to stay valid: inside any `<setmkfluid>` block, always emit `<modefill>void</modefill>`, keep the fillbox origin inside its fluid definition bounds (`point.axis <= fillbox.axis <= point.axis + size.axis`), and when `pointmin.y == pointmax.y` (2D) snap `fillbox.y` to that plane.
 
 ## Kickoff Prompt
 ```
-You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT on branch <BRANCH_NAME>. Treat the following locations as read-only unless a later manifest explicitly allows changes: scripts/, chains/, logs/mvp/ (current contents), AutoXml_script/, api/, schemas/, CaseSloshingHR_Def_from_xml_out_direct/, Case_out/, metrics/, prompts/, rag/, tests/, tools/, and anything listed in docs/ui_integration/baseline_manifest.md. Never edit, move, or delete these assets. All new artifacts must live inside docs/ui_integration/, ui_backend/, ui/app/, tests/ui_backend/, ui/tests/, or other writable locations explicitly assigned in the phase prompts. Always run relevant tests before handoff, capture commands with summarized results, and update docs/ui_integration/progress_log.md when a phase ends. Do not check secrets into the repository.
+You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH\DualSPHysicsGPT on branch <BRANCH_NAME>. Treat the following locations as read-only unless a later manifest explicitly allows changes: scripts/, chains/, logs/mvp/ (current contents), AutoXml_script/, api/, schemas/, CaseSloshingHR_Def_from_xml_out_direct/, Case_out/, metrics/, prompts/, rag/, tests/, tools/, and anything listed in docs/ui_integration/baseline_manifest.md. Never edit, move, or delete these assets. All new artifacts must live inside docs/ui_integration/, ui_backend/, ui/app/, tests/ui_backend/, ui/tests/, or other writable locations explicitly assigned in the phase prompts. Always run relevant tests before handoff, capture commands with summarized results, update docs/ui_integration/progress_log.md when a phase ends, and log ISO-8601 start/finish entries (with dependency notes) in docs/ui_integration/agent_coordination_log.md. Do not check secrets into the repository.
 
 Acknowledge the constraints, list any clarifying questions, then wait for the phase-specific prompt before making changes.
 ```
@@ -26,6 +27,7 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: capture the exact behavior of the existing MVP CLI pipeline without modifying it.
 
 Before you begin:
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
 - Review README.md, TEST_MVP.md, and docs/MVP_USAGE.md to understand the official workflow.
 - Confirm the required environment variables from .env or user input.
 
@@ -35,13 +37,13 @@ Tasks:
 3. Produce integrity metadata (hashes, sizes, timestamps) for the captured artifacts.
 4. Document environment requirements in docs/ui_integration/env_matrix.md (variables, defaults, effects).
 5. Author docs/ui_integration/baseline_manifest.md listing every file/folder treated as immutable.
-6. Update docs/ui_integration/progress_log.md with a Phase 0 summary, verification steps, and open issues.
+6. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with a Phase 0 summary, verification steps, and open issues.
 
 Deliverables:
 - docs/ui_integration/baseline_manifest.md
 - docs/ui_integration/env_matrix.md
 - logs/mvp/reference_run/ (artifacts + mvp_run.log + checksum listing)
-- Updated docs/ui_integration/progress_log.md
+- Updated docs/ui_integration/progress_log.md (completion logged in docs/ui_integration/agent_coordination_log.md)
 
 Validation:
 - Provide the exact commands executed and a concise digest of hash outputs.
@@ -58,7 +60,8 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: expose the MVP CLI via a reusable wrapper/API layer without altering MVP source.
 
 Before you begin:
-- Read docs/ui_integration/baseline_manifest.md, env_matrix.md, and progress_log.md.
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
+- Read docs/ui_integration/baseline_manifest.md, env_matrix.md, progress_log.md, and docs/ui_integration/agent_coordination_log.md.
 - Re-run the MVP reference flow using Phase 0 instructions to ensure the environment works (do not edit outputs).
 
 Tasks:
@@ -67,13 +70,13 @@ Tasks:
 3. Create ui_backend/errors.py translating exit codes and stderr signatures into human-readable messages.
 4. Write tests/ui_backend/test_runner.py covering success paths (using the reference query) and failure paths (for example missing environment variable). Use temporary directories so MVP outputs stay untouched.
 5. Document the contract in docs/ui_integration/api_contract.md (interfaces, parameters, sample payloads, error behaviors).
-6. Update docs/ui_integration/progress_log.md with a Phase 1 summary, test commands, and outstanding questions.
+6. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with a Phase 1 summary, test commands, and outstanding questions.
 
 Deliverables:
 - ui_backend/runner.py, ui_backend/models.py, ui_backend/errors.py (and __init__.py if needed)
 - tests/ui_backend/test_runner.py
 - docs/ui_integration/api_contract.md
-- Updated docs/ui_integration/progress_log.md
+- Updated docs/ui_integration/progress_log.md (completion logged in docs/ui_integration/agent_coordination_log.md)
 - Supporting configuration updates if introduced (list them)
 
 Validation:
@@ -92,7 +95,8 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: produce the UX specification for the future UI.
 
 Before you begin:
-- Review docs/ui_integration/api_contract.md, baseline_manifest.md, env_matrix.md, and progress_log.md.
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
+- Review docs/ui_integration/api_contract.md, baseline_manifest.md, env_matrix.md, progress_log.md, and docs/ui_integration/agent_coordination_log.md.
 - Examine logs/mvp/reference_run/ outputs to understand available data.
 
 Tasks:
@@ -100,13 +104,13 @@ Tasks:
 2. Document component states in docs/ui_integration/ui_state_matrix.md (idle/running/success/failure per view).
 3. Define data contracts in docs/ui_integration/data_contracts.md with JSON examples or schema snippets for run summaries, log entries, metrics snapshots, and artifact metadata.
 4. Note any missing backend data that later phases must provide.
-5. Update docs/ui_integration/progress_log.md with a Phase 2 summary, decisions, and open issues.
+5. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with a Phase 2 summary, decisions, and open issues.
 
 Deliverables:
 - docs/ui_integration/wireframes.md (+ assets if relevant)
 - docs/ui_integration/ui_state_matrix.md
 - docs/ui_integration/data_contracts.md
-- Updated docs/ui_integration/progress_log.md
+- Updated docs/ui_integration/progress_log.md (completion logged in docs/ui_integration/agent_coordination_log.md)
 
 Validation:
 - Cross-check data contracts against Phase 1 API outputs; record expected extensions.
@@ -123,7 +127,8 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: build the front-end foundation that can trigger the MVP wrapper and display core results.
 
 Before you begin:
-- Review docs/ui_integration/wireframes.md, ui_state_matrix.md, data_contracts.md, api_contract.md, and progress_log.md.
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
+- Review docs/ui_integration/wireframes.md, ui_state_matrix.md, data_contracts.md, api_contract.md, progress_log.md, and docs/ui_integration/agent_coordination_log.md.
 - Ensure backend wrapper tests still pass (`pytest tests/ui_backend -q`).
 
 Tasks:
@@ -136,12 +141,12 @@ Tasks:
    - Artifact viewer for JSON/XML outputs from logs/mvp.
 4. Handle UI states per the specification, providing reasonable placeholders where backend data is not yet available.
 5. Write a smoke/E2E test under ui/tests/ (e.g., smoke.spec.ts) covering the baseline flow (stubbing API responses is acceptable).
-6. Update docs/ui_integration/progress_log.md with Phase 3 summary, integration notes, and gaps.
+6. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with Phase 3 summary, integration notes, and gaps.
 
 Deliverables:
 - ui/app/ source tree (with README and configuration files)
 - ui/tests/smoke.spec.ts (or equivalent)
-- Updated docs/ui_integration/progress_log.md
+- Updated docs/ui_integration/progress_log.md (completion logged in docs/ui_integration/agent_coordination_log.md)
 - Any new configuration (eslint, prettier, etc.)
 
 Validation:
@@ -160,7 +165,8 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: add execution monitoring, resource metrics, and run history while keeping the MVP untouched.
 
 Before you begin:
-- Review the latest backend/frontend code, api_contract.md, data_contracts.md, ui_state_matrix.md, and progress_log.md.
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
+- Review the latest backend/frontend code, api_contract.md, data_contracts.md, ui_state_matrix.md, progress_log.md, and docs/ui_integration/agent_coordination_log.md.
 - Run existing tests (pytest and frontend smoke) to ensure a clean baseline.
 
 Tasks:
@@ -177,12 +183,12 @@ Tasks:
    - Extend backend pytest coverage for history persistence and metrics fallback behavior (simulate missing nvidia-smi).
    - Update frontend tests to cover new UI states.
 4. Documentation:
-   - Update docs/ui_integration/data_contracts.md, ui_state_matrix.md, and progress_log.md for new fields or behaviors.
+   - Update docs/ui_integration/data_contracts.md, ui_state_matrix.md, progress_log.md, docs/ui_integration/agent_coordination_log.md for new fields or behaviors.
 
 Deliverables:
 - Updated ui_backend modules (runner changes, history_store.py, metrics.py, data configuration)
 - Updated ui/app/ components and associated tests
-- Updated docs/ui_integration/api_contract.md, data_contracts.md, ui_state_matrix.md, progress_log.md
+- Updated docs/ui_integration/api_contract.md, data_contracts.md, ui_state_matrix.md, progress_log.md, and docs/ui_integration/agent_coordination_log.md
 
 Validation:
 - Provide `pytest` output and frontend test results.
@@ -201,6 +207,7 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: harden testing, CI, and deployment so the UI layers coexist safely with the MVP pipeline.
 
 Before you begin:
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
 - Review the latest documentation and code produced through Phase 4.
 - Ensure existing tests pass (pytest, frontend suite).
 
@@ -210,13 +217,13 @@ Tasks:
 3. Write docs/ui_integration/deployment.md covering local development, staging/production deployment, environment variables, reverse proxy or service supervision, and optional Docker instructions if supplied.
 4. Create docs/ui_integration/rollback_plan.md referencing the baseline manifest, regression commands, and data backup steps.
 5. Perform a dry run following the deployment guide; capture logs or screenshots and store them under docs/ui_integration/assets/ (referenced from the guide).
-6. Update docs/ui_integration/progress_log.md with Phase 5 summary, test commands, and outstanding issues.
+6. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with Phase 5 summary, test commands, and outstanding issues.
 
 Deliverables:
 - CI workflow or scripts executing the combined pipeline
 - Lint/format configuration files (if added or updated)
 - docs/ui_integration/deployment.md and docs/ui_integration/rollback_plan.md (with assets if applicable)
-- Updated docs/ui_integration/progress_log.md
+- Updated docs/ui_integration/progress_log.md (completion logged in docs/ui_integration/agent_coordination_log.md)
 
 Validation:
 - Provide local output from the CI script/workflow run.
@@ -234,7 +241,8 @@ You are GPT-5 Codex working inside repository C:\Users\user\Desktop\Jiejiang SPH
 Phase objective: establish a repeatable improvement framework while protecting the MVP baseline.
 
 Before you begin:
-- Review all documentation produced in prior phases (api_contract.md, wireframes, state matrix, deployment guide, progress_log.md, etc.).
+- Read `docs/ui_integration/agent_coordination_log.md` before taking action, note prior decisions, and add an ISO-8601 kickoff entry covering goals/dependencies.
+- Review all documentation produced in prior phases (api_contract.md, wireframes, state matrix, deployment guide, progress_log.md, docs/ui_integration/agent_coordination_log.md, etc.).
 - Ensure regression scripts and tests from earlier phases run cleanly.
 
 Tasks:
@@ -244,7 +252,7 @@ Tasks:
    - .github/ISSUE_TEMPLATE/ui_task.md for new work requests.
    - .github/PULL_REQUEST_TEMPLATE/ui_changes.md referencing the contribution checklist and baseline manifest confirmation.
 4. Implement scripts/run_full_regression.sh (and scripts/run_full_regression.bat if Windows support is needed) that execute the MVP smoke command, backend pytest suite, and frontend tests; ensure the script exits on failure and logs outputs.
-5. Update docs/ui_integration/progress_log.md with governance notes, maintenance cadence, and escalation paths.
+5. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with governance notes, maintenance cadence, and escalation paths.
 6. Document any optional automation or telemetry hooks if relevant.
 
 Deliverables:
@@ -253,7 +261,7 @@ Deliverables:
 - .github/ISSUE_TEMPLATE/ui_task.md
 - .github/PULL_REQUEST_TEMPLATE/ui_changes.md
 - scripts/run_full_regression.sh (and .bat variant if provided)
-- Updated docs/ui_integration/progress_log.md
+- Updated docs/ui_integration/progress_log.md (completion logged in docs/ui_integration/agent_coordination_log.md)
 - Additional governance docs if added
 
 Validation:
@@ -283,12 +291,12 @@ Tasks:
 2. Reproduce the problem with the provided commands; capture fresh logs under logs/ui_backend/ or docs/ui_integration/ if needed.
 3. Implement the fix within writable directories only; adjust UI/backend code and tests as required.
 4. Run `scripts/run_full_regression.sh` (or `.ps1`/`.bat`). Use `--skip-mvp` only when OpenAI credentials are unavailable. Add any extra targeted tests or linters as appropriate.
-5. Update docs/ui_integration/progress_log.md with the investigation summary, tests executed, and residual risks. Add or revise backlog items if follow-up work is required.
+5. Update docs/ui_integration/progress_log.md (and append matching completion entry in docs/ui_integration/agent_coordination_log.md) with the investigation summary, tests executed, and residual risks. Add or revise backlog items if follow-up work is required.
 
 Deliverables:
 - Code and test updates inside allowed directories.
 - Optional supporting logs or artifacts demonstrating the fix.
-- Updated documentation (progress_log.md and backlog.md when applicable).
+- Updated documentation (progress_log.md, docs/ui_integration/agent_coordination_log.md, and backlog.md when applicable).
 
 Validation:
 - Provide condensed results of regression and targeted test commands.

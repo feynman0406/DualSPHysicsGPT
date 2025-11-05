@@ -9,7 +9,8 @@ from typing import Optional, Tuple
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
+from urllib.parse import quote
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from .history_store import HistoryStore, RunRecord, StoredArtifact
@@ -30,6 +31,17 @@ except Exception as exc:  # pragma: no cover - helper optional
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _RUN_OUTPUT_ROOT = _REPO_ROOT / "logs" / "ui_backend" / "runs"
 _PREVIEW_BYTE_LIMIT = 2 * 1024 * 1024  # 2 MiB safeguard for UI previews
+
+_BINARY_ARTIFACT_SUFFIXES = {
+    '.stl',
+    '.vtk',
+    '.vtp',
+    '.vtu',
+    '.vtm',
+    '.obj',
+    '.ply',
+}
+
 
 
 class CreateRunPayload(BaseModel):
@@ -300,6 +312,13 @@ def _serialize_resource(snapshot: ResourceUsageSnapshot) -> dict[str, object]:
     return _omit_none(payload)
 
 
+
+
+def _build_artifact_download_url(record: RunRecord, display_path: str) -> str:
+    query_path = Path(display_path).as_posix()
+    encoded_path = quote(query_path)
+    return f"/api/runs/{record.run_id}/artifacts/download?path={encoded_path}"
+
 def _serialize_artifact(record: RunRecord, artifact: StoredArtifact) -> dict[str, object]:
     resolved = _resolve_artifact_path(record, artifact.path)
     display_path = artifact.path
@@ -315,9 +334,15 @@ def _serialize_artifact(record: RunRecord, artifact: StoredArtifact) -> dict[str
                     display_path = str(resolved.relative_to(output_dir))
                 except ValueError:
                     display_path = str(resolved)
+            if size_bytes is not None and size_bytes > _PREVIEW_BYTE_LIMIT:
+                preview_available = False
         except OSError:
             preview_available = False
     else:
+        preview_available = False
+
+    suffix = Path(display_path).suffix.lower()
+    if suffix in _BINARY_ARTIFACT_SUFFIXES:
         preview_available = False
 
     payload = {
@@ -326,6 +351,7 @@ def _serialize_artifact(record: RunRecord, artifact: StoredArtifact) -> dict[str
         "label": artifact.description or Path(display_path).name,
         "sizeBytes": size_bytes,
         "previewAvailable": preview_available,
+        "downloadUrl": _build_artifact_download_url(record, display_path),
     }
     return _omit_none(payload)
 
@@ -337,10 +363,18 @@ def _serialize_summary(record: RunRecord) -> dict[str, object]:
         summary["primaryOutput"] = record.artifacts[0].path
     if record.error is not None:
         summary["hasFailures"] = True
+    manifest = record.dependency_manifest or {}
+    if isinstance(manifest, dict):
+        files = manifest.get("files")
+        if isinstance(files, list):
+            summary["dependencyCount"] = len(files)
+        warnings = manifest.get("warnings")
+        if isinstance(warnings, list) and warnings:
+            summary["dependencyWarnings"] = len(warnings)
     return summary
 
 
-def _serialize_run(record: RunRecord) -> dict[str, object]:
+def _serialize_run(record: RunRecord, *, include_manifest: bool = False) -> dict[str, object]:
     base = {
         "runId": record.run_id,
         "query": record.query,
@@ -370,6 +404,8 @@ def _serialize_run(record: RunRecord) -> dict[str, object]:
     stages = [_serialize_stage(stage) for stage in record.stage_checkpoints]
     if stages:
         payload["stageCheckpoints"] = stages
+    if include_manifest and isinstance(record.dependency_manifest, dict):
+        payload["dependencyManifest"] = record.dependency_manifest
     return payload
 
 
@@ -524,7 +560,21 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Run not found",
             )
-        return _serialize_run(record)
+        return _serialize_run(record, include_manifest=True)
+
+
+    @router.get("/{run_id}/dependencies")
+    def get_run_dependencies(run_id: str, history = Depends(get_store)):
+        record = history.get_run(run_id)
+        if record is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Run not found",
+            )
+        manifest = record.dependency_manifest
+        if not isinstance(manifest, dict) or not manifest:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        return manifest
 
 
     @router.delete("/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -578,6 +628,32 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
             for artifact in record.artifacts
         ]
 
+    @router.get("/{run_id}/artifacts/download")
+    def download_artifact(
+        run_id: str,
+        path: str = Query(..., description="Artifact path as returned by the listing endpoint"),
+        history = Depends(get_store),
+    ) -> FileResponse:
+        record = history.get_run(run_id)
+        if record is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+
+        resolved = _resolve_artifact_path(record, path)
+        if resolved is None or not resolved.exists() or not resolved.is_file():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
+
+        try:
+            return FileResponse(
+                resolved,
+                media_type="application/octet-stream",
+                filename=resolved.name,
+            )
+        except OSError as exc:
+            logger.exception("Failed to stream artifact %s for run %s", resolved, run_id)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    
+    
     @router.get("/{run_id}/artifacts/content", response_class=PlainTextResponse)
     def get_artifact_content(
         run_id: str,
@@ -587,11 +663,11 @@ def create_router(store: HistoryStore | None = None) -> APIRouter:
         record = history.get_run(run_id)
         if record is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
-
+    
         resolved = _resolve_artifact_path(record, path)
         if resolved is None or not resolved.exists() or not resolved.is_file():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
-
+    
         try:
             if resolved.stat().st_size > _PREVIEW_BYTE_LIMIT:
                 raise HTTPException(

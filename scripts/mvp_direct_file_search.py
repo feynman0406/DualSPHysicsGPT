@@ -20,7 +20,8 @@ import shutil
 import sys
 import time
 from contextlib import contextmanager, nullcontext
-from pathlib import Path
+from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath
 from typing import Dict, Any, List, Tuple, Optional, Set
 
 # Add parent directory to path
@@ -543,23 +544,27 @@ def agent_1_file_search(user_query: str, vector_store_id: str, external_stl: Opt
 
 {user_query}
 
-List the reference files you found and explain:
-1. Which example files are most relevant
-2. What key parameters/structures should be used from each
-3. What modifications are needed for this specific request
+For every candidate returned by file_search, report:
+1. Whether it satisfies the user's constraints (dimensionality, physics, boundary methods, floatings, etc.).
+2. The geometry domain details (pointmin/pointmax, tank extents, key drawbox/fillbox dimensions) and whether they already match the target scenario.
+3. The parameters/structures you would reuse verbatim, plus the exact edits needed for this request.
 
-For each candidate reference returned by file_search:
-- State whether it matches the user's constraints (e.g., dimensionality, physics, boundary methods).
-- Keep the references you deem relevant and explain how to adapt them.
-- If a candidate is not relevant, mention it briefly and explain why you are discarding it.
+Prefer the reference whose geometry domain already matches (or most closely matches) the requested case. Label it clearly as the primary minimal-change template and state why. If no reference matches directly, choose the closest fit, justify the choice, and spell out the domain edits required (how to adjust pointmin/pointmax, tank extents, or fillbox volume) so Agent 2 can recreate the field accurately.
 
-Explicitly call out floating bodies when they are required. If you keep a reference because of its floatings section or expect the final config to include floating bodies, tell Agent 2 to ensure {{"type": "section", "key": "floatings"}} is present in casedef_children. Skip this reminder when no floatings are needed. Keep floatings minimal-attributes plus optional mass/inertia only-and ignore Chrono-specific nodes such as `bodyfloating` or `schemescale`; do not migrate them into floatings."""
+For each kept reference include:
+- A short rationale for keeping it.
+- A domain summary covering geometry.definition bounds, tank shapes, and fluid fillboxes.
+- The key parameters/structures to copy, and the modifications Agent 2 must perform.
+
+Explicitly call out floating bodies when they are required. If you keep a reference because of its floatings section or expect the final config to include floating bodies, tell Agent 2 to ensure {{"type": "section", "key": "floatings"}} is present in casedef_children. Skip this reminder when no floatings are needed. Keep floatings minimal - attributes plus optional mass/inertia only - and ignore Chrono-specific nodes such as `bodyfloating` or `schemescale`; do not migrate them into floatings.
+
+Keep the kept reference list lean: cite only the references you actively rely on (ideally one or two). Skip citations for irrelevant matches."""
 
 
     messages = [
         {
             "role": "system",
-            "content": "You are a DualSPHysics expert. Analyze the user's request and find relevant configuration examples from the vector store. Review each candidate returned by file_search, decide whether it satisfies the user's constraints, keep the relevant ones, and briefly justify any you discard. Explain what you found and how it should be adapted. When floatings are part of your adaptation plan, tell Agent 2 that casedef_children must include {\"type\": \"section\", \"key\": \"floatings\"}. Skip this note when no floating bodies are needed. Keep floatings minimal (exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child) and ignore Chrono-specific nodes (e.g., `bodyfloating`, `schemescale`) instead of copying them into floatings.",
+            "content": "You are a DualSPHysics expert. Analyze the user's request and curate configuration examples from the vector store. For each candidate, decide whether it satisfies the constraints, document the geometry domain (pointmin/pointmax, tank extents, fillbox dimensions), and determine if it can serve as the primary minimal-change template. Keep the best-matching reference and label it clearly; for others, explain how they support additional aspects. If no reference matches directly, identify the closest fit and describe the exact domain edits needed so Agent 2 can reproduce the geometry accurately. When floatings are part of your adaptation plan, tell Agent 2 that casedef_children must include {\"type\": \"section\", \"key\": \"floatings\"}. Skip this note when no floating bodies are needed. Keep floatings minimal (exactly one of `rhopbody`, `relativeweight`, or a single `massbody` child) and ignore Chrono-specific nodes (e.g., `bodyfloating`, `schemescale`) instead of copying them into floatings. Only cite the minimal references you rely on (ideally one or two); avoid listing every retrieved file.",
         },
         {
             "role": "user",
@@ -847,10 +852,202 @@ def agent_2_generate_config(agent1_output: Dict[str, Any], schema_path: Path, ex
     return config_json
 
 
+
+def _safe_manifest_destination(base_dir: Path, relative_path: str) -> Path:
+    # Return a safe destination path under base_dir for a dependency file.
+    candidate = PurePosixPath(str(relative_path).strip())
+    if candidate.is_absolute() or ".." in candidate.parts:
+        return base_dir / candidate.name
+    converted = Path(*candidate.parts) if candidate.parts else Path(candidate.name)
+    return base_dir / converted
+
+
+def _relative_manifest_path(output_dir: Path, target: Path) -> str:
+    # Return target path relative to output_dir using POSIX separators when possible.
+    try:
+        return target.relative_to(output_dir).as_posix()
+    except ValueError:
+        return target.as_posix()
+
+
+def _collect_runtime_dependencies(
+    normalization: "NormalizationResult",
+    xml_text: str,
+    output_dir: Path,
+    external_stl: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    # Materialize runtime dependency manifest for the generated case.
+    timestamp = datetime.now(timezone.utc).isoformat()
+    manifest: Dict[str, Any] = {
+        "run_id": os.environ.get("MVP_RUN_ID"),
+        "generated_at": timestamp,
+        "files": [],
+        "warnings": [],
+    }
+    files_list: List[Dict[str, Any]] = manifest["files"]
+    warnings: List[str] = manifest["warnings"]
+
+    external_dir = output_dir / "external_files"
+    seen_paths: Set[str] = set()
+    copied_destinations: Set[Path] = set()
+
+    declared_files = getattr(normalization, "dependency_files", []) or []
+    for entry in declared_files:
+        path_value = entry.get("path")
+        if not isinstance(path_value, str):
+            continue
+        canonical = PurePosixPath(path_value).as_posix()
+        if canonical in seen_paths:
+            continue
+        seen_paths.add(canonical)
+
+        repo_path = (REPO_ROOT / canonical).resolve()
+        dest_path = _safe_manifest_destination(external_dir, canonical)
+        copied_rel: Optional[str] = None
+        status = "missing"
+        notes: List[str] = []
+
+        if repo_path.exists() and repo_path.is_file():
+            try:
+                if dest_path not in copied_destinations:
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(repo_path, dest_path)
+                    copied_destinations.add(dest_path)
+                copied_rel = _relative_manifest_path(output_dir, dest_path)
+                status = "copied"
+            except OSError as exc:
+                notes.append(f"copy failed: {exc}")
+                warnings.append(f"Failed to copy dependency '{canonical}': {exc}")
+        else:
+            warnings.append(f"Declared dependency '{canonical}' was not found in the repository")
+
+        manifest_entry = {k: v for k, v in entry.items() if k not in {"path", "purpose", "source", "notes"}}
+        manifest_entry.update({"path": canonical})
+        if entry.get("purpose"):
+            manifest_entry["purpose"] = entry["purpose"]
+        entry_notes = entry.get("notes")
+        if entry_notes:
+            manifest_entry["notes"] = entry_notes
+        manifest_entry.setdefault("source", "declared")
+        manifest_entry["status"] = status
+        if copied_rel:
+            manifest_entry["copied_path"] = copied_rel
+        if notes:
+            existing_notes = manifest_entry.get("notes")
+            if isinstance(existing_notes, list):
+                manifest_entry["notes"] = existing_notes + notes
+            elif existing_notes:
+                manifest_entry["notes"] = [existing_notes, *notes]
+            else:
+                manifest_entry["notes"] = notes
+        files_list.append(manifest_entry)
+
+    asset_names: List[str] = []
+    try:
+        from tools import exec as exec_tools  # pylint: disable=import-outside-toplevel
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        warnings.append(f"Unable to import tools.exec for dependency scan: {exc}")
+    else:
+        try:
+            asset_names, asset_warnings = exec_tools._collect_asset_paths(xml_text)  # type: ignore[attr-defined]
+        except Exception as exc:  # pragma: no cover - XML parse errors path is rare
+            warnings.append(f"Failed to inspect XML for auxiliary assets: {exc}")
+            asset_warnings = []
+        else:
+            warnings.extend(asset_warnings)
+
+    for asset_name in asset_names:
+        canonical = PurePosixPath(str(asset_name).strip()).as_posix()
+        if not canonical or canonical in seen_paths:
+            continue
+        seen_paths.add(canonical)
+
+        resolved_path: Optional[Path] = None
+        try:
+            from tools import exec as exec_tools  # type: ignore
+            resolved = exec_tools._resolve_asset_path(canonical)  # type: ignore[attr-defined]
+            if resolved:
+                resolved_path = Path(resolved)
+        except Exception:
+            resolved_path = None
+
+        dest_path = _safe_manifest_destination(external_dir, canonical)
+        copied_rel: Optional[str] = None
+        status = "missing"
+        notes: List[str] = []
+
+        if resolved_path and resolved_path.exists():
+            try:
+                if dest_path not in copied_destinations:
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(resolved_path, dest_path)
+                    copied_destinations.add(dest_path)
+                copied_rel = _relative_manifest_path(output_dir, dest_path)
+                status = "copied"
+            except OSError as exc:
+                notes.append(f"copy failed: {exc}")
+                warnings.append(f"Failed to copy XML-referenced asset '{canonical}': {exc}")
+        else:
+            warnings.append(f"XML-referenced asset '{canonical}' not found in search paths")
+
+        entry: Dict[str, Any] = {
+            "path": canonical,
+            "source": "xml",
+            "status": status,
+        }
+        if copied_rel:
+            entry["copied_path"] = copied_rel
+        if canonical.lower().endswith((".vtk", ".vtp", ".vtu", ".vtm", ".stl", ".obj")):
+            entry.setdefault("purpose", "Geometry asset referenced in XML")
+        if notes:
+            entry["notes"] = notes
+        files_list.append(entry)
+
+    stl_rel = None
+    stl_store = None
+    if external_stl:
+        stl_rel = external_stl.get("relative_path") or external_stl.get("relative-path")
+        stl_store = external_stl.get("stored_path") or external_stl.get("stored-path")
+    else:
+        stl_rel = os.environ.get("MVP_EXTERNAL_STL_REL_PATH")
+        stl_store = os.environ.get("MVP_EXTERNAL_STL_STORED_PATH")
+
+    if stl_rel:
+        canonical = PurePosixPath(str(stl_rel)).as_posix()
+        if canonical not in seen_paths:
+            seen_paths.add(canonical)
+            output_path = _safe_manifest_destination(output_dir, canonical)
+            status = "missing"
+            if output_path.exists():
+                status = "available"
+            elif stl_store and Path(stl_store).exists():
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    shutil.copy2(Path(stl_store), output_path)
+                    status = "copied"
+                except OSError as exc:
+                    warnings.append(f"Failed to copy external STL '{canonical}': {exc}")
+            entry = {
+                "path": canonical,
+                "purpose": "User-supplied STL geometry",
+                "source": "external_stl",
+                "status": status,
+                "copied_path": _relative_manifest_path(output_dir, output_path),
+            }
+            files_list.append(entry)
+
+    files_list.sort(key=lambda item: item.get("path", ""))
+
+    manifest_path = output_dir / "dependency_manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    return manifest
+
+
 def generate_xml_and_execute(
     config_json: Dict[str, Any],
     execute: bool = False,
     timer: Optional["PipelineTimer"] = None,
+    external_stl: Optional[Dict[str, str]] = None,
 ):
     """Generate XML from config and optionally execute GenCase."""
     from AutoXml_script.generate_xml import generate_case_xml
@@ -884,6 +1081,20 @@ def generate_xml_and_execute(
 
     print(f"XML generated ({len(xml)} chars)")
     print(f"  - Saved to: {xml_path}")
+
+    manifest = _collect_runtime_dependencies(
+        normalization=normalization,
+        xml_text=xml,
+        output_dir=output_dir,
+        external_stl=external_stl,
+    )
+    manifest_path = output_dir / "dependency_manifest.json"
+    print(f"Dependency manifest saved to: {manifest_path}")
+    manifest_warnings = manifest.get("warnings") or []
+    if manifest_warnings:
+        print(f"  - Dependency warnings: {len(manifest_warnings)}")
+        for warning in manifest_warnings[:3]:
+            print(f"    * {warning}")
 
     if execute:
         print_step(3, 3, "Executing GenCase...")
@@ -982,7 +1193,12 @@ def main():
         with timer.track("Agent 2: Config Generator"):
             config_json = agent_2_generate_config(agent1_output, schema_path, external_stl=external_stl_info)
 
-        generate_xml_and_execute(config_json, execute=args.execute, timer=timer)
+        generate_xml_and_execute(
+            config_json,
+            execute=args.execute,
+            timer=timer,
+            external_stl=external_stl_info,
+        )
 
         print_header("SUCCESS!")
         print("Generated files:")
@@ -1010,9 +1226,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-
-
-
-

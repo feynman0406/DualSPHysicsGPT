@@ -1,4 +1,4 @@
-.run-card {
+﻿.run-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -30,6 +30,14 @@
   font-size: 0.9rem;
 }
 
+.run-card-flags {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: -0.1rem 0 0.1rem;
+}
+
 .run-id {
   color: #475569;
 }
@@ -59,6 +67,7 @@
   font-weight: 600;
   color: #1f2937;
 }
+
 .run-stage-summary {
   display: flex;
   gap: 0.75rem;
@@ -106,15 +115,32 @@
   font-weight: 600;
 }
 
+.dependency-badge,
 .stl-badge {
-  margin-left: 0.5rem;
-  margin-right: 0.5rem;
-  background: #2563eb;
-  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   border-radius: 999px;
-  padding: 0.1rem 0.5rem;
+  padding: 0.15rem 0.55rem;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.05em;
+  line-height: 1;
 }
 
+.dependency-badge {
+  background: rgba(14, 116, 144, 0.12);
+  color: #0f172a;
+  border: 1px solid rgba(14, 116, 144, 0.2);
+}
+
+.dependency-badge.warning {
+  background: rgba(249, 115, 22, 0.18);
+  color: #9a3412;
+  border-color: rgba(249, 115, 22, 0.36);
+}
+
+.stl-badge {
+  background: #2563eb;
+  color: #ffffff;
+}

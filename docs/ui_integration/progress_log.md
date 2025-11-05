@@ -1,4 +1,4 @@
-# UI Integration Progress Log
+﻿# UI Integration Progress Log
 
 ## Phase 0 - Baseline Capture (2025-10-21)
 - Scope: Preserve the unmodified MVP CLI pipeline and record a reference execution for UI integration.
@@ -52,3 +52,10 @@
 - Validation: `.venv\Scripts\python.exe -m pytest tests/ui_backend/test_history_store.py::test_delete_run_removes_record tests/ui_backend/test_api.py::test_delete_run_endpoint_removes_history_and_outputs tests/ui_backend/test_api.py::test_delete_run_endpoint_returns_not_found -q` and `npm test` from `ui/app`.
 - Residual risks: Only single-run deletion is supported (no bulk UI affordance), deleting an actively running job relies on the user to avoid race conditions, and log directories outside the managed root are intentionally untouched.
 - 2025-10-22: Artifact viewer header adds a compact 'Copy preview' control so operators can copy the visible artifact text; it uses navigator.clipboard on secure contexts with a document.execCommand('copy') fallback that may fail when browsers block clipboard access outside HTTPS or localhost.
+## Phase 8 - Dependency Surfacing (2025-11-03)
+- Scope: Surface runtime dependency manifest data in the UI so operators can spot missing assets from the run list and download copied files from the detail view without shell access.
+- Implementation highlights: added dependency badges to run cards/metadata, rendered manifest summaries and warnings in the Overview panel, introduced a full dependency table with download links sourced from `/api/runs/{run_id}/artifacts/content`, and extended the API client/types/tests to parse camel-cased manifest fields.
+- Documentation: refreshed `docs/ui_integration/api_contract.md` to call out UI consumption of `dependencyCount`/`copied_path`, updated the usage guide with dependency review steps, and logged regression expectations.
+- Validation: `npm test` (Vitest smoke) plus manual inspection of run detail dependencies.
+- Follow-ups: consider diffing manifest files against historical baselines and surfacing missing-file remediation tips in the UI toast system.
+

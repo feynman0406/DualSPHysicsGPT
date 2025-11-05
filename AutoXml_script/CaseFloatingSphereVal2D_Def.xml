@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- Axisymmetric floating-body validation: fills a tall cylindrical tank, randomizes fluid particles, and adds a dense floating cylinder for heave response checks. -->
 <case>
   <casedef>
     <constantsdef>

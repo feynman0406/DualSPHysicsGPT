@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- Ren floating-wave validation: extruded wave flume with mDBC piston, Chrono-coupled rectangular floater, and second-order wave paddles. -->
 <case>
   <casedef>
     <constantsdef>

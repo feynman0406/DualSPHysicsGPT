@@ -6,13 +6,15 @@ This living note tracks high-severity mistakes observed when the UI MVP pipeline
 
 - Mistake: generating `<modefill>` values such as `solid` inside a fluid injection `<fillbox>`.
 - Why it matters: non-void fillboxes suppress inflow particles, breaking scenarios that rely on continuous fluid generation.
-- Detection guardrail: for every `<fillbox>` inside a `<setmkfluid>` block, assert `<modefill>void</modefill>` before emitting the XML.
-- Fix guidance: overwrite incoming `modefill` requests to `void` for fluid fillboxes and document the override in logs if the UI supplied something else.
+- Detection guardrail: `json_normalizer` now forces `<modefill>void</modefill>` on fluid fillboxes right before XML emission, so the generator no longer raises a validation error when a different value slips through.
+- Fix guidance: keep prompts instructing agents to emit `void`, and let the normalizer perform the final correction; when it rewrites a value, emit a log entry so the UI payload mismatch is traceable.
 - Prompt reminder:
 
 ```text
 When emitting <fillbox> inside a <setmkfluid> block, hardcode <modefill>void</modefill>. Never emit solid/any other value or leave it blank.
 ```
+
+Normalizing fallback: if a future change accidentally emits another value, the normalizer will coerce it to `void`; still fix the prompt/UI so the override is rarely triggered.
 
 ## Fillbox Coordinates Must Live Inside the Fluid Volume
 

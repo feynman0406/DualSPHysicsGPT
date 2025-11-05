@@ -53,3 +53,63 @@
   padding-left: 1rem;
   color: #475569;
 }
+
+.dependency-warnings {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #b45309;
+}
+
+.dependency-summary {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  color: #1f2937;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dependency-summary li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dependency-summary .purpose {
+  color: #475569;
+}
+
+.dependency-summary .muted {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.dependency-summary .status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(15, 23, 42, 0.08);
+  color: #1e293b;
+}
+
+.dependency-summary .status.status-missing {
+  background: rgba(239, 68, 68, 0.18);
+  color: #991b1b;
+}
+
+.dependency-summary .status.status-copied {
+  background: rgba(34, 197, 94, 0.18);
+  color: #166534;
+}
+
+.dependency-summary .status.status-available {
+  background: rgba(59, 130, 246, 0.18);
+  color: #1d4ed8;
+}
+

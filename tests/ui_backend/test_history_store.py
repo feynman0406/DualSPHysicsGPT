@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from ui_backend.history_store import HistoryStore, RunRecord, StoredArtifact
 from ui_backend.models import ResourceUsageSnapshot, RunStageStatus, StageState
 
@@ -63,12 +67,14 @@ def test_history_store_persists_runs(tmp_path: Path) -> None:
 
     artifact = StoredArtifact(path="logs/output.txt", description="combined log")
     store.append_artifacts(run_id, [artifact])
+    manifest = {"files": [{"path": "logs/output.txt", "status": "copied"}], "warnings": []}
     store.complete_run(
         run_id,
         status="success",
         finished_at=started,
         exit_code=0,
         artifacts=[artifact],
+        dependency_manifest=manifest,
     )
 
     reopened = HistoryStore(store_path)
@@ -79,6 +85,7 @@ def test_history_store_persists_runs(tmp_path: Path) -> None:
     assert stored.stage_checkpoints[-1].state == StageState.COMPLETED.value
     assert stored.artifacts[0].path == "logs/output.txt"
     assert stored.exit_code == 0
+    assert stored.dependency_manifest == manifest
 
 
 def test_delete_run_removes_record(tmp_path: Path) -> None:

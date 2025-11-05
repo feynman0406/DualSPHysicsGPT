@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- 3D dam-break using mDBC normals: parameterized tank and obstacle lists build boundary particles, export normals, and run a symplectic Wendland simulation with no-slip diffusion controls. -->
 <case>
   <casedef>
     <constantsdef>

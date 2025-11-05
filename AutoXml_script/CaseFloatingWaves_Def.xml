@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- Long wave flume with piston wavemaker, sloped bathymetry, and a rectangular floater to study wave-body interaction under mDBC normals. -->
 <case>
   <casedef>
     <constantsdef>

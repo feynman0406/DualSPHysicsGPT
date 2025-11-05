@@ -12,6 +12,7 @@ This guide documents the JSON structure accepted by AutoXml_script/generate_xml.
 | mkconfig | object | Optional. Accepts oundcount, luidcount, and an orientations list such as {"type": "bound", "mk": 0, "orient": "YxZ"} (see Guide p. 18). |
 | patterns | array<object> | Optional <patterns> catalogue including optional size, scale, gap, and order vectors. |
 | geometry | object | Required. Builds <geometry> including predefinition, definition, commands, objects (legacy), and extra. |
+| files | array<object> | Required whenever external assets exist. Each entry must specify a repo-relative `path` and a concise `purpose` so downstream manifests expose dependencies. |
 | normals | object | Optional. Mirrors geometry.normals; emit it whenever normals are needed (for example Boundary=2/mDBC) so XML includes a <normals> block matching the normalizer output. structured_meta captures generator hints such as auto-added flags. |
 | initials, floatings, motion | list or dict | Optional <initials>, <floatings>, <motion> blocks. Express floatings as simple `<floating>` entries with exactly one primary descriptor (`rhopbody`, `relativeweight`, or a single `massbody` child)¡Xdo not embed Chrono helpers like `bodyfloating` or geometry-building nodes (`shape`, `init`). |
 | casedef_extra | list | Appended verbatim under <casedef> for advanced features that lack first-class schema support. |
@@ -36,6 +37,10 @@ Any section that accepts "generic" nodes (constants, commands, initials, special
 `
 
 The builder automatically converts leftover scalar fields into attributes and nested dictionaries/lists into child nodes. This makes it straightforward to translate examples from the PDF directly into JSON.
+
+## Files Array
+
+Each `files` entry documents an external dependency that must ship with the generated case. Use repo-relative paths (for example `logs/mvp/uploads/<run_id>/paddle.stl`) so Stage 3's manifest collector can copy assets without guessing locations. Provide a short `purpose` label such as `external_geometry`, `motion_profile`, or `normals_archive` to explain why the file is required. Always populate the array when Agent 1 references external uploads or the run produces new artifacts.
 
 ## Geometry
 

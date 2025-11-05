@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
+<!-- Twin boxed tanks: replicates a fluid-and-obstacle layout twice, with the first applying a box damping volume and the second left undamped for comparison. -->
 <case>
   <casedef>
     <constantsdef>
