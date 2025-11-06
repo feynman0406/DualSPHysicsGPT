@@ -942,16 +942,16 @@ def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]
             size_vec[axis] = _stringify_plane(raw_size)
 
         plane_num = _coerce_float(plane_str)
+        plane_attr = _format_number(plane_num) if plane_num is not None else plane_str
         if plane_num is not None and thickness_num is not None:
             point_val = plane_num - thickness_num / 2.0
             point_str = _format_number(point_val)
-            attrs[axis] = point_str
             point_vec[axis] = point_str
         else:
             fallback_thickness = thickness_num if thickness_num is not None else _coerce_float(DEFAULT_COLLAPSED_AXIS_THICKNESS) or 1.0
             point_expr = _compose_offset_expression(plane_str, fallback_thickness / 2.0)
-            attrs[axis] = point_expr
             point_vec[axis] = point_expr
+        attrs[axis] = plane_attr
 
 def _enforce_drawextrude_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:
     children = node.get("children")

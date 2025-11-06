@@ -36,7 +36,18 @@ DUALSPHYSICS_BINARIES = (
 
 ALLOWED_COPY_MODES = {"off", "warn", "strict"}
 # Recognized data/geometry asset suffixes for dependency collection
-DATA_FILE_SUFFIXES = (".dat", ".txt", ".csv", ".vtk", ".vtp", ".vtu", ".vtm", ".stl", ".obj")
+DATA_FILE_SUFFIXES = (
+    ".dat",
+    ".txt",
+    ".csv",
+    ".vtk",
+    ".vtp",
+    ".vtu",
+    ".vtm",
+    ".stl",
+    ".obj",
+    ".xyz",
+)
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_ASSET_DIRS = [
     PROJECT_ROOT / "AutoXml_script" / "external_assets",
@@ -738,3 +749,5 @@ def run_dualsphysics(xml_str: str):
     if USE_DIRECT_EXEC:
         return _run_direct_exec(xml_str)
     return _run_headless_bat(xml_str)
+
+
