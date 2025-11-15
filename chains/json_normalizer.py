@@ -846,6 +846,11 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
             attrs[axis] = plane_str
             if original_point_value is None or (isinstance(original_point_value, str) and not original_point_value.strip()):
                 point_vec[axis] = plane_str
+            thickness_default = _coerce_float(DEFAULT_COLLAPSED_AXIS_THICKNESS)
+            if thickness_default is not None:
+                size_vec[axis] = _format_number(thickness_default)
+            else:
+                size_vec[axis] = DEFAULT_COLLAPSED_AXIS_THICKNESS
             continue
 
         allowed_min = min_bound - FILLBOX_OVERSHOOT_MARGIN
@@ -855,44 +860,41 @@ def _clamp_fillbox_to_volume(fillbox: Dict[str, Any], bounds: Dict[str, Tuple[fl
         size_num = _coerce_float(size_vec.get(axis))
         if size_num is None or size_num <= 0:
             continue
+        if size_num > allowed_span:
+            size_num = allowed_span
 
         point_num = _coerce_float(original_point_value)
+        attr_text = attrs.get(axis)
         if point_num is None:
-            point_num = _coerce_float(attrs.get(axis))
+            point_num = _coerce_float(attr_text)
         inferred_point = False
         if point_num is None:
             point_num = min_bound
             inferred_point = True
 
         start = point_num
-        start_changed = False
-
-        if size_num > allowed_span:
-            size_num = allowed_span
 
         if start < allowed_min:
+            shift = allowed_min - start
             start = allowed_min
-            start_changed = True
-
-        if start + size_num > allowed_max:
-            start = allowed_max - size_num
-            start_changed = True
-
-        if start < allowed_min:
-            start = allowed_min
-            start_changed = True
+            size_num = max(0.0, size_num - shift)
+        elif start > allowed_max:
+            start = allowed_max
+            size_num = 0.0
 
         end = start + size_num
         if end > allowed_max:
-            end = allowed_max
-            size_num = end - start
+            overflow = end - allowed_max
+            size_num = max(0.0, size_num - overflow)
+            end = start + size_num
 
         size_vec[axis] = _format_number(size_num)
 
-        if start_changed or inferred_point or original_point_value is None:
+        if inferred_point or original_point_value is None or start != point_num:
             formatted_start = _format_number(start)
             point_vec[axis] = formatted_start
-            attrs[axis] = formatted_start
+            if attr_text is None or (isinstance(attr_text, str) and not attr_text.strip()):
+                attrs[axis] = formatted_start
 
 
 def _enforce_fillbox_collapsed_axis(node: Dict[str, Any], planes: Dict[str, str]) -> None:

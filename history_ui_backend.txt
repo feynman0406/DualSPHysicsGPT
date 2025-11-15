@@ -1,0 +1,59 @@
+﻿
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2319:python -m ui_backend
+.server`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2321:python -m ui_backend
+.server`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2324:uvicorn "ui_backend.
+api:create_router" --factory --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2327:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2329:(base) PS C:\Users\u
+ser\Desktop\Jiejiang SPH\DualSPHysicsGPT> uvicorn ui_backend.server:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2339:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2345:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2348:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2351:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2355:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2358:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2361:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2366:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2369:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2373:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2376:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2379:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2382:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2385:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2388:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2391:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2394:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2397:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2400:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2407:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2410:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2413:uvicorn ui_backend.s
+erver:app --host 0.0.0.0 --port 8000`
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2416:git checkout -- ui_b
+ackend/data/run_history.json
+
+

@@ -1173,6 +1173,33 @@ def serialize_xml(root: ET.Element) -> str:
     return ET.tostring(root, pretty_print=True, xml_declaration=True, encoding="UTF-8").decode("utf-8")
 
 
+
+
+def _normalize_case_comments(values: Iterable[Any]) -> List[str]:
+    normalized: List[str] = []
+    for value in values:
+        if value is None:
+            continue
+        text_value = str(value).strip()
+        if not text_value:
+            continue
+        normalized.append(text_value.replace('--', '- -'))
+    return normalized
+
+
+def _inject_case_comments(xml_text: str, comments: Iterable[Any]) -> str:
+    normalized = _normalize_case_comments(comments)
+    if not normalized:
+        return xml_text
+    comment_block = "\n".join(f"<!-- {comment} -->" for comment in normalized)
+    if xml_text.startswith('<?xml'):
+        newline_index = xml_text.find("\n")
+        if newline_index == -1:
+            return f"{xml_text}\n{comment_block}\n"
+        prefix = xml_text[: newline_index + 1]
+        suffix = xml_text[newline_index + 1 :]
+        return f"{prefix}{comment_block}\n{suffix}"
+    return f"{comment_block}\n{xml_text}"
 def build_case_element(config: Dict[str, Any]) -> ET.Element:
     builder = CaseBuilder(config)
     return builder.build()
@@ -1424,8 +1451,19 @@ def generate_case_xml(config: Dict[str, Any], *, pretty: bool = True) -> str:
         details = "; ".join(errors)
         raise ValueError(f"Case validation failed: {details}")
     if pretty:
-        return serialize_xml(root)
-    return ET.tostring(root, encoding="unicode")
+        xml_text = serialize_xml(root)
+    else:
+        xml_text = ET.tostring(root, encoding="unicode")
+    case_comments = config.get("case_comments")
+    if case_comments:
+        if isinstance(case_comments, str):
+            comment_values = [case_comments]
+        elif isinstance(case_comments, Iterable):
+            comment_values = list(case_comments)
+        else:
+            comment_values = [case_comments]
+        xml_text = _inject_case_comments(xml_text, comment_values)
+    return xml_text
 
 def write_case(config_path: Path, output_path: Path) -> None:
     config = load_config(config_path)

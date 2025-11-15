@@ -1,0 +1,1305 @@
+{
+  "case_comments": [
+    "Single low-density box in a piston-driven 2D tank constrained by three MoorDynPlus lines."
+  ],
+  "constants": {
+    "gravity": {
+      "x": "0",
+      "y": "0",
+      "z": "-9.81",
+      "comment": "Gravitational acceleration",
+      "units_comment": "m/s^2",
+      "tag": "gravity"
+    },
+    "rhop0": {
+      "value": "1000",
+      "comment": "Reference density of the fluid",
+      "units_comment": "kg/m^3",
+      "tag": "rhop0"
+    },
+    "rhopgradient": {
+      "value": "3",
+      "comment": "Initial density gradient 1:Rhop0, 2:Water column, 3:Max. water height (default=2)",
+      "tag": "rhopgradient"
+    },
+    "hswl": {
+      "value": "0",
+      "auto": true,
+      "comment": "Maximum still water level to calculate speedofsound using coefsound",
+      "units_comment": "metres (m)",
+      "tag": "hswl"
+    },
+    "gamma": {
+      "value": "7",
+      "comment": "Polytropic constant for water used in the state equation",
+      "tag": "gamma"
+    },
+    "speedsystem": {
+      "value": "0",
+      "auto": true,
+      "comment": "Maximum system speed (by default the dam-break propagation is used)",
+      "tag": "speedsystem"
+    },
+    "coefsound": {
+      "value": "20",
+      "comment": "Coefficient to multiply speedsystem",
+      "tag": "coefsound"
+    },
+    "speedsound": {
+      "value": "0",
+      "auto": true,
+      "comment": "Speed of sound to use in the simulation (by default speedofsound=coefsound*speedsystem)",
+      "tag": "speedsound"
+    },
+    "coefh": {
+      "value": "1.2",
+      "comment": "Coefficient to calculate the smoothing length (h=coefh*sqrt(3*dp^2) in 3D)",
+      "tag": "coefh"
+    },
+    "cflnumber": {
+      "value": "0.2",
+      "comment": "Coefficient to multiply dt",
+      "tag": "cflnumber"
+    }
+  },
+  "mkconfig": {
+    "boundcount": "230",
+    "fluidcount": "9",
+    "orientations": [
+      {
+        "type": "fluid",
+        "mk": "0",
+        "orient": "Xyz"
+      }
+    ]
+  },
+  "geometry": {
+    "definition": {
+      "dp": "0.01",
+      "pointmin": {
+        "x": "-3.5",
+        "y": "0",
+        "z": "-0.5"
+      },
+      "pointmax": {
+        "x": "3.75",
+        "y": "0",
+        "z": "1"
+      },
+      "children": [
+        {
+          "tag": "pointref",
+          "vector": {
+            "x": "0",
+            "y": "0",
+            "z": "0"
+          }
+        }
+      ]
+    },
+    "commands": {
+      "children": [
+        {
+          "tag": "mainlist",
+          "children": [
+            {
+              "type": "setshapemode",
+              "text": "real | dp | bound"
+            },
+            {
+              "type": "comment",
+              "text": " Piston mk=10 "
+            },
+            {
+              "type": "setdrawmode",
+              "attributes": {
+                "mode": "full"
+              }
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "10"
+              }
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "solid"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-2.01",
+                    "y": "-1",
+                    "z": "-0.45"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "0.01",
+                    "y": "2",
+                    "z": "0.9"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "comment",
+              "text": " Tank mk=0 "
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "drawprism",
+              "attributes": {
+                "mask": "1 | 2 | 5 | 6 | 7"
+              },
+              "children": [
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "3",
+                    "y": "-1",
+                    "z": "0.5"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "1",
+                    "y": "-1",
+                    "z": "-0.45"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-2",
+                    "y": "-1",
+                    "z": "-0.45"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-2",
+                    "y": "-1",
+                    "z": "0.5"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "3",
+                    "y": "1",
+                    "z": "0.5"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "1",
+                    "y": "1",
+                    "z": "-0.45"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-2.5",
+                    "y": "1",
+                    "z": "-0.45"
+                  }
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-2.5",
+                    "y": "1",
+                    "z": "0.5"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "comment",
+              "text": " Floating box mk=50 "
+            },
+            {
+              "type": "setmkbound",
+              "attributes": {
+                "mk": "50"
+              }
+            },
+            {
+              "type": "drawbox",
+              "children": [
+                {
+                  "tag": "boxfill",
+                  "text": "solid"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-0.2",
+                    "y": "-1",
+                    "z": "-0.1"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "0.4",
+                    "y": "2",
+                    "z": "0.2"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "comment",
+              "text": " Fluid "
+            },
+            {
+              "type": "setmkfluid",
+              "attributes": {
+                "mk": "0"
+              }
+            },
+            {
+              "type": "fillbox",
+              "attributes": {
+                "x": "0.5",
+                "y": "0",
+                "z": "-0.2"
+              },
+              "children": [
+                {
+                  "tag": "modefill",
+                  "text": "void"
+                },
+                {
+                  "tag": "point",
+                  "vector": {
+                    "x": "-2.5",
+                    "y": "-1",
+                    "z": "-0.45"
+                  }
+                },
+                {
+                  "tag": "size",
+                  "vector": {
+                    "x": "7",
+                    "y": "2",
+                    "z": "0.45"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "shapeout",
+              "attributes": {
+                "file": "",
+                "reset": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "floatings": [
+    {
+      "text": " rhop = 500kg/m^3 ",
+      "type": "comment"
+    },
+    {
+      "mkbound": "50",
+      "relativeweight": "0.5",
+      "type": "floating"
+    }
+  ],
+  "motion": [
+    {
+      "ref": "10",
+      "children": [
+        {
+          "tag": "begin",
+          "mov": "1",
+          "start": "0"
+        },
+        {
+          "tag": "mvnull",
+          "id": "1"
+        }
+      ],
+      "type": "objreal"
+    }
+  ],
+  "casedef_children": [
+    {
+      "type": "section",
+      "key": "constants"
+    },
+    {
+      "type": "section",
+      "key": "mkconfig"
+    },
+    {
+      "type": "section",
+      "key": "geometry"
+    },
+    {
+      "type": "section",
+      "key": "floatings"
+    },
+    {
+      "type": "section",
+      "key": "motion"
+    }
+  ],
+  "execution": {
+    "children_order": [
+      "special",
+      "parameters"
+    ],
+    "wavepaddles": {
+      "entries": [
+        {
+          "tag": "piston",
+          "children": [
+            {
+              "tag": "mkbound",
+              "value": "10",
+              "comment": "Mk-Bound of selected particles"
+            },
+            {
+              "tag": "waveorder",
+              "value": "2",
+              "comment": "Order wave generation 1:1st order, 2:2nd order (def=1)"
+            },
+            {
+              "tag": "start",
+              "value": "0",
+              "comment": "Start time (def=0)"
+            },
+            {
+              "tag": "duration",
+              "value": "0",
+              "comment": "Movement duration, Zero is the end of simulation (def=0)"
+            },
+            {
+              "tag": "depth",
+              "value": "0.45",
+              "comment": "Fluid depth (def=0)"
+            },
+            {
+              "tag": "pistondir",
+              "x": "1",
+              "y": "0",
+              "z": "0",
+              "comment": "Movement direction (def=(1,0,0))"
+            },
+            {
+              "tag": "waveheight",
+              "value": "0.15",
+              "comment": "Wave height"
+            },
+            {
+              "tag": "waveperiod",
+              "value": "1.6",
+              "comment": "Wave period"
+            },
+            {
+              "tag": "phase",
+              "value": "0",
+              "comment": "Initial wave phase in function of PI (def=0)"
+            },
+            {
+              "tag": "ramp",
+              "value": "1",
+              "comment": "Periods of ramp (def=0)"
+            }
+          ]
+        }
+      ]
+    },
+    "special": [
+      {
+        "tag": "moorings",
+        "children": [
+          {
+            "tag": "savevtk_moorings",
+            "value": true,
+            "comment": "Saves vtk with moorings (default=true)"
+          },
+          {
+            "tag": "savevtk_lines",
+            "value": true,
+            "comment": "Saves vtk with mooring lines (default=true)"
+          },
+          {
+            "tag": "savecsv_points",
+            "value": true,
+            "comment": "Saves csv with link points (default=true)"
+          },
+          {
+            "tag": "savevtk_points",
+            "value": false,
+            "comment": "Saves vtk with link points (default=false)"
+          },
+          {
+            "tag": "mooredfloatings",
+            "children": [
+              {
+                "tag": "floating",
+                "mkbound": "50",
+                "comment": "Mkbound of the Floating body the mooring is linked to"
+              }
+            ]
+          },
+          {
+            "tag": "comment",
+            "text": " <moordynplus file=\"moordynplus.xml\" />  % Loads the configuration of the file indicates in attrtibute \"file\"  "
+          },
+          {
+            "tag": "moordynplus",
+            "comment": "MoorDynPlus configuration",
+            "text": "%Loads the next configuration",
+            "children": [
+              {
+                "tag": "solverOptions",
+                "children": [
+                  {
+                    "tag": "waterDepth",
+                    "value": "0.45",
+                    "comment": "Water depth",
+                    "units_comment": "m"
+                  },
+                  {
+                    "tag": "freesurface",
+                    "value": "0",
+                    "comment": "Z position of the water free surface.(default=0)"
+                  },
+                  {
+                    "tag": "kBot",
+                    "value": "3.0e6",
+                    "comment": "Bottom stiffness constant. (default=3.0e6)",
+                    "units_comment": "Pa/m"
+                  },
+                  {
+                    "tag": "cBot",
+                    "value": "3.0e5",
+                    "comment": "Bottom damping constant. (default=3.0e5)",
+                    "units_comment": "Pa*s/m"
+                  },
+                  {
+                    "tag": "dtM",
+                    "value": "0.001",
+                    "comment": "Desired mooring model time step. (default=0.0001)"
+                  },
+                  {
+                    "tag": "waveKin",
+                    "value": "0",
+                    "comment": "Wave kinematics flag ( 0: neglect [the only option currently supported] ). (default=0)"
+                  },
+                  {
+                    "tag": "writeUnits",
+                    "value": "yes",
+                    "comment": "Write units line. value=[yes|no]. (default=yes)"
+                  },
+                  {
+                    "tag": "frictionCoefficient",
+                    "value": "0",
+                    "comment": "General bottom friction coefficient, as a start. (default=0.0)"
+                  },
+                  {
+                    "tag": "fricDamp",
+                    "value": "200",
+                    "comment": "Damping coefficient used to model the friction with speeds near zero. (default=200.0)"
+                  },
+                  {
+                    "tag": "statDynFricScale",
+                    "value": "1.0",
+                    "comment": "Ratio between static and dynamic friction (mu_static/mu_dynamic). (default=1.0)"
+                  },
+                  {
+                    "tag": "dtIC",
+                    "value": "1.0",
+                    "comment": "Period to analyse convergence of dynamic relaxation for initial conditions. (default=1.0)",
+                    "units_comment": "s"
+                  },
+                  {
+                    "tag": "cdScaleIC",
+                    "value": "2",
+                    "comment": "Factor to scale drag coefficients during dynamic relaxation for initial conditions. (default=5)"
+                  },
+                  {
+                    "tag": "threshIC",
+                    "value": "0.001",
+                    "comment": "Convergence threshold for for initial conditions. (default=0.001)"
+                  },
+                  {
+                    "tag": "tmaxIC",
+                    "value": "1",
+                    "comment": "Maximum time for initial conditions without convergence.(default=0)",
+                    "units_comment": "s"
+                  }
+                ]
+              },
+              {
+                "tag": "bodies",
+                "children": [
+                  {
+                    "tag": "body",
+                    "ref": "50",
+                    "comment": "Floating driven structure to attach mooring lines."
+                  }
+                ]
+              },
+              {
+                "tag": "lines",
+                "children": [
+                  {
+                    "tag": "linedefault",
+                    "comment": "Shared properties for each line.",
+                    "children": [
+                      {
+                        "tag": "ea",
+                        "value": "2.9e3",
+                        "comment": "Line stiffness, product of elasticity modulus and cross-sectional area.",
+                        "units_comment": "N"
+                      },
+                      {
+                        "tag": "diameter",
+                        "value": "3.656e-3",
+                        "comment": "Volume-equivalent diameter of the line.",
+                        "units_comment": "m"
+                      },
+                      {
+                        "tag": "massDenInAir",
+                        "value": "0.0607",
+                        "comment": "Mass per unit length of the line.",
+                        "units_comment": "kg/m"
+                      },
+                      {
+                        "tag": "ba",
+                        "value": "-0.8",
+                        "comment": "Line internal damping (BA/-zeta). (default=-0.8)",
+                        "units_comment": "Ns"
+                      },
+                      {
+                        "tag": "can",
+                        "value": "1.0",
+                        "comment": "Transverse added mass coefficient (with respect to line displacement). (default=1.0)"
+                      },
+                      {
+                        "tag": "cat",
+                        "value": "0.0",
+                        "comment": "Tangential added mass coefficient (with respect to line displacement). (default=0.0)"
+                      },
+                      {
+                        "tag": "cdn",
+                        "value": "1.6",
+                        "comment": "Transverse drag coefficient (with respect to frontal area, d*l). (default=1.6)"
+                      },
+                      {
+                        "tag": "cdt",
+                        "value": "0.05",
+                        "comment": "Tangential drag coefficient (with respect to surface area, π*d*l). (default=0.05)"
+                      },
+                      {
+                        "tag": "outputFlags",
+                        "value": "p",
+                        "comment": "Node output properties.(default=-) [-:None|p:Positions|v:Telocities|U:Wave Velocities|t:Tension|D:Hydrodynamic Drag Force|c=Internal Damping|s:Strain of each segment|d: rate of strain of each segment]"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "line",
+                    "text": "%line 0",
+                    "children": [
+                      {
+                        "tag": "vesselconnection",
+                        "bodyref": "50",
+                        "x": "-0.2",
+                        "y": "0.0",
+                        "z": "-0.1"
+                      },
+                      {
+                        "tag": "fixconnection",
+                        "vector": {
+                          "x": "-0.4",
+                          "y": "0.0",
+                          "z": "-0.45"
+                        }
+                      },
+                      {
+                        "tag": "length",
+                        "value": "0.45",
+                        "comment": "Unstretched length.",
+                        "units_comment": "(m)"
+                      },
+                      {
+                        "tag": "segments",
+                        "value": "40"
+                      },
+                      {
+                        "tag": "breaktension",
+                        "value": "300",
+                        "comment": "Maximun value of tension for the lines. value=0 Break Tension is not used. (default=0)",
+                        "units_comment": "N"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "line",
+                    "text": "%line 1",
+                    "children": [
+                      {
+                        "tag": "vesselconnection",
+                        "bodyref": "50",
+                        "x": "0.2",
+                        "y": "0.0",
+                        "z": "-0.1"
+                      },
+                      {
+                        "tag": "fixconnection",
+                        "vector": {
+                          "x": "0.4",
+                          "y": "0.0",
+                          "z": "-0.45"
+                        }
+                      },
+                      {
+                        "tag": "length",
+                        "value": "0.45",
+                        "comment": "Unstretched length.",
+                        "units_comment": "(m)"
+                      },
+                      {
+                        "tag": "segments",
+                        "value": "40"
+                      },
+                      {
+                        "tag": "breaktension",
+                        "value": "350",
+                        "comment": "Maximun value of tension for the lines. value=0 Break Tension is not used. (default=0)",
+                        "units_comment": "N"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "tag": "savedata",
+                "comment": "Saves CSV with the connection properties.",
+                "children": [
+                  {
+                    "tag": "tension",
+                    "value": true,
+                    "comment": "Stores tensions at the connections.(default: value=false)"
+                  },
+                  {
+                    "tag": "force",
+                    "value": true,
+                    "comment": "Stores forces at the connections.(default: value=false)"
+                  },
+                  {
+                    "tag": "velocity",
+                    "value": true,
+                    "comment": "Stores velocities at the connections.(default: value=false)"
+                  },
+                  {
+                    "tag": "position",
+                    "value": true,
+                    "comment": "Stores positions at the connections.(default: value=false)"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "special_children": [
+      {
+        "type": "known",
+        "key": "wavepaddles",
+        "tag": "wavepaddles"
+      },
+      {
+        "type": "generic",
+        "spec": {
+          "tag": "moorings",
+          "children": [
+            {
+              "tag": "savevtk_moorings",
+              "value": true,
+              "comment": "Saves vtk with moorings (default=true)"
+            },
+            {
+              "tag": "savevtk_lines",
+              "value": true,
+              "comment": "Saves vtk with mooring lines (default=true)"
+            },
+            {
+              "tag": "savecsv_points",
+              "value": true,
+              "comment": "Saves csv with link points (default=true)"
+            },
+            {
+              "tag": "savevtk_points",
+              "value": false,
+              "comment": "Saves vtk with link points (default=false)"
+            },
+            {
+              "tag": "mooredfloatings",
+              "children": [
+                {
+                  "tag": "floating",
+                  "mkbound": "50",
+                  "comment": "Mkbound of the Floating body the mooring is linked to"
+                }
+              ]
+            },
+            {
+              "tag": "comment",
+              "text": " <moordynplus file=\"moordynplus.xml\" />  % Loads the configuration of the file indicates in attrtibute \"file\"  "
+            },
+            {
+              "tag": "moordynplus",
+              "comment": "MoorDynPlus configuration",
+              "text": "%Loads the next configuration",
+              "children": [
+                {
+                  "tag": "solverOptions",
+                  "children": [
+                    {
+                      "tag": "waterDepth",
+                      "value": "0.45",
+                      "comment": "Water depth",
+                      "units_comment": "m"
+                    },
+                    {
+                      "tag": "freesurface",
+                      "value": "0",
+                      "comment": "Z position of the water free surface.(default=0)"
+                    },
+                    {
+                      "tag": "kBot",
+                      "value": "3.0e6",
+                      "comment": "Bottom stiffness constant. (default=3.0e6)",
+                      "units_comment": "Pa/m"
+                    },
+                    {
+                      "tag": "cBot",
+                      "value": "3.0e5",
+                      "comment": "Bottom damping constant. (default=3.0e5)",
+                      "units_comment": "Pa*s/m"
+                    },
+                    {
+                      "tag": "dtM",
+                      "value": "0.001",
+                      "comment": "Desired mooring model time step. (default=0.0001)"
+                    },
+                    {
+                      "tag": "waveKin",
+                      "value": "0",
+                      "comment": "Wave kinematics flag ( 0: neglect [the only option currently supported] ). (default=0)"
+                    },
+                    {
+                      "tag": "writeUnits",
+                      "value": "yes",
+                      "comment": "Write units line. value=[yes|no]. (default=yes)"
+                    },
+                    {
+                      "tag": "frictionCoefficient",
+                      "value": "0",
+                      "comment": "General bottom friction coefficient, as a start. (default=0.0)"
+                    },
+                    {
+                      "tag": "fricDamp",
+                      "value": "200",
+                      "comment": "Damping coefficient used to model the friction with speeds near zero. (default=200.0)"
+                    },
+                    {
+                      "tag": "statDynFricScale",
+                      "value": "1.0",
+                      "comment": "Ratio between static and dynamic friction (mu_static/mu_dynamic). (default=1.0)"
+                    },
+                    {
+                      "tag": "dtIC",
+                      "value": "1.0",
+                      "comment": "Period to analyse convergence of dynamic relaxation for initial conditions. (default=1.0)",
+                      "units_comment": "s"
+                    },
+                    {
+                      "tag": "cdScaleIC",
+                      "value": "2",
+                      "comment": "Factor to scale drag coefficients during dynamic relaxation for initial conditions. (default=5)"
+                    },
+                    {
+                      "tag": "threshIC",
+                      "value": "0.001",
+                      "comment": "Convergence threshold for for initial conditions. (default=0.001)"
+                    },
+                    {
+                      "tag": "tmaxIC",
+                      "value": "1",
+                      "comment": "Maximum time for initial conditions without convergence.(default=0)",
+                      "units_comment": "s"
+                    }
+                  ]
+                },
+                {
+                  "tag": "bodies",
+                  "children": [
+                    {
+                      "tag": "body",
+                      "ref": "50",
+                      "comment": "Floating driven structure to attach mooring lines."
+                    }
+                  ]
+                },
+                {
+                  "tag": "lines",
+                  "children": [
+                    {
+                      "tag": "linedefault",
+                      "comment": "Shared properties for each line.",
+                      "children": [
+                        {
+                          "tag": "ea",
+                          "value": "2.9e3",
+                          "comment": "Line stiffness, product of elasticity modulus and cross-sectional area.",
+                          "units_comment": "N"
+                        },
+                        {
+                          "tag": "diameter",
+                          "value": "3.656e-3",
+                          "comment": "Volume-equivalent diameter of the line.",
+                          "units_comment": "m"
+                        },
+                        {
+                          "tag": "massDenInAir",
+                          "value": "0.0607",
+                          "comment": "Mass per unit length of the line.",
+                          "units_comment": "kg/m"
+                        },
+                        {
+                          "tag": "ba",
+                          "value": "-0.8",
+                          "comment": "Line internal damping (BA/-zeta). (default=-0.8)",
+                          "units_comment": "Ns"
+                        },
+                        {
+                          "tag": "can",
+                          "value": "1.0",
+                          "comment": "Transverse added mass coefficient (with respect to line displacement). (default=1.0)"
+                        },
+                        {
+                          "tag": "cat",
+                          "value": "0.0",
+                          "comment": "Tangential added mass coefficient (with respect to line displacement). (default=0.0)"
+                        },
+                        {
+                          "tag": "cdn",
+                          "value": "1.6",
+                          "comment": "Transverse drag coefficient (with respect to frontal area, d*l). (default=1.6)"
+                        },
+                        {
+                          "tag": "cdt",
+                          "value": "0.05",
+                          "comment": "Tangential drag coefficient (with respect to surface area, π*d*l). (default=0.05)"
+                        },
+                        {
+                          "tag": "outputFlags",
+                          "value": "p",
+                          "comment": "Node output properties.(default=-) [-:None|p:Positions|v:Telocities|U:Wave Velocities|t:Tension|D:Hydrodynamic Drag Force|c=Internal Damping|s:Strain of each segment|d: rate of strain of each segment]"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "line",
+                      "text": "%line 0",
+                      "children": [
+                        {
+                          "tag": "vesselconnection",
+                          "bodyref": "50",
+                          "x": "-0.2",
+                          "y": "0.0",
+                          "z": "-0.1"
+                        },
+                        {
+                          "tag": "fixconnection",
+                          "vector": {
+                            "x": "-0.4",
+                            "y": "0.0",
+                            "z": "-0.45"
+                          }
+                        },
+                        {
+                          "tag": "length",
+                          "value": "0.45",
+                          "comment": "Unstretched length.",
+                          "units_comment": "(m)"
+                        },
+                        {
+                          "tag": "segments",
+                          "value": "40"
+                        },
+                        {
+                          "tag": "breaktension",
+                          "value": "300",
+                          "comment": "Maximun value of tension for the lines. value=0 Break Tension is not used. (default=0)",
+                          "units_comment": "N"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "line",
+                      "text": "%line 1",
+                      "children": [
+                        {
+                          "tag": "vesselconnection",
+                          "bodyref": "50",
+                          "x": "0.2",
+                          "y": "0.0",
+                          "z": "-0.1"
+                        },
+                        {
+                          "tag": "fixconnection",
+                          "vector": {
+                            "x": "0.4",
+                            "y": "0.0",
+                            "z": "-0.45"
+                          }
+                        },
+                        {
+                          "tag": "length",
+                          "value": "0.45",
+                          "comment": "Unstretched length.",
+                          "units_comment": "(m)"
+                        },
+                        {
+                          "tag": "segments",
+                          "value": "40"
+                        },
+                        {
+                          "tag": "breaktension",
+                          "value": "350",
+                          "comment": "Maximun value of tension for the lines. value=0 Break Tension is not used. (default=0)",
+                          "units_comment": "N"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "tag": "savedata",
+                  "comment": "Saves CSV with the connection properties.",
+                  "children": [
+                    {
+                      "tag": "tension",
+                      "value": true,
+                      "comment": "Stores tensions at the connections.(default: value=false)"
+                    },
+                    {
+                      "tag": "force",
+                      "value": true,
+                      "comment": "Stores forces at the connections.(default: value=false)"
+                    },
+                    {
+                      "tag": "velocity",
+                      "value": true,
+                      "comment": "Stores velocities at the connections.(default: value=false)"
+                    },
+                    {
+                      "tag": "position",
+                      "value": true,
+                      "comment": "Stores positions at the connections.(default: value=false)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "parameters": {
+      "SavePosDouble": {
+        "value": "0",
+        "comment": "Saves particle position using double precision (default=0)"
+      },
+      "StepAlgorithm": {
+        "value": "2",
+        "comment": "Step Algorithm 1:Verlet, 2:Symplectic (default=1)"
+      },
+      "VerletSteps": {
+        "value": "40",
+        "comment": "Verlet only: Number of steps to apply Euler timestepping (default=40)"
+      },
+      "Kernel": {
+        "value": "2",
+        "comment": "Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)"
+      },
+      "ViscoTreatment": {
+        "value": "1",
+        "comment": "Viscosity formulation 1:Artificial, 2:Laminar+SPS, 3:Laminar (default=1)"
+      },
+      "Visco": {
+        "value": "0.01",
+        "comment": "Viscosity value. Typically 0.01 for Artificial and 1e-6 m^2/s (water kinematic viscosity) for Laminar"
+      },
+      "ViscoBoundFactor": {
+        "value": "0",
+        "comment": "Multiply viscosity value with boundary (default=1)"
+      },
+      "DensityDT": {
+        "value": "2",
+        "comment": "Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)"
+      },
+      "DensityDTvalue": {
+        "value": "0.1",
+        "comment": "DDT value (default=0.1)"
+      },
+      "Shifting": {
+        "value": "0",
+        "comment": "Shifting mode 0:None, 1:Ignore bound, 2:Ignore fixed, 3:Full (default=0)"
+      },
+      "ShiftCoef": {
+        "value": "-2",
+        "comment": "Coefficient for shifting computation (default=-2)"
+      },
+      "ShiftTFS": {
+        "value": "0",
+        "comment": "Threshold to detect free surface. Typically 1.5 for 2D and 2.75 for 3D (default=0)"
+      },
+      "RigidAlgorithm": {
+        "value": "1",
+        "comment": "Rigid Algorithm 0:collision-free, 1:SPH, 2:DEM, 3:Chrono (default=1)"
+      },
+      "FtPause": {
+        "value": "0.0",
+        "comment": "Time to freeze the floatings at simulation start (warmup) (default=0)",
+        "units_comment": "seconds"
+      },
+      "CoefDtMin": {
+        "value": "0.05",
+        "comment": "Coefficient to calculate minimum time step dtmin=coefdtmin*h/speedsound (default=0.05)"
+      },
+      "DtIni": {
+        "value": "0",
+        "comment": "Initial time step. Use 0 to default use (default=h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtMin": {
+        "value": "0",
+        "comment": "Minimum time step. Use 0 to default use (default=coefdtmin*h/speedsound)",
+        "units_comment": "seconds"
+      },
+      "DtFixed": {
+        "value": "0",
+        "comment": "Fixed Dt value. Use 0 to disable (default=disabled)",
+        "units_comment": "seconds"
+      },
+      "DtFixedFile": {
+        "value": "NONE",
+        "comment": "Dt values are loaded from file. Use NONE to disable (default=disabled)",
+        "units_comment": "milliseconds (ms)"
+      },
+      "DtAllParticles": {
+        "value": "0",
+        "comment": "Velocity of particles used to calculate DT. 1:All, 0:Only fluid/floating (default=0)"
+      },
+      "TimeMax": {
+        "value": "10",
+        "comment": "Time of simulation",
+        "units_comment": "seconds"
+      },
+      "TimeOut": {
+        "value": "0.02",
+        "comment": "Time out data",
+        "units_comment": "seconds"
+      },
+      "PartsOutMax": {
+        "value": "1",
+        "comment": "%/100 of fluid particles allowed to be excluded from domain (default=1)",
+        "units_comment": "decimal"
+      },
+      "RhopOutMin": {
+        "value": "700",
+        "comment": "Minimum rhop valid (default=700)",
+        "units_comment": "kg/m^3"
+      },
+      "RhopOutMax": {
+        "value": "1300",
+        "comment": "Maximum rhop valid (default=1300)",
+        "units_comment": "kg/m^3"
+      }
+    },
+    "parameters_order": [
+      "SavePosDouble",
+      "StepAlgorithm",
+      "VerletSteps",
+      "Kernel",
+      "ViscoTreatment",
+      "Visco",
+      "ViscoBoundFactor",
+      "DensityDT",
+      "DensityDTvalue",
+      "Shifting",
+      "ShiftCoef",
+      "ShiftTFS",
+      "RigidAlgorithm",
+      "FtPause",
+      "CoefDtMin",
+      "DtIni",
+      "DtMin",
+      "DtFixed",
+      "DtFixedFile",
+      "DtAllParticles",
+      "TimeMax",
+      "TimeOut",
+      "PartsOutMax",
+      "RhopOutMin",
+      "RhopOutMax"
+    ],
+    "parameters_children": [
+      {
+        "type": "parameter",
+        "key": "SavePosDouble"
+      },
+      {
+        "type": "parameter",
+        "key": "StepAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "VerletSteps"
+      },
+      {
+        "type": "parameter",
+        "key": "Kernel"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoTreatment"
+      },
+      {
+        "type": "parameter",
+        "key": "Visco"
+      },
+      {
+        "type": "parameter",
+        "key": "ViscoBoundFactor"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDT"
+      },
+      {
+        "type": "parameter",
+        "key": "DensityDTvalue"
+      },
+      {
+        "type": "parameter",
+        "key": "Shifting"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftCoef"
+      },
+      {
+        "type": "parameter",
+        "key": "ShiftTFS"
+      },
+      {
+        "type": "parameter",
+        "key": "RigidAlgorithm"
+      },
+      {
+        "type": "parameter",
+        "key": "FtPause"
+      },
+      {
+        "type": "parameter",
+        "key": "CoefDtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtIni"
+      },
+      {
+        "type": "parameter",
+        "key": "DtMin"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixed"
+      },
+      {
+        "type": "parameter",
+        "key": "DtFixedFile"
+      },
+      {
+        "type": "parameter",
+        "key": "DtAllParticles"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeMax"
+      },
+      {
+        "type": "parameter",
+        "key": "TimeOut"
+      },
+      {
+        "type": "parameter",
+        "key": "PartsOutMax"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMin"
+      },
+      {
+        "type": "parameter",
+        "key": "RhopOutMax"
+      },
+      {
+        "type": "generic",
+        "spec": {
+          "tag": "simulationdomain",
+          "comment": "Defines domain of simulation (default=Uses minimum and maximum position of the generated particles)",
+          "children": [
+            {
+              "tag": "posmin",
+              "x": "default",
+              "y": "default",
+              "z": "default",
+              "comment": "e.g.: x=0.5, y=default-1, z=default-10%"
+            },
+            {
+              "tag": "posmax",
+              "vector": {
+                "x": "default",
+                "y": "default",
+                "z": "default + 50%"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

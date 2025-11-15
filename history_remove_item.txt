@@ -1,0 +1,22 @@
+﻿
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:279:Remove-Item test_file
+.txt
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:917:Remove-Item -Recurse 
+-Force ./*
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:1899:python scripts/conve
+rt_xml_to_json.py; Remove-Item scripts/temp_convert.py; Get-ChildItem -Path data/design_corpus -Include *.xml.json -Rec
+urse | Remove-Item
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:1900:python scripts/conve
+rt_xml_to_json.py; Get-ChildItem -Path data/design_corpus -Include *.xml.json -Recurse | Remove-Item
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:1902:python scripts/safem
+ode_convert.py; Remove-Item scripts/convert_xml_to_json.py; Remove-Item scripts/temp_convert.py; Remove-Item scripts/sa
+femode_convert.py; Get-ChildItem -Path data/design_corpus -Include *.xml.json -Recurse | Remove-Item
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:1905:Remove-Item scripts/
+ingest_design.py; Remove-Item scripts/safemode_convert.py; Remove-Item scripts/final_ingest.py; Remove-Item scripts/fin
+al_ingest_v2.py
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2147:Remove-Item -Recurse
+ -Force AutoXml_script\config_library
+C:\Users\user\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt:2364:Remove-Item -Recurse
+ -Force .venv
+
+

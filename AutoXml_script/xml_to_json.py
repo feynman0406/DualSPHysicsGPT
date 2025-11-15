@@ -64,19 +64,19 @@ def _strip_xml_declaration(xml_text: str) -> str:
             return xml_text[:idx] + xml_text[end + 2:]
     return xml_text
 
-def _convert_value(text: str) -> Any:
-    value = text.strip()
-    if not value:
-        return ""
-    lowered = value.lower()
+def _convert_value(text: str, *, preserve_whitespace: bool = False) -> Any:
+    stripped = text.strip()
+    if not stripped:
+        return text if preserve_whitespace else ""
+    lowered = stripped.lower()
     if lowered in {"true", "false"}:
         return lowered == "true"
     # Return original string to preserve formatting like "1.20" vs "1.2"
-    return value
+    return text if preserve_whitespace else stripped
 
 
 def _convert_attrib(attributes: Dict[str, str]) -> Dict[str, Any]:
-    return {key: _convert_value(value) for key, value in attributes.items()}
+    return {key: _convert_value(value, preserve_whitespace=True) for key, value in attributes.items()}
 
 
 def _coerce_float(value: Any) -> Optional[float]:
